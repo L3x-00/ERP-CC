@@ -9,6 +9,7 @@ import type {
   CargaCapacidadDiaria,
   RecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
+import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
 
 afterEach(cleanup);
 
@@ -40,6 +41,7 @@ function carga(
   fecha: string,
   programadas: number,
   capacidad = 8,
+  reales = 0,
 ): CargaCapacidadDiaria {
   return {
     recursoId,
@@ -48,7 +50,7 @@ function carga(
     turno: 'jornada',
     horasCapacidad: capacidad,
     horasProgramadas: programadas,
-    horasReales: 0,
+    horasReales: reales,
     horasExceso: Math.max(0, programadas - capacidad),
     horasDisponibles: Math.max(0, capacidad - programadas),
     porcentajeOcupacion: capacidad === 0 ? 0 : (programadas / capacidad) * 100,
@@ -147,4 +149,91 @@ describe('VistaCargaEquipos', () => {
     );
     expect(screen.queryByTestId('resumen-carga-semanal')).toBeNull();
   });
+
+  it('muestra el equipo ocupado con orden, operador y tiempo transcurrido', () => {
+    render(
+      createElement(VistaCargaEquipos, {
+        cargas: CARGAS,
+        recursos: RECURSOS,
+        hoy: HOY,
+        procesos: [procesoEnMarcha()],
+      }),
+    );
+
+    const ocupado = screen.getByTestId('equipo-en-uso-LASER-01');
+    expect(ocupado.textContent).toContain('LASER-01 · Láser de fibra');
+    expect(ocupado.textContent).toContain('O-1126_09');
+    expect(ocupado.textContent).toContain('Ana Operadora');
+    expect(ocupado.textContent).toContain('Corte laser');
+    expect(ocupado.textContent).toContain('100/350');
+
+    // La matriz distingue el equipo en marcha del que solo tiene capacidad.
+    expect(screen.getByTestId('en-uso-LASER-01').textContent).toContain('En uso');
+    expect(screen.queryByTestId('en-uso-CNC-01')).toBeNull();
+  });
+
+  it('sin sesiones en marcha explica que no hay equipos en uso', () => {
+    renderizar();
+
+    expect(screen.getByTestId('ocupacion-equipos-vacio').textContent)
+      .toContain('Cuando un operador inicie una sesión');
+  });
+
+  it('las horas ya trabajadas descuentan el saldo libre del equipo', () => {
+    render(
+      createElement(VistaCargaEquipos, {
+        cargas: [carga('recurso-laser', HOY, 0, 8, 6)],
+        recursos: [RECURSOS[1]],
+        hoy: HOY,
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId('carga-modo-dia'));
+
+    // 8 h de capacidad − 0 pendientes − 6 h ya trabajadas = 2 h libres.
+    expect(screen.getByTestId('libre-LASER-01').textContent).toBe('2 h');
+  });
 });
+
+function procesoEnMarcha(): ProcesoEspacioOperador {
+  return {
+    id: 'proceso-laser',
+    folioOrden: 'O-1126_09',
+    clienteNombre: 'FORESTAM',
+    codigoPieza: 'IT01',
+    procesoNombre: 'Corte laser',
+    unidadMedida: 'unidad',
+    metaPiezas: 350,
+    hechoPiezas: 100,
+    fechaCompromiso: '2026-11-23',
+    horasEstimadas: 3,
+    programacion: {
+      id: 'programacion-laser',
+      fecha: '2026-11-18',
+      turno: 'matutino',
+      estadoPlaneacion: 'en_proceso',
+      horasEstimadas: 3,
+      recursoId: 'recurso-laser',
+      recursoCodigo: 'LASER-01',
+      recursoNombre: 'Láser de fibra',
+      actualizadoEn: '2026-11-18T15:00:00.000Z',
+    },
+    sesionActiva: {
+      id: 'sesion-laser',
+      operadorId: 'operador-ana',
+      operadorNombre: 'Ana Operadora',
+      estadoSesion: 'activa',
+      fechaInicio: '2026-11-18T16:25:00.000Z',
+      fechaFin: null,
+      pendienteActualizacionAvance: false,
+      sesionInvalida: false,
+      recursoLiberado: false,
+      piezasProducidas: 10,
+      horasNetas: 0,
+      motivoPausa: null,
+      motivoPausaNota: null,
+      notas: null,
+      verificacionCompleta: false,
+    },
+  } as unknown as ProcesoEspacioOperador;
+}

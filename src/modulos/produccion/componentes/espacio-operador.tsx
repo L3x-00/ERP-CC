@@ -561,6 +561,7 @@ export function EspacioOperador({
           recursos={recursosEquipos}
           hoy={hoy}
           error={cargaEquiposError}
+          procesos={procesos}
         />
       ) : filtrados.length === 0 ? (
         <p className="rounded-lg border border-borde bg-superficie p-8 text-center text-sm text-texto-secundario">

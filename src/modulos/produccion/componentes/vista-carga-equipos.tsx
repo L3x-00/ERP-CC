@@ -18,6 +18,8 @@ import {
   etiquetaDiaCorto,
   etiquetaDiaLargo,
 } from '@/modulos/produccion/utilidades/formato-operador';
+import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
+import { equiposEnUso, OcupacionEquipos } from './ocupacion-equipos';
 
 type ModoCarga = 'dia' | 'semana';
 
@@ -34,7 +36,14 @@ export interface PropsVistaCargaEquipos {
   error?: boolean;
   /** Fecha de negocio del operador; ancla la semana y el modo Día. */
   hoy: string;
+  /**
+   * Procesos del piso. Se usan solo para señalar qué equipos tienen una sesión
+   * en marcha y con qué orden; la capacidad sigue viniendo de la matriz.
+   */
+  procesos?: readonly ProcesoEspacioOperador[];
 }
+
+const SIN_PROCESOS: readonly ProcesoEspacioOperador[] = [];
 
 /**
  * Carga de equipos del panel del operador. Reutiliza la matriz Equipo × días de
@@ -50,9 +59,15 @@ export function VistaCargaEquipos({
   recursos,
   hoy,
   error = false,
+  procesos = SIN_PROCESOS,
 }: PropsVistaCargaEquipos) {
   const [modo, setModo] = useState<ModoCarga>('semana');
   const [diaActivo, setDiaActivo] = useState(hoy);
+
+  const recursosEnUso = useMemo(
+    () => new Set(equiposEnUso(procesos).map((equipo) => equipo.recursoId)),
+    [procesos],
+  );
 
   const dias = useMemo(
     () => Array.from({ length: 7 }, (_, indice) => sumarDias(inicioSemana(hoy), indice)),
@@ -105,6 +120,8 @@ export function VistaCargaEquipos({
           ))}
         </div>
       </header>
+
+      <OcupacionEquipos procesos={procesos} />
 
       {!error && modo === 'dia' ? (
         <div
@@ -160,10 +177,11 @@ export function VistaCargaEquipos({
           cargas={cargas}
           recursos={recursos}
           rango={rango}
+          recursosEnUso={recursosEnUso}
           titulo={modo === 'dia' ? 'Carga del día' : 'Carga semanal'}
           descripcion={modo === 'dia'
-            ? `Horas pendientes/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre es lo que resta ese día.`
-            : 'Horas pendientes/capacidad por equipo; la columna Libre es lo que resta en la semana.'}
+            ? `Horas pendientes/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre descuenta lo pendiente y lo ya trabajado.`
+            : 'Horas pendientes/capacidad por equipo; Libre descuenta lo pendiente y lo ya trabajado en la semana.'}
         />
       )}
     </section>

@@ -294,5 +294,12 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | Después de reanudar una pausa, la ficha mostraba «Actualizar avance y hora real» y al enviarlo fallaba; el operador sentía que no podía cerrar la sesión en marcha | Al reanudar se crea una sesión **activa** nueva y la pausa anterior queda como historial. Como `sesionCorreccionId` se inicializaba con `proceso.ultimaSesion` (la activa), el formulario de la pausa enviaba el id de la sesión activa y la RPC respondía `sesion_no_pausada`. Además, piezas y horas se prellenaban con 0 en vez de con lo ya declarado por la pausa | El formulario de avance se inicializa con la **pausa corregible más reciente** (nunca una sesión activa), y prefija piezas/horas desde esa misma pausa. En la ficha se oculta el motivo «Ya hay una sesión activa en este proceso» y el banner de reserva: el formulario de cierre ya está arriba y ambos datos son redundantes |
 
+## 23. La carga decía «Libre 8 h» aunque el equipo ya se había usado
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| En Carga (operador y administrador) el equipo mostraba `0/8 h` y «Libre 8 h» después de varias horas reales trabajadas en el día; no se veía qué equipo estaba en marcha ni con qué orden | La matriz calculaba `Libre = capacidad − pendientes`, y `pendientes` ya viene descontado de las horas reales (`horas_estimadas − horas_reales`). Al restar solo el pendiente, las horas ya trabajadas desaparecían del saldo y el equipo parecía libre otra vez | `Libre = max(0, capacidad − pendientes − horas_reales)` en `construirMatrizCargaSemanal`; el saldo refleja la jornada ya consumida. Además, `VistaCargaEquipos` recibe los procesos del piso y muestra «Equipos en uso ahora» (folio, cliente, proceso, operador, hora de inicio, cronómetro y avance) y marca la fila del equipo con «En uso». No se agregan consultas: se deriva del mismo espacio del operador que pinta el Kanban |
+
+
 
 
