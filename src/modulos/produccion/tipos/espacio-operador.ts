@@ -530,6 +530,11 @@ export interface AccionTarjeta {
  * una orden que aún no se libera, ni reclamar un proceso ya tomado.
  */
 export function accionPrincipal(proceso: ProcesoEspacioOperador): AccionTarjeta {
+  // Un proceso tomado por otro operador se consulta, no se opera: aunque tenga
+  // sesión activa o pausa, la tarjeta no ofrece acciones a quien no lo reclamó.
+  if (proceso.reclamo && !proceso.reclamadoPorMi) {
+    return { tipo: 'bloqueada', etiqueta: 'Tomado', deshabilitada: true };
+  }
   if (proceso.sesionActiva) {
     return { tipo: 'sesion', etiqueta: 'Registrar cierre', deshabilitada: false };
   }

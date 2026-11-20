@@ -221,7 +221,8 @@ export function TarjetaOrdenOperador({
                         {sesionPausada.motivoPausaNota}
                       </p>
                     ) : null}
-                    {(representante.puedeReanudar || representante.pendienteActualizacionAvance)
+                    {representante.reclamadoPorMi
+                      && (representante.puedeReanudar || representante.pendienteActualizacionAvance)
                       && (onReanudar || onCerrarPausa || onActualizarAvance) ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {representante.pendienteActualizacionAvance && onActualizarAvance ? (
@@ -261,7 +262,8 @@ export function TarjetaOrdenOperador({
                           </Button>
                         ) : null}
                       </div>
-                    ) : !representante.puedeReanudar
+                    ) : representante.reclamadoPorMi
+                      && !representante.puedeReanudar
                       && !representante.pendienteActualizacionAvance ? (
                       <p className="text-[10px] text-texto-secundario">
                         Periodo cerrado: conserva sus horas y no requiere cierre.

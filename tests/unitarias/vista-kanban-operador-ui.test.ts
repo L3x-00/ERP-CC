@@ -8,6 +8,23 @@ import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-
 
 afterEach(cleanup);
 
+function reclamoDe(operadorId = 'operador-1') {
+  return {
+    id: 'reclamo-1',
+    ordenId: 'orden-1',
+    partidaId: 'partida-1',
+    metaProcesoId: 'meta-1',
+    programacionId: null,
+    operadorId,
+    fecha: '2026-10-26',
+    turno: 'matutino',
+    horasEstimadas: 0.25,
+    estado: 'activo',
+    creadoEn: '2026-10-26T08:00:00.000Z',
+    actualizadoEn: '2026-10-26T08:00:00.000Z',
+  };
+}
+
 function proceso(
   sobrescribir: Partial<ProcesoEspacioOperador> = {},
 ): ProcesoEspacioOperador {
@@ -146,6 +163,9 @@ describe('VistaKanbanOperador agrupada por orden', () => {
             id: 'sesion-pausada',
             estadoSesion: 'pausada',
           },
+          reclamo: reclamoDe(),
+          reclamadoPorMi: true,
+          nombreReclamante: 'Ana Operadora',
           puedeReanudar: true,
         }),
       ],
@@ -176,6 +196,9 @@ describe('VistaKanbanOperador agrupada por orden', () => {
         id: 'partida-1:meta-1',
         columna: 'actualizar_avance',
         pendienteActualizacionAvance: true,
+        reclamo: reclamoDe(),
+        reclamadoPorMi: true,
+        nombreReclamante: 'Ana Operadora',
         ultimaSesion: {
           id: 'sesion-pausada',
           operadorId: 'operador-1',
@@ -208,6 +231,52 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(columna.textContent).toContain('avance pendiente');
     expect(columna.querySelector('[data-testid="actualizar-avance-proceso-partida-1:meta-1"]')).toBeTruthy();
     expect(columna.querySelector('[data-testid="reanudar-proceso-partida-1:meta-1"]')).toBeNull();
+    expect(columna.textContent).not.toContain('Cerrar pausa');
+  });
+
+  it('no ofrece acciones de pausa en un proceso tomado por otro operador', () => {
+    render(createElement(VistaKanbanOperador, {
+      procesos: [proceso({
+        id: 'partida-1:meta-1',
+        columna: 'actualizar_avance',
+        pendienteActualizacionAvance: true,
+        reclamo: reclamoDe('operador-otro'),
+        reclamadoPorMi: false,
+        nombreReclamante: 'Ana Operadora',
+        ultimaSesion: {
+          id: 'sesion-pausada',
+          operadorId: 'operador-otro',
+          operadorNombre: 'Ana Operadora',
+          estadoSesion: 'pausada',
+          fechaInicio: '2026-10-26T08:00:00.000Z',
+          fechaFin: '2026-10-26T17:00:00.000Z',
+          pendienteActualizacionAvance: true,
+          sesionInvalida: false,
+          recursoLiberado: false,
+          piezasProducidas: 0,
+          horasNetas: 9,
+          motivoPausa: 'FIN_JORNADA',
+          motivoPausaNota: null,
+          notas: null,
+          verificacionCompleta: true,
+        },
+      })],
+      hoy: '2026-10-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+      onReanudar: vi.fn(),
+      onCerrarPausa: vi.fn(),
+      onActualizarAvance: vi.fn(),
+    }));
+
+    const columna = screen.getByTestId('columna-actualizar_avance');
+    expect(columna.textContent).toContain('Tomado por Ana Operadora');
+    expect(columna.textContent).toContain('avance pendiente');
+    expect(columna.querySelector('[data-testid="actualizar-avance-proceso-partida-1:meta-1"]')).toBeNull();
+    expect(columna.querySelector('[data-testid="reanudar-proceso-partida-1:meta-1"]')).toBeNull();
+    expect(columna.querySelector('[data-testid="cerrar-pausa-proceso-partida-1:meta-1"]')).toBeNull();
+    expect(columna.textContent).not.toContain('Continuar sesión');
     expect(columna.textContent).not.toContain('Cerrar pausa');
   });
 });
