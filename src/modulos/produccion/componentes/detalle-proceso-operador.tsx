@@ -72,6 +72,7 @@ import {
   etiquetaFechaHora,
   horasBloquePausa,
   horasLegibles,
+  maximoHorasVisiblesBloque,
   tamanoLegible,
   textoCompromiso,
   turnoLegible,
@@ -2803,7 +2804,7 @@ export function DetalleProcesoOperador({
                     <input
                       type="number"
                       min="0"
-                      max={maximoHorasBloque ?? 24}
+                      max={maximoHorasVisiblesBloque(maximoHorasBloque) ?? 24}
                       step="any"
                       value={avanceHoras}
                       onChange={(evento) => setAvanceHoras(evento.target.value)}

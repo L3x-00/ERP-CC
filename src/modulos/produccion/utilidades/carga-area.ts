@@ -68,21 +68,28 @@ export function resumirAreaCarga(
   procesos: readonly ProcesoEspacioOperador[],
   recursoId: string,
   fecha: string,
+  hoy: string,
 ): DetalleAreaCarga {
   const delRecurso = procesos.filter(
     (proceso) => proceso.programacion?.recursoId === recursoId,
   );
   if (delRecurso.length === 0) return DETALLE_VACIO;
 
-  const procesoActual = delRecurso.find(
-    (proceso) => proceso.sesionActiva !== null,
-  ) ?? null;
+  // C31/A7: «Ocupado ahora» solo vale para el día de negocio actual. Consultar
+  // un día pasado no debe reetiquetar una sesión antigua como ocupación vigente.
+  const procesoActual = fecha === hoy
+    ? delRecurso.find((proceso) => (
+      proceso.sesionActiva !== null
+      && fechaLocalNegocio(new Date(proceso.sesionActiva.fechaInicio)) === hoy
+    )) ?? null
+    : null;
 
   const vistas = new Set<string>();
   const sesionesCerradas: SesionTrabajadaArea[] = [];
   for (const proceso of delRecurso) {
     for (const sesion of proceso.sesiones ?? []) {
-      if (sesion.estadoSesion === 'activa' || vistas.has(sesion.id)) continue;
+      // C31/A7: una pausa no es una sesión cerrada del día.
+      if (sesion.estadoSesion !== 'finalizada' || vistas.has(sesion.id)) continue;
       if (fechaLocalNegocio(new Date(sesion.fechaInicio)) !== fecha) continue;
       vistas.add(sesion.id);
       sesionesCerradas.push({ sesion, proceso });

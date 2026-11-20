@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   duracionLegible,
   horasBloquePausa,
+  maximoHorasVisiblesBloque,
 } from '@/modulos/produccion/utilidades/formato-operador';
 
 describe('horasBloquePausa', () => {
@@ -34,6 +35,18 @@ describe('horasBloquePausa', () => {
       fechaInicio: '2026-11-18T11:00:00.000Z',
       fechaFin: '2026-11-18T09:00:00.000Z',
     })).toBeNull();
+  });
+});
+
+describe('maximoHorasVisiblesBloque', () => {
+  it('nunca devuelve 0 para un bloque de menos de un minuto', () => {
+    expect(maximoHorasVisiblesBloque(0)).toBeCloseTo(1 / 60, 10);
+    expect(maximoHorasVisiblesBloque(0)).toBeGreaterThan(0);
+  });
+
+  it('conserva el techo real cuando hay minutos completos y no inventa uno sin fecha', () => {
+    expect(maximoHorasVisiblesBloque(1.5)).toBe(1.5);
+    expect(maximoHorasVisiblesBloque(null)).toBeUndefined();
   });
 });
 

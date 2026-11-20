@@ -372,3 +372,15 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | El panel «Salud de la orden» listaba 11 inconsistencias pero solo ofrecía acción para `pausa_huerfana`, y aun así solo si `esAdmin` era verdadero. Un gerente con permiso real no veía la acción | El mapeo código→acción estaba hardcodeado en el componente y la puerta usaba el rol `admin` en vez del permiso `gestionar_produccion` que exige la RPC | `diagnostico-servicio.ts` define `GUIAS_DIAGNOSTICO` con las 11 guías (acción concreta, permiso y destino). El panel muestra un botón o enlace con texto exacto para cada código y, si falta permiso, dice quién debe actuar. La pausa huérfana se ofrece a admin o a cualquier actor con `gestionar_produccion`; la reapertura exige `gestionar_planeacion`. Prueba: `tests/unitarias/c31-a6-diagnostico-accionable.test.ts` |
+
+## 36. «Ocupado ahora» en fechas pasadas y pausas como cerradas (A7)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El detalle de carga mostraba «Ocupado ahora» al consultar un día anterior y listaba sesiones pausadas como trabajo cerrado del día | `resumirAreaCarga` buscaba cualquier `sesionActiva` del recurso sin comparar su fecha de negocio con el día consultado, y trataba toda sesión no activa como cerrada | La función recibe explícitamente `hoy`: `procesoActual` solo se devuelve si el día consultado es hoy y la sesión activa empezó hoy; `sesionesCerradas` exige `estadoSesion === "finalizada"` y la fecha de negocio del día consultado. Prueba: `tests/unitarias/c31-a7-carga-area.test.ts` |
+
+
+## 37. Bloque de menos de un minuto con `max={0}` (A8)
+
+| Síntoma | Causa real | Regla |
+| Al corregir el avance de una pausa muy corta, el campo «Tiempo real de este bloque» quedaba con tope 0 y no se podía usar | `horasBloquePausa` trunca a minutos completos para no superar la duración real; un bloque de 45 s daba 0 h y el input recibía `max={0}` | `maximoHorasVisiblesBloque` devuelve 1/60 h como techo visible cuando el bloque es menor a un minuto, sin inventar tiempo real; el texto sigue diciendo «menos de 1 min». Prueba: `tests/unitarias/formato-operador-bloque.test.ts` |

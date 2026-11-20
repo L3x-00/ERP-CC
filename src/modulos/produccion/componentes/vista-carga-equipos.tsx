@@ -88,9 +88,9 @@ export function VistaCargaEquipos({
   const recursoAbierto = recursos.find((recurso) => recurso.id === recursoAbiertoId) ?? null;
   const detalleAbierto = useMemo(
     () => (recursoAbiertoId
-      ? resumirAreaCarga(procesos, recursoAbiertoId, fechaDetalle)
+      ? resumirAreaCarga(procesos, recursoAbiertoId, fechaDetalle, hoy)
       : null),
-    [procesos, recursoAbiertoId, fechaDetalle],
+    [procesos, recursoAbiertoId, fechaDetalle, hoy],
   );
   const capacidadAbierta = useMemo(
     () => (recursoAbiertoId
