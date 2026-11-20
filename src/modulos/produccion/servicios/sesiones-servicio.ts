@@ -101,6 +101,10 @@ export type CodigoErrorProduccion =
   | 'sin_permiso_reabrir_operacion'
   | 'operacion_no_bloqueada'
   | 'sesion_pendiente'
+  | 'sin_permiso_reasignar'
+  | 'partida_con_sesion_activa'
+  | 'operador_asignado_distinto'
+  | 'partida_inexistente'
   | 'motivo_no_liberable'
   | 'pausa_reciente'
   | 'programacion_no_liberable'
@@ -266,6 +270,10 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sin_permiso_reabrir_operacion',
   'operacion_no_bloqueada',
   'sesion_pendiente',
+  'sin_permiso_reasignar',
+  'partida_con_sesion_activa',
+  'operador_asignado_distinto',
+  'partida_inexistente',
   'motivo_no_liberable',
   'pausa_reciente',
   'programacion_no_liberable',
@@ -751,6 +759,14 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La operación ya no está bloqueada; actualiza la vista antes de volver a intentarlo.';
     case 'sesion_pendiente':
       return 'Hay una sesión activa o pausada en esta operación. Ciérrala antes de reabrir.';
+    case 'sin_permiso_reasignar':
+      return 'No tienes permiso para reasignar responsables de partida.';
+    case 'partida_con_sesion_activa':
+      return 'La partida tiene una sesión en curso o pausada; ciérrala antes de reasignar.';
+    case 'operador_asignado_distinto':
+      return 'Esa petición ya reasignó la partida a otro operador. Recarga la página y vuelve a intentarlo.';
+    case 'partida_inexistente':
+      return 'La partida ya no existe; actualiza la orden antes de reasignar.';
     case 'motivo_no_liberable':
       return 'El motivo de la pausa no libera la máquina; no se puede reclamar desde aquí.';
     case 'pausa_reciente':

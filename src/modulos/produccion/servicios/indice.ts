@@ -127,6 +127,9 @@ export type {
 export { reabrirOperacionBloqueadaServicio } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 export type { ReaperturaOperacion } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 
+export { reasignarPartidaServicio } from '@/modulos/produccion/servicios/reasignar-partida-servicio';
+export type { ReasignacionPartida } from '@/modulos/produccion/servicios/reasignar-partida-servicio';
+
 export { obtenerConsumosMaterialOrdenServicio } from '@/modulos/produccion/servicios/consumos-orden-servicio';
 export type { ConsumoMaterialOrden } from '@/modulos/produccion/servicios/consumos-orden-servicio';
 

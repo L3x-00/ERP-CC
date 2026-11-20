@@ -1,7 +1,21 @@
 import type { ReclamacionRecurso } from '@/modulos/produccion/servicios/corridas-servicio';
 import type { ReaperturaOperacion } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
+import type { ReasignacionPartida } from '@/modulos/produccion/servicios/reasignar-partida-servicio';
 import { etiquetaFechaHoraNegocio } from '@/modulos/produccion/utilidades/formato-operador';
 import type { AvisoSupervision } from '@/modulos/produccion/tipos/espacio-operador';
+
+/** C31/A4: texto exacto al reasignar el responsable de una partida. */
+export function mensajeReasignacionPartida(
+  resultado: ReasignacionPartida,
+  partidaCodigo: string,
+): string {
+  const actor = resultado.reasignadaPorNombre ?? 'administración';
+  const nuevo = resultado.operadorNombre ?? 'el operador elegido';
+  if (resultado.yaAplicado) {
+    return `${partidaCodigo} ya había sido reasignada a ${nuevo} por ${actor}. No se registró ningún cambio nuevo.`;
+  }
+  return `${partidaCodigo} reasignada a ${nuevo} por ${actor}. ${resultado.reclamosLiberados} reclamo(s) anterior(es) se cerraron.`;
+}
 
 /** C31/A2: texto exacto al reabrir una operación bloqueada sin sesión. */
 export function mensajeReaperturaOperacion(

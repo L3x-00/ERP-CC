@@ -2553,6 +2553,9 @@ export type Database = {
           procesos: string[]
           propuesta_item_id: string | null
           proveedor_externo: string | null
+          reasignada_correlation_id: string | null
+          reasignada_en: string | null
+          reasignada_por: string | null
           tiempo_estimado_minutos: number
           tiempo_real_minutos: number
           unidad_medida: string
@@ -2580,6 +2583,9 @@ export type Database = {
           procesos?: string[]
           propuesta_item_id?: string | null
           proveedor_externo?: string | null
+          reasignada_correlation_id?: string | null
+          reasignada_en?: string | null
+          reasignada_por?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
           unidad_medida: string
@@ -2607,6 +2613,9 @@ export type Database = {
           procesos?: string[]
           propuesta_item_id?: string | null
           proveedor_externo?: string | null
+          reasignada_correlation_id?: string | null
+          reasignada_en?: string | null
+          reasignada_por?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
           unidad_medida?: string
@@ -7412,6 +7421,15 @@ export type Database = {
           p_actor_id: string
           p_correlation_id?: string
           p_programacion_id: string
+        }
+        Returns: Json
+      }
+      reasignar_partida_operador: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_operador_nuevo: string
+          p_partida_id: string
         }
         Returns: Json
       }

@@ -61,6 +61,7 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
         usuarioActualId={usuario.id}
         esAdmin={usuario.rol === 'admin'}
         puedeReabrirOperacion={await can(usuario, 'gestionar_planeacion')}
+        puedeReasignar={await can(usuario, 'gestionar_produccion')}
         ordenInicialId={ordenInicialId}
       />
     </div>
