@@ -1228,6 +1228,34 @@ describe('DetalleProcesoOperador', () => {
 
 });
 
+  it('bloquea el cierre y ofrece liberar la primera pieza cuando la corrida la exige', () => {
+    const conPrimeraPendiente = {
+      ...proceso,
+      sesionActiva: { ...proceso.sesionActiva, primeraPiezaPendiente: true },
+    } as typeof proceso;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conPrimeraPendiente,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('bloqueo-primera-pieza-cierre').textContent)
+      .toContain('Falta liberar la primera pieza para poder finalizar');
+    expect((screen.getByTestId('cerrar-sesion-detalle') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId('liberar-primera-pieza-desde-cierre')).toBeTruthy();
+  });
+
 describe('actualizar avance: cierre visual sin PIN', () => {
   const sesionPausada = {
     id: 'sesion-pausada',

@@ -2631,10 +2631,39 @@ export function DetalleProcesoOperador({
                     />
                   </label>
 
+                  {estadoDestino === 'finalizada' && primeraPiezaPendiente ? (
+                    <div
+                      className="flex flex-col gap-2 rounded-md border border-advertencia/50 bg-advertencia-suave p-3"
+                      data-testid="bloqueo-primera-pieza-cierre"
+                    >
+                      <p className="text-sm font-semibold text-advertencia-texto">
+                        Falta liberar la primera pieza para poder finalizar
+                      </p>
+                      <p className="text-xs text-texto-secundario">
+                        La corrida de {proceso.procesoNombre} exige una inspección de primera pieza
+                        aprobada. Regístrala aquí: el cierre se reintenta solo con los datos que ya
+                        capturaste, sin perder el consumo ni la hora.
+                      </p>
+                      <Button
+                        type="button"
+                        tamano="sm"
+                        data-testid="liberar-primera-pieza-desde-cierre"
+                        onClick={() => {
+                          setMensaje(null);
+                          setMensajePrimeraPieza(null);
+                          setReintentarCierreTrasPrimeraPieza(true);
+                          setPrimeraPiezaAbierta(true);
+                        }}
+                      >
+                        Liberar primera pieza y reintentar cierre
+                      </Button>
+                    </div>
+                  ) : null}
+
                   <Button
                     type="submit"
                     tamano="lg"
-                    disabled={procesando}
+                    disabled={procesando || (estadoDestino === 'finalizada' && primeraPiezaPendiente)}
                     data-testid="cerrar-sesion-detalle"
                   >
                     {estadoDestino === 'pausada'
@@ -3081,7 +3110,9 @@ export function DetalleProcesoOperador({
         <DialogHeader>
           <DialogTitle>Falta liberar la primera pieza</DialogTitle>
           <DialogDescription>
-            El cierre se bloqueó para no declarar producción sin la revisión de la primera pieza.
+            El cierre se bloqueó porque la corrida de {proceso.procesoNombre} exige una inspección de
+            primera pieza aprobada. Regístrala aquí y el cierre se reintenta solo con los datos que
+            ya capturaste.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 text-sm text-texto-secundario">
@@ -3106,7 +3137,7 @@ export function DetalleProcesoOperador({
             }}
             data-testid="modal-liberar-primera-pieza"
           >
-            Liberar primera pieza
+            Liberar primera pieza y reintentar cierre
           </Button>
         </DialogFooter>
       </DialogContent>
