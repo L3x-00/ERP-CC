@@ -78,6 +78,7 @@ import {
   turnoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
 import { mensajeAvisoSupervision } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
+import { describirErrorProduccion } from '@/modulos/produccion/utilidades/mensajes-error-produccion';
 import {
   resumirConsumosMateriales,
   type ConsumoMaterialVisible,
@@ -1084,12 +1085,20 @@ export function DetalleProcesoOperador({
           }],
         });
       } else if (resultado.codigo !== 'primera_pieza_pendiente') {
+        const guia = describirErrorProduccion(resultado.codigo ?? 'desconocido');
         setErrorCierre({
-          titulo: 'No se pudo cerrar la sesión',
+          titulo: guia.accion,
           mensaje: resultado.error,
           acciones: [{
-            etiqueta: 'Revisar los datos y reintentar',
-            alElegir: () => setMensaje(null),
+            etiqueta: guia.accion,
+            alElegir: () => {
+              setMensaje(null);
+              if (guia.campo) {
+                window.requestAnimationFrame(() => {
+                  document.querySelector<HTMLElement>(`[data-testid="${guia.campo}"]`)?.focus();
+                });
+              }
+            },
           }],
         });
       }
