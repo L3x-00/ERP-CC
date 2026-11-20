@@ -2885,6 +2885,10 @@ export type Database = {
           orden_id: string
           orden_prioridad: number
           partida_id: string
+          reabierta_correlation_id: string | null
+          reabierta_en: string | null
+          reabierta_por: string | null
+          reabierta_reclamos_count: number | null
           recurso_id: string
           secuencia: number
           turno: string
@@ -2901,6 +2905,10 @@ export type Database = {
           orden_id: string
           orden_prioridad?: number
           partida_id: string
+          reabierta_correlation_id?: string | null
+          reabierta_en?: string | null
+          reabierta_por?: string | null
+          reabierta_reclamos_count?: number | null
           recurso_id: string
           secuencia?: number
           turno?: string
@@ -2917,6 +2925,10 @@ export type Database = {
           orden_id?: string
           orden_prioridad?: number
           partida_id?: string
+          reabierta_correlation_id?: string | null
+          reabierta_en?: string | null
+          reabierta_por?: string | null
+          reabierta_reclamos_count?: number | null
           recurso_id?: string
           secuencia?: number
           turno?: string
@@ -7392,6 +7404,14 @@ export type Database = {
           p_correlation_id?: string
           p_corrida_id: string
           p_motivo: string
+        }
+        Returns: Json
+      }
+      reabrir_operacion_bloqueada: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_programacion_id: string
         }
         Returns: Json
       }

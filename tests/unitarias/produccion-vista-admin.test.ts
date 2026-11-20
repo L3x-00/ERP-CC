@@ -14,6 +14,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: empujarRutaMock, refresh: vi.fn() }),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
 
 const BASE = {

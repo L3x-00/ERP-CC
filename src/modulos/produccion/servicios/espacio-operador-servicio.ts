@@ -40,6 +40,7 @@ import {
   type ResumenEspacioOperador,
   type SesionProceso,
 } from '@/modulos/produccion/tipos/espacio-operador';
+import { MOTIVO_BLOQUEO_TEXTO } from '@/modulos/produccion/tipos/acciones-proceso';
 import { obtenerMotivosPausaServicio, type MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 
 type Admin = SupabaseClient<Database>;
@@ -335,6 +336,22 @@ function sesionResumen(
     notas: sesion.notas,
     verificacionCompleta: sesion.verificacionInicio !== null,
   };
+}
+
+/**
+ * C31/A2: unificación de «sin sesión» con el diagnóstico C23. Se ignoran
+ * sesiones inválidas y pausas ya liberadas por administración.
+ */
+export function operacionBloqueadaSinSesion(
+  estadoPlaneacion: string | null,
+  sesiones: readonly Pick<SesionTrabajo, 'estadoSesion' | 'sesionInvalida' | 'recursoLiberado'>[],
+): boolean {
+  return estadoPlaneacion === 'bloqueada'
+    && !sesiones.some((sesion) => (
+      (sesion.estadoSesion === 'activa' || sesion.estadoSesion === 'pausada')
+      && !sesion.sesionInvalida
+      && !sesion.recursoLiberado
+    ));
 }
 
 /**
@@ -769,6 +786,11 @@ export async function obtenerEspacioOperadorServicio(
         || orden.estado === 'pausada'
         || orden.estado === 'en_proceso';
       const pausado = sesionPausada || programacion?.estadoPlaneacion === 'bloqueada';
+      // C31/A2: misma definición de «sin sesión» que el diagnóstico C23.
+      const bloqueadoSinSesion = operacionBloqueadaSinSesion(
+        programacion?.estadoPlaneacion ?? null,
+        sesionesOrdenadas,
+      );
       // C29: un proceso posterior no puede arrancar ni retomarse mientras el
       // proceso anterior no le haya liberado piezas nuevas. La pausa no es una
       // excepción: si ya consumió todo el lote, debe esperar más piezas.
@@ -788,6 +810,9 @@ export async function obtenerEspacioOperadorServicio(
       else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
         motivoNoInicia = 'La orden aún no se libera a Bandeja';
       } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
+      else if (bloqueadoSinSesion) {
+        motivoNoInicia = MOTIVO_BLOQUEO_TEXTO.programacion_bloqueada_sin_sesion;
+      }
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
       else if (pendienteActualizacionAvance) {
         motivoNoInicia = 'Actualiza el avance y la hora real antes de continuar';
@@ -882,6 +907,7 @@ export async function obtenerEspacioOperadorServicio(
         puedeIniciar: motivoNoInicia === null,
         puedeReanudar,
         motivoNoInicia,
+        motivoBloqueo: bloqueadoSinSesion ? 'programacion_bloqueada_sin_sesion' : null,
       };
       proceso.etiquetas = etiquetasProceso(proceso);
       procesos.push(proceso);

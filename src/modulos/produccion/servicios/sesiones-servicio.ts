@@ -98,6 +98,9 @@ export type CodigoErrorProduccion =
   | 'sin_sesion_liberable'
   | 'recurso_ya_reclamado'
   | 'conflicto_idempotencia'
+  | 'sin_permiso_reabrir_operacion'
+  | 'operacion_no_bloqueada'
+  | 'sesion_pendiente'
   | 'motivo_no_liberable'
   | 'pausa_reciente'
   | 'programacion_no_liberable'
@@ -260,6 +263,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sesion_no_pausada',
   'pausa_ya_superada',
   'conflicto_idempotencia',
+  'sin_permiso_reabrir_operacion',
+  'operacion_no_bloqueada',
+  'sesion_pendiente',
   'motivo_no_liberable',
   'pausa_reciente',
   'programacion_no_liberable',
@@ -739,6 +745,12 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Otra persona ya reclamó esta máquina; actualiza el panel.';
     case 'conflicto_idempotencia':
       return 'Esa petición ya se usó para liberar otra máquina o sesión. Recarga la página y vuelve a pulsar Reclamar desde el panel.';
+    case 'sin_permiso_reabrir_operacion':
+      return 'No tienes permiso para reabrir operaciones bloqueadas. Pide a Planeación que lo haga.';
+    case 'operacion_no_bloqueada':
+      return 'La operación ya no está bloqueada; actualiza la vista antes de volver a intentarlo.';
+    case 'sesion_pendiente':
+      return 'Hay una sesión activa o pausada en esta operación. Ciérrala antes de reabrir.';
     case 'motivo_no_liberable':
       return 'El motivo de la pausa no libera la máquina; no se puede reclamar desde aquí.';
     case 'pausa_reciente':

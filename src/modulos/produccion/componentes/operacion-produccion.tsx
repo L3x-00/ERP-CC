@@ -56,12 +56,14 @@ export interface PropsOperacionProduccion {
   operadorId: string | null;
   usuarioActualId?: string;
   esAdmin?: boolean;
+  /** C31/A2: permiso real de la RPC de reapertura, resuelto en el servidor. */
+  puedeReabrirOperacion?: boolean;
   /** PLA-06: la tarjeta de Planeación abre Producción con la orden ya elegida. */
   ordenInicialId?: string;
 }
 
 /** Orquesta el piso de taller sin copias locales de datos de negocio. */
-export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, ordenInicialId }: PropsOperacionProduccion) {
+export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, puedeReabrirOperacion = false, ordenInicialId }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
   const areaCodigo = usarTiendaProduccion((estado) => estado.areaCodigo);
@@ -432,6 +434,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                     sesionActiva={sesionActiva}
                     operadorDisponible={operadorId !== null}
                     esAdmin={esAdmin}
+                    puedeReabrirOperacion={puedeReabrirOperacion}
                     procesando={procesando}
                     corridaId={corridaSeleccionadaId}
                     motivosPausa={catalogosPiso?.motivos ?? []}

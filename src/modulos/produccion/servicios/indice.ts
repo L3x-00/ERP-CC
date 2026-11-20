@@ -101,6 +101,7 @@ export {
 
 export {
   obtenerEspacioOperadorServicio,
+  operacionBloqueadaSinSesion,
   estimarHorasProceso,
   etiquetaUrgencia,
   diasParaCompromiso,
@@ -122,6 +123,9 @@ export type {
   OrdenTableroProduccion,
   PartidaTableroProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
+
+export { reabrirOperacionBloqueadaServicio } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
+export type { ReaperturaOperacion } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 
 export { obtenerConsumosMaterialOrdenServicio } from '@/modulos/produccion/servicios/consumos-orden-servicio';
 export type { ConsumoMaterialOrden } from '@/modulos/produccion/servicios/consumos-orden-servicio';
