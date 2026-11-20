@@ -1343,3 +1343,98 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(screen.queryByTestId('avance-pin')).toBeNull();
   });
 });
+
+describe('proceso reclamado por otro operador', () => {
+  const sesionPausada = {
+    id: 'sesion-pausada',
+    corridaId: null,
+    operadorId: 'operador-otro',
+    operadorNombre: 'Operadora Dos',
+    estadoSesion: 'pausada' as const,
+    fechaInicio: '2026-11-18T09:00:00.000Z',
+    fechaFin: '2026-11-18T11:00:00.000Z',
+    piezasProducidas: 6,
+    horasNetas: 2,
+    motivoPausa: 'FIN_JORNADA',
+    motivoPausaNota: null,
+    notas: null,
+    verificacionCompleta: true,
+    pendienteActualizacionAvance: true,
+  };
+
+  function procesoPausado(reclamadoPorMi: boolean) {
+    return {
+      ...proceso,
+      columna: 'pausada',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      pendienteActualizacionAvance: true,
+      puedeReanudar: reclamadoPorMi,
+      puedeIniciar: false,
+      reclamo: {
+        id: 'reclamo-1',
+        ordenId: 'orden-1',
+        partidaId: 'partida-1',
+        metaProcesoId: 'meta-1',
+        programacionId: 'programacion-1',
+        operadorId: reclamadoPorMi ? 'operador-1' : 'operador-otro',
+        fecha: '2026-11-18',
+        turno: 'matutino',
+        horasEstimadas: 2,
+        estado: 'activo',
+        creadoEn: '2026-11-18T08:00:00.000Z',
+        actualizadoEn: '2026-11-18T08:00:00.000Z',
+      },
+      reclamadoPorMi,
+      nombreReclamante: reclamadoPorMi ? 'Operador de prueba' : 'Operadora Dos',
+    } as unknown as ProcesoEspacioOperador;
+  }
+
+  function montar(actual: ProcesoEspacioOperador) {
+    return render(createElement(DetalleProcesoOperador, {
+      proceso: actual,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+  }
+
+  it('muestra los detalles y el reclamante, sin formulario de avance ni acciones', () => {
+    montar(procesoPausado(false));
+
+    expect(screen.getByTestId('aviso-proceso-tomado').textContent).toContain('Operadora Dos');
+    expect(screen.getByTestId('pausa-sesion-detalle')).toBeDefined();
+    expect(screen.queryByTestId('formulario-actualizar-avance')).toBeNull();
+    expect(screen.queryByTestId('alerta-primera-pieza')).toBeNull();
+    expect(screen.queryByLabelText('Acciones del proceso')).toBeNull();
+    expect(screen.queryByTestId('actualizar-avance-detalle')).toBeNull();
+    expect(screen.queryByTestId('reanudar-detalle')).toBeNull();
+    expect(screen.queryByTestId('cerrar-pausa-detalle')).toBeNull();
+    expect(screen.queryByTestId('reclamar-detalle')).toBeNull();
+    expect(screen.getByTestId('aviso-pausa-proceso-ajeno').textContent).toContain('Operadora Dos');
+  });
+
+  it('permite operar la pausa cuando el proceso sí está reclamado por mí', () => {
+    montar(procesoPausado(true));
+
+    expect(screen.queryByTestId('aviso-proceso-tomado')).toBeNull();
+    expect(screen.getByTestId('formulario-actualizar-avance')).toBeDefined();
+    expect(screen.getByTestId('actualizar-avance-detalle')).toBeDefined();
+  });
+});

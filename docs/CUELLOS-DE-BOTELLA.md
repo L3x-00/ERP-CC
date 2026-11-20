@@ -300,6 +300,12 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | En Carga (operador y administrador) el equipo mostraba `0/8 h` y «Libre 8 h» después de varias horas reales trabajadas en el día; no se veía qué equipo estaba en marcha ni con qué orden | La matriz calculaba `Libre = capacidad − pendientes`, y `pendientes` ya viene descontado de las horas reales (`horas_estimadas − horas_reales`). Al restar solo el pendiente, las horas ya trabajadas desaparecían del saldo y el equipo parecía libre otra vez | `Libre = max(0, capacidad − pendientes − horas_reales)` en `construirMatrizCargaSemanal`; el saldo refleja la jornada ya consumida. El chip del equipo siempre muestra su estado (`En uso` en ámbar, `Libre` en neutro), sin teñir la fila, y al pulsarlo abre el diálogo con el proceso en marcha (orden, cliente, operador, desde, cronómetro vivo, avance y entrega), los procesos cerrados del día y la capacidad del área. Las horas reales se rotulan «trabajadas». No se agregan consultas: todo se deriva del mismo espacio del operador que pinta el Kanban y se refresca con el sincronizador de piso |
 
+## 26. La ficha y las tarjetas ofrecían acciones a quien no reclamó el proceso
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Un operador veía «Actualizar avance» en la tarjeta de una orden tomada por otro, y al pulsarlo la ficha le mostraba el formulario de avance e incluso podía operar la pausa ajena | Las acciones de la ficha solo se apagaban con `soloLectura` (rol administrativo), no cuando el proceso tiene reclamo de otro operador. `puedeReanudar`/`puedeIniciar` ya exigían `reclamadoPorMi`, pero el botón «Actualizar avance» y los formularios de avance/cierre/primera pieza no. El efecto de pausa automática también llamaba a la RPC con la sesión ajena | `procesoAjeno = reclamo !== null && !reclamadoPorMi`; la ficha deriva `soloDetalle = soloLectura || procesoAjeno` y con ese valor apaga **todas** las acciones (avance, inicio, reanudar, cerrar pausa, liberar, primera pieza, actualizar estado de pausa y el vigilante de pausa automática). Las tarjetas (`TarjetaOrdenOperador`, `TarjetaOrdenMisProcesos`, `accionPrincipal`) también exigen `reclamadoPorMi` antes de ofrecer acciones; un proceso ajeno muestra solo «Detalle» y el nombre del reclamante. El servidor ya bloqueaba las RPC con `Otro operador tiene el proceso`: esto cierra la vía visual para que el operador no llegue a un error evitable |
+
 
 
 

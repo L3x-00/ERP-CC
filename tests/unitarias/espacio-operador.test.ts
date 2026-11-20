@@ -597,6 +597,16 @@ describe('accionPrincipal', () => {
     expect(accion).toMatchObject({ tipo: 'bloqueada', etiqueta: 'Tomado', deshabilitada: true });
   });
 
+  it('no ofrece registrar cierre ni reanudar una sesión ajena', () => {
+    const reclamo = crearReclamo({ operadorId: 'otro' });
+
+    expect(accionPrincipal(crearProceso({
+      reclamo,
+      sesionActiva: {} as never,
+      puedeReanudar: true,
+    }))).toMatchObject({ tipo: 'bloqueada', etiqueta: 'Tomado', deshabilitada: true });
+  });
+
   it('no ofrece reclamar una operación ya completada', () => {
     const accion = accionPrincipal(crearProceso({ columna: 'lista', procesoNombre: 'Corte' }));
 

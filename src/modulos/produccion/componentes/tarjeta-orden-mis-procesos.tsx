@@ -98,13 +98,16 @@ export function TarjetaOrdenMisProcesos({
             || proceso.columna === 'lista'
             || (proceso.metaPiezas > 0 && proceso.hechoPiezas >= proceso.metaPiezas);
           const pendienteAvance = proceso.pendienteActualizacionAvance;
-          const puedeGestionar = completado
-            ? pendienteAvance
-            : (proceso.reclamadoPorMi || puedeReclamar);
+          // Solo el operador que reclamó el proceso (o quien puede reclamarlo)
+          // gestiona acciones; los procesos ajenos quedan en consulta.
+          const puedeGestionar = puedeReclamar
+            || (proceso.reclamadoPorMi && (!completado || pendienteAvance));
           const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
           const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
           const etiquetaGestion = completado
-            ? (pendienteAvance ? 'Revisar avance pendiente' : 'Proceso completado')
+            ? (pendienteAvance && proceso.reclamadoPorMi
+              ? 'Revisar avance pendiente'
+              : 'Proceso completado')
             : puedeGestionar
               ? 'Gestionar proceso'
               : proceso.piezasDisponibles === 0
@@ -112,6 +115,7 @@ export function TarjetaOrdenMisProcesos({
                 : proceso.motivoNoInicia ?? 'Proceso no disponible';
           const puedeLiberar =
             puedeGestionar
+            && proceso.reclamadoPorMi
             && proceso.reclamo !== null
             && proceso.sesionActiva === null
             && proceso.programacion?.estadoPlaneacion !== 'en_proceso'

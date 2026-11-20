@@ -187,6 +187,11 @@ export function DetalleProcesoOperador({
   onPausaAutomatica,
   presentacion = 'dialogo',
 }: PropsDetalleProceso) {
+  // Un proceso reclamado por otro operador se consulta, pero no se opera: solo
+  // quien lo reclamó puede actualizar avance, iniciar, reanudar o cerrar. El
+  // aviso nombra al reclamante para que el operador sepa a quién pedirlo.
+  const procesoAjeno = proceso !== null && proceso.reclamo !== null && !proceso.reclamadoPorMi;
+  const soloDetalle = soloLectura || procesoAjeno;
   // C21: el día de la jornada es siempre el día operativo actual, no el de la
   // programación original con la que se reclamó el proceso.
   const [fecha, setFecha] = useState(hoy);
@@ -363,7 +368,7 @@ export function DetalleProcesoOperador({
   // era la que dejaba correr el proceso sin que la pausa se disparara.
   useEffect(() => {
     const sesion = proceso?.sesionActiva;
-    if (!sesion || soloLectura) return;
+    if (!sesion || soloDetalle) return;
     let cancelado = false;
     let falloAvisado = false;
     const revisar = async () => {
@@ -398,7 +403,7 @@ export function DetalleProcesoOperador({
       cancelado = true;
       window.clearInterval(temporizador);
     };
-  }, [proceso?.sesionActiva, soloLectura, cierreAbierto, onPausaAutomatica]);
+  }, [proceso?.sesionActiva, soloDetalle, cierreAbierto, onPausaAutomatica]);
 
   if (!proceso) return null;
 
@@ -409,17 +414,17 @@ export function DetalleProcesoOperador({
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
-  const puedeReclamar = !soloLectura && !proceso.reclamo && proceso.columna !== 'lista';
-  const puedeMover = !soloLectura && proceso.reclamadoPorMi === true
+  const puedeReclamar = !soloDetalle && !proceso.reclamo && proceso.columna !== 'lista';
+  const puedeMover = !soloDetalle && proceso.reclamadoPorMi === true
     && proceso.sesionActiva === null
     && proceso.programacion?.estadoPlaneacion !== 'en_proceso'
     && proceso.programacion?.estadoPlaneacion !== 'bloqueada';
-  const puedeLiberar = !soloLectura && proceso.reclamadoPorMi === true
+  const puedeLiberar = !soloDetalle && proceso.reclamadoPorMi === true
     && proceso.sesionActiva === null
     && proceso.programacion?.estadoPlaneacion !== 'en_proceso'
     && proceso.programacion?.estadoPlaneacion !== 'bloqueada';
   const abrirHoja = proceso.estadoOrden === 'en_proceso'
-    && (proceso.reclamadoPorMi || proceso.sesionActiva !== null);
+    && (proceso.reclamadoPorMi || (soloLectura && proceso.sesionActiva !== null));
   const horasSesion = proceso.sesionActiva
     ? horasTranscurridasSesion(proceso.sesionActiva.fechaInicio, ahoraAviso)
     : 0;
@@ -1505,7 +1510,7 @@ export function DetalleProcesoOperador({
                                 ? 'Pausa automática: declara piezas y tiempo real.'
                                 : 'Pausa registrada: puedes actualizar su estado.'}
                             </span>
-                            {!soloLectura ? (
+                            {!soloDetalle ? (
                               <button
                                 type="button"
                                 className="text-xs text-acento-texto underline underline-offset-2"
@@ -1567,7 +1572,17 @@ export function DetalleProcesoOperador({
           </details>
         </section>
 
-        {soloLectura ? (
+        {procesoAjeno ? (
+          <p
+            role="status"
+            data-testid="aviso-proceso-tomado"
+            className="rounded-md bg-advertencia-suave p-3 text-sm text-advertencia-texto"
+          >
+            Este proceso lo tiene {proceso.nombreReclamante ?? 'otro operador'}. Puedes consultar
+            los detalles, pero solo quien lo reclamó puede registrar avance, iniciar, reanudar o
+            cerrar.
+          </p>
+        ) : soloLectura ? (
           <p className="rounded-md bg-advertencia-suave p-3 text-sm text-advertencia-texto">
             Vista de solo lectura: no puedes reclamar, iniciar ni cerrar procesos.
           </p>
@@ -1712,7 +1727,12 @@ export function DetalleProcesoOperador({
             {sesionPausada.motivoPausaNota ? (
               <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
             ) : null}
-            {proceso.pendienteActualizacionAvance ? (
+            {procesoAjeno ? (
+              <p className="text-xs text-texto-secundario" data-testid="aviso-pausa-proceso-ajeno">
+                Solo quien tiene el proceso ({proceso.nombreReclamante ?? 'otro operador'}) puede
+                declarar el avance de esta pausa, reanudarla o cerrarla.
+              </p>
+            ) : proceso.pendienteActualizacionAvance ? (
               <p className="text-xs text-peligro-texto" data-testid="aviso-avance-pendiente">
                 La jornada se cumplió antes de que declararas el avance. Declara las piezas
                 producidas y las horas que faltaron para la pausa: con eso se calcula la hora
@@ -1741,7 +1761,7 @@ export function DetalleProcesoOperador({
           </section>
         ) : null}
 
-        {!soloLectura && primeraPiezaPendiente ? (
+        {!soloDetalle && primeraPiezaPendiente ? (
           <section
             aria-label="Primera pieza pendiente"
             data-testid="alerta-primera-pieza"
@@ -1770,7 +1790,7 @@ export function DetalleProcesoOperador({
           </section>
         ) : null}
 
-        {!soloLectura ? (
+        {!soloDetalle ? (
           <section aria-label="Acciones del proceso" className="grid gap-3 rounded-lg border border-borde-fuerte p-3">
             {proceso.sesionActiva ? (
               <form className="grid gap-3" onSubmit={cerrar}>
@@ -2501,7 +2521,7 @@ export function DetalleProcesoOperador({
             ) : null}
             {!avanceGuardado
               && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
-              && !soloLectura ? (
+              && !soloDetalle ? (
               <form
                 noValidate
                 className="grid gap-3 rounded-lg border border-peligro/40 bg-peligro-suave/60 p-3"
