@@ -58,12 +58,14 @@ export interface PropsOperacionProduccion {
   esAdmin?: boolean;
   /** C31/A2: permiso real de la RPC de reapertura, resuelto en el servidor. */
   puedeReabrirOperacion?: boolean;
+  /** C31/A4: permiso real de `gestionar_produccion`, resuelto en el servidor. */
+  puedeReasignar?: boolean;
   /** PLA-06: la tarjeta de Planeación abre Producción con la orden ya elegida. */
   ordenInicialId?: string;
 }
 
 /** Orquesta el piso de taller sin copias locales de datos de negocio. */
-export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, puedeReabrirOperacion = false, ordenInicialId }: PropsOperacionProduccion) {
+export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, puedeReabrirOperacion = false, puedeReasignar = false, ordenInicialId }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
   const areaCodigo = usarTiendaProduccion((estado) => estado.areaCodigo);
@@ -435,6 +437,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                     operadorDisponible={operadorId !== null}
                     esAdmin={esAdmin}
                     puedeReabrirOperacion={puedeReabrirOperacion}
+                    puedeReasignar={puedeReasignar}
                     procesando={procesando}
                     corridaId={corridaSeleccionadaId}
                     motivosPausa={catalogosPiso?.motivos ?? []}

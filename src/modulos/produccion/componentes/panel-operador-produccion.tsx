@@ -10,8 +10,8 @@ import { cn } from '@/compartido/utilidades/cn';
 import { etiquetaEstado } from '@/compartido/utilidades/estados';
 import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
-import { reabrirOperacionBloqueadaAccion } from '@/modulos/produccion/acciones/indice';
-import { mensajeReaperturaOperacion } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
+import { reabrirOperacionBloqueadaAccion, reasignarPartidaAccion } from '@/modulos/produccion/acciones/indice';
+import { mensajeReaperturaOperacion, mensajeReasignacionPartida } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
 import { MOTIVO_BLOQUEO_TEXTO } from '@/modulos/produccion/tipos/acciones-proceso';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
@@ -73,6 +73,8 @@ export interface PropsPanelOperadorProduccion {
   esAdmin?: boolean;
   /** C31/A2: permiso real de `gestionar_planeacion`, resuelto en el servidor. */
   puedeReabrirOperacion?: boolean;
+  /** C31/A4: permiso real de `gestionar_produccion`, resuelto en el servidor. */
+  puedeReasignar?: boolean;
   procesando: boolean;
   /** SII-B6: corrida elegida en el panel de corridas (opcional). */
   corridaId?: string | null;
@@ -125,6 +127,7 @@ export function PanelOperadorProduccion({
   operadorDisponible,
   esAdmin = false,
   puedeReabrirOperacion = false,
+  puedeReasignar = false,
   procesando,
   corridaId = null,
   motivosPausa,
@@ -197,6 +200,14 @@ export function PanelOperadorProduccion({
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
   const correlacionesReapertura = useRef<Record<string, string>>({});
+  // C31/A4: reasignación administrativa con doble pulsación protegida.
+  const [reasignando, setReasignando] = useState(false);
+  const [mensajeReasignacion, setMensajeReasignacion] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
+  const [partidaReasignar, setPartidaReasignar] = useState('');
+  const [operadorReasignar, setOperadorReasignar] = useState('');
+  const correlacionReasignacion = useRef<string | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
   const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
@@ -327,6 +338,38 @@ export function PanelOperadorProduccion({
     }
     return null;
   })();
+
+  async function reasignar(): Promise<void> {
+    if (!partidaReasignar || !operadorReasignar) return;
+    setMensajeReasignacion(null);
+    setReasignando(true);
+    const correlationId = correlacionReasignacion.current ?? crypto.randomUUID();
+    correlacionReasignacion.current = correlationId;
+    try {
+      const resultado = await reasignarPartidaAccion({
+        partidaId: partidaReasignar,
+        operadorNuevoId: operadorReasignar,
+        correlationId,
+      });
+      const partida = orden?.partidas.find((item) => item.id === partidaReasignar);
+      setMensajeReasignacion(resultado.exito
+        ? {
+            tipo: 'ok',
+            texto: mensajeReasignacionPartida(resultado.datos!, partida?.codigoPieza ?? 'La partida'),
+          }
+        : { tipo: 'error', texto: resultado.error });
+      correlacionReasignacion.current = null;
+      await clienteConsultas.invalidateQueries();
+    } catch {
+      correlacionReasignacion.current = null;
+      setMensajeReasignacion({
+        tipo: 'error',
+        texto: 'No se pudo confirmar la reasignación. Recarga la orden: si el responsable ya cambió, la acción se registró.',
+      });
+    } finally {
+      setReasignando(false);
+    }
+  }
 
   async function reabrir(item: (typeof bloqueadasSinSesion)[number]): Promise<void> {
     setMensajeReapertura(null);
@@ -1219,6 +1262,58 @@ export function PanelOperadorProduccion({
                   className={mensajeReapertura.tipo === 'error' ? 'text-sm text-peligro-texto' : 'text-sm text-exito-texto'}
                 >
                   {mensajeReapertura.texto}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {puedeReasignar && orden && orden.partidas.length > 0 ? (
+            <div className="flex flex-col gap-2 rounded-md border border-borde bg-superficie-2/40 p-3">
+              <p className="text-sm font-medium text-texto-primario">Reasignar responsable de partida</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-xs text-texto-secundario">
+                  Partida
+                  <Select
+                    className="min-h-11"
+                    value={partidaReasignar}
+                    onChange={(evento) => setPartidaReasignar(evento.target.value)}
+                    data-testid="reasignar-partida-select"
+                  >
+                    <option value="">Selecciona una partida</option>
+                    {orden.partidas.map((partida) => (
+                      <option key={partida.id} value={partida.id}>{partida.codigoPieza}</option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-xs text-texto-secundario">
+                  Operador
+                  <Select
+                    className="min-h-11"
+                    value={operadorReasignar}
+                    onChange={(evento) => setOperadorReasignar(evento.target.value)}
+                    data-testid="reasignar-operador-select"
+                  >
+                    <option value="">Selecciona un operador</option>
+                    {Object.entries(responsables).map(([id, nombre]) => (
+                      <option key={id} value={id}>{nombre}</option>
+                    ))}
+                  </Select>
+                </label>
+                <Button
+                  type="button"
+                  tamano="sm"
+                  disabled={reasignando || !partidaReasignar || !operadorReasignar}
+                  data-testid="reasignar-partida-boton"
+                  onClick={() => void reasignar()}
+                >
+                  {reasignando ? 'Reasignando…' : 'Reasignar'}
+                </Button>
+              </div>
+              {mensajeReasignacion ? (
+                <p
+                  role={mensajeReasignacion.tipo === 'error' ? 'alert' : 'status'}
+                  className={mensajeReasignacion.tipo === 'error' ? 'text-sm text-peligro-texto' : 'text-sm text-exito-texto'}
+                >
+                  {mensajeReasignacion.texto}
                 </p>
               ) : null}
             </div>
