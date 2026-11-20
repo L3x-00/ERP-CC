@@ -683,7 +683,7 @@ describe('operación de Planeación en cliente', () => {
     });
 
     const reales = screen.getByTestId('reales-CNC-01-2026-09-20');
-    expect(reales.textContent).toContain('2.5 h reales');
+    expect(reales.textContent).toContain('2.5 h trabajadas');
     expect(screen.getByTestId('resumen-carga-semanal').textContent).not.toContain('0/0 h');
   });
 

@@ -28,6 +28,11 @@ export interface PropsResumenCargaSemanal {
    * confundir capacidad pendiente con un equipo realmente disponible.
    */
   recursosEnUso?: ReadonlySet<string>;
+  /**
+   * Abre el detalle del equipo al pulsar su chip de estado. Sin este callback el
+   * chip se muestra como etiqueta informativa.
+   */
+  onAbrirRecurso?: (recursoId: string) => void;
   /** Consulta en vuelo sin datos previos: aún no se puede declarar «sin capacidad». */
   cargando?: boolean;
   /** Título visible; el panel del operador lo adapta a día o semana. */
@@ -47,9 +52,10 @@ export function ResumenCargaSemanal({
   rango,
   filtroRecursoId = null,
   recursosEnUso,
+  onAbrirRecurso,
   cargando = false,
   titulo = 'Carga semanal',
-  descripcion = 'Horas pendientes/capacidad por equipo; Libre descuenta lo pendiente y lo ya trabajado.',
+  descripcion = 'Horas pendientes/capacidad por equipo. Libre es la capacidad que queda después de lo pendiente y lo ya trabajado.',
 }: PropsResumenCargaSemanal) {
   const idTitulo = useId();
   const matriz = construirMatrizCargaSemanal(cargas, recursos, rango, filtroRecursoId);
@@ -85,7 +91,7 @@ export function ResumenCargaSemanal({
         <div className="overflow-x-auto">
           <table className="w-full min-w-max border-collapse text-xs">
             <caption className="sr-only">
-              Capacidad pendiente por equipo y día, con la capacidad libre del rango
+              Capacidad pendiente por equipo y día, con la capacidad que queda libre en el rango
             </caption>
             <thead>
               <tr className="border-b border-borde text-left">
@@ -105,28 +111,42 @@ export function ResumenCargaSemanal({
             <tbody>
               {matriz.filas.map((fila) => {
                 const enUso = recursosEnUso?.has(fila.recursoId) ?? false;
+                const etiquetaEstado = enUso ? 'En uso' : 'Libre';
+                const clasesEstado = cn(
+                  'rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
+                  enUso
+                    ? 'bg-advertencia-suave text-advertencia-texto hover:bg-advertencia-suave/70'
+                    : 'bg-superficie-2 text-texto-secundario hover:bg-superficie-2/70',
+                );
                 return (
-                <tr
-                  key={fila.recursoId}
-                  className={cn(
-                    'border-b border-borde/60 last:border-0',
-                    enUso && 'bg-exito-suave/40',
-                  )}
-                  data-en-uso={enUso ? 'true' : undefined}
-                >
-                  <th scope="row" className="px-2 py-1 text-left font-medium">
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      {fila.codigo} · {fila.nombre}
-                      {enUso ? (
-                        <span
-                          className="rounded-full bg-exito-suave px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-exito-texto"
-                          data-testid={`en-uso-${fila.codigo}`}
-                        >
-                          En uso
-                        </span>
-                      ) : null}
-                    </span>
-                  </th>
+                  <tr
+                    key={fila.recursoId}
+                    className="border-b border-borde/60 last:border-0"
+                    data-en-uso={enUso ? 'true' : undefined}
+                  >
+                    <th scope="row" className="px-2 py-1 text-left font-medium">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {fila.codigo} · {fila.nombre}
+                        {recursosEnUso ? (
+                          onAbrirRecurso ? (
+                            <button
+                              type="button"
+                              onClick={() => onAbrirRecurso(fila.recursoId)}
+                              className={clasesEstado}
+                              data-testid={`estado-${fila.codigo}`}
+                              aria-haspopup="dialog"
+                              title={`Ver detalle de ${fila.codigo}`}
+                            >
+                              {etiquetaEstado}
+                            </button>
+                          ) : (
+                            <span className={clasesEstado} data-testid={`estado-${fila.codigo}`}>
+                              {etiquetaEstado}
+                            </span>
+                          )
+                        ) : null}
+                      </span>
+                    </th>
                   {fila.sinCapacidad ? (
                     <td
                       colSpan={matriz.columnas.length}
@@ -149,10 +169,10 @@ export function ResumenCargaSemanal({
                             soloTrabajoReal ? (
                               <span
                                 className="font-mono text-[11px] text-texto-secundario"
-                                title="Tiempo real registrado en un día sin jornada"
+                                title="Tiempo trabajado este día"
                                 data-testid={`reales-${fila.codigo}-${fecha}`}
                               >
-                                {formatearHoras(celda.horasReales)} h reales
+                                {formatearHoras(celda.horasReales)} h trabajadas
                               </span>
                             ) : (
                               <span className="flex flex-col items-start gap-0.5">
@@ -167,7 +187,7 @@ export function ResumenCargaSemanal({
                                     className="font-mono text-[10px] text-texto-tenue"
                                     data-testid={`reales-${fila.codigo}-${fecha}`}
                                   >
-                                    {formatearHoras(celda.horasReales)} h reales
+                                    {formatearHoras(celda.horasReales)} h trabajadas
                                   </span>
                                 ) : null}
                               </span>

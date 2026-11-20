@@ -19,7 +19,12 @@ import {
   etiquetaDiaLargo,
 } from '@/modulos/produccion/utilidades/formato-operador';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
-import { equiposEnUso, OcupacionEquipos } from './ocupacion-equipos';
+import {
+  capacidadDiaArea,
+  equiposEnUso,
+  resumirAreaCarga,
+} from '@/modulos/produccion/utilidades/carga-area';
+import { DetalleCargaArea } from './detalle-carga-area';
 
 type ModoCarga = 'dia' | 'semana';
 
@@ -63,6 +68,7 @@ export function VistaCargaEquipos({
 }: PropsVistaCargaEquipos) {
   const [modo, setModo] = useState<ModoCarga>('semana');
   const [diaActivo, setDiaActivo] = useState(hoy);
+  const [recursoAbiertoId, setRecursoAbiertoId] = useState<string | null>(null);
 
   const recursosEnUso = useMemo(
     () => new Set(equiposEnUso(procesos).map((equipo) => equipo.recursoId)),
@@ -76,6 +82,22 @@ export function VistaCargaEquipos({
   // Si la fecha guardada quedó fuera de la semana visible (cambio de día real),
   // se vuelve a hoy en lugar de consultar un rango sin datos.
   const diaSeleccionado = dias.includes(diaActivo) ? diaActivo : hoy;
+
+  // En modo Día se detalla ese día; en Semana, el detalle se ancla a hoy.
+  const fechaDetalle = modo === 'dia' ? diaSeleccionado : hoy;
+  const recursoAbierto = recursos.find((recurso) => recurso.id === recursoAbiertoId) ?? null;
+  const detalleAbierto = useMemo(
+    () => (recursoAbiertoId
+      ? resumirAreaCarga(procesos, recursoAbiertoId, fechaDetalle)
+      : null),
+    [procesos, recursoAbiertoId, fechaDetalle],
+  );
+  const capacidadAbierta = useMemo(
+    () => (recursoAbiertoId
+      ? capacidadDiaArea(cargas, recursoAbiertoId, fechaDetalle)
+      : null),
+    [cargas, recursoAbiertoId, fechaDetalle],
+  );
 
   const rango: RangoFechas = modo === 'dia'
     ? { fechaInicio: diaSeleccionado, fechaFin: diaSeleccionado }
@@ -120,8 +142,6 @@ export function VistaCargaEquipos({
           ))}
         </div>
       </header>
-
-      <OcupacionEquipos procesos={procesos} />
 
       {!error && modo === 'dia' ? (
         <div
@@ -178,12 +198,23 @@ export function VistaCargaEquipos({
           recursos={recursos}
           rango={rango}
           recursosEnUso={recursosEnUso}
+          onAbrirRecurso={setRecursoAbiertoId}
           titulo={modo === 'dia' ? 'Carga del día' : 'Carga semanal'}
           descripcion={modo === 'dia'
-            ? `Horas pendientes/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre descuenta lo pendiente y lo ya trabajado.`
-            : 'Horas pendientes/capacidad por equipo; Libre descuenta lo pendiente y lo ya trabajado en la semana.'}
+            ? `Horas pendientes/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre es lo que queda después de lo pendiente y lo ya trabajado.`
+            : 'Horas pendientes/capacidad por equipo. Libre es lo que queda después de lo pendiente y lo ya trabajado en la semana.'}
         />
       )}
+
+      {recursoAbierto && detalleAbierto && capacidadAbierta ? (
+        <DetalleCargaArea
+          recurso={recursoAbierto}
+          detalle={detalleAbierto}
+          capacidad={capacidadAbierta}
+          fecha={fechaDetalle}
+          onCerrar={() => setRecursoAbiertoId(null)}
+        />
+      ) : null}
     </section>
   );
 }
