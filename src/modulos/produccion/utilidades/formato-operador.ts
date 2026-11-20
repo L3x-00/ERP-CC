@@ -89,6 +89,16 @@ export function horasBloquePausa(sesion: {
   return Math.floor((fin - inicio) / 60_000) / 60;
 }
 
+/**
+ * C31/A8: un bloque de menos de un minuto trunca a 0 h. Mostrar `max={0}` deja
+ * el campo inutilizable; se ofrece un minuto como techo visible sin inventar
+ * tiempo real (el texto sigue diciendo «menos de 1 min»).
+ */
+export function maximoHorasVisiblesBloque(horas: number | null): number | undefined {
+  if (horas === null) return undefined;
+  return horas > 0 ? horas : 1 / 60;
+}
+
 /** Duración corta y en lenguaje del piso: `4 min`, `1.5 h`, `menos de 1 min`. */
 export function duracionLegible(horas: number): string {
   if (!Number.isFinite(horas) || horas <= 0) return 'menos de 1 min';
