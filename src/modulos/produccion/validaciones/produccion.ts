@@ -39,6 +39,9 @@ export const esquemaCerrarSesion = z
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
+    /** C31/A12: motivo de la demora sobre el tiempo estimado de la operación. */
+    motivoExceso: z.enum(['OLVIDE_CERRAR', 'OTRO']).optional(),
+    detalleExceso: z.string().trim().min(3, 'Indica el detalle de la demora').max(270).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
     /** C20: hora real de finalización en formato `datetime-local` (AAAA-MM-DDTHH:mm). */
     horaFin: z
@@ -123,6 +126,9 @@ export const esquemaCerrarSesionSupervisor = z
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
+    /** C31/A12: motivo de la demora sobre el tiempo estimado de la operación. */
+    motivoExceso: z.enum(['OLVIDE_CERRAR', 'OTRO']).optional(),
+    detalleExceso: z.string().trim().min(3, 'Indica el detalle de la demora').max(270).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
     minutosSetup: z.number().finite().min(0).max(1440).optional(),
     consumo: z.object({

@@ -168,7 +168,9 @@ const proceso = {
     operadorId: 'operador-1',
     operadorNombre: 'Operador de prueba',
     estadoSesion: 'activa',
-    fechaInicio: '2026-10-28T10:00:00.000Z',
+    // C31/A12: fecha reciente para que el tiempo transcurrido no dispare el
+    // motivo de demora en las pruebas que no lo están probando.
+    fechaInicio: new Date(Date.now() - 30 * 60_000).toISOString(),
     fechaFin: null,
     piezasProducidas: 0,
     horasNetas: 0,
@@ -1227,6 +1229,55 @@ describe('DetalleProcesoOperador', () => {
   });
 
 });
+
+  it('pide el motivo cuando la sesión supera el estimado y cierra con la opción elegida', async () => {
+    const cerrar = vi.fn().mockResolvedValue({ exito: true, datos: { id: 'sesion-1', actualizadoEn: '2026-10-28T12:00:00.000Z' } });
+    const conDemora = {
+      ...proceso,
+      horasEstimadas: 1.5,
+      sesionActiva: {
+        ...proceso.sesionActiva,
+        fechaInicio: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+      },
+    } as typeof proceso;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conDemora,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
+    fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '2' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo de producción' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    expect(screen.getByTestId('dialogo-motivo-demora')).toBeTruthy();
+    expect(cerrar).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByTestId('opcion-demora'), { target: { value: 'OTRO' } });
+    fireEvent.change(screen.getByTestId('detalle-demora'), {
+      target: { value: 'Se atascó el láser y hubo que recalibrar el equipo' },
+    });
+    fireEvent.click(screen.getByTestId('confirmar-demora'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    expect(cerrar.mock.calls[0]?.[1]).toMatchObject({
+      motivoExceso: 'OTRO',
+      detalleExceso: 'Se atascó el láser y hubo que recalibrar el equipo',
+    });
+  });
 
   it('bloquea el cierre y ofrece liberar la primera pieza cuando la corrida la exige', () => {
     const conPrimeraPendiente = {

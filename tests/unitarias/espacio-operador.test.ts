@@ -316,6 +316,8 @@ describe('agruparProcesosPorOrdenYColumna', () => {
     horasNetas: 8,
     motivoPausa: 'FIN_JORNADA',
     motivoPausaNota: 'Pausa automática al cumplir la jornada del turno.',
+    motivoExceso: null,
+    motivoExcesoDetalle: null,
     notas: null,
     verificacionCompleta: true,
   };

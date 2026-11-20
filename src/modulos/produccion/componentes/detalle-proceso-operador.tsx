@@ -212,6 +212,14 @@ export function DetalleProcesoOperador({
     return materiales.length === 1 ? materiales[0].id : '';
   });
   const [cierreAbierto, setCierreAbierto] = useState(false);
+  // C31/A12: motivo cuando la sesión supera el tiempo estimado de la operación.
+  const [demoraAbierta, setDemoraAbierta] = useState(false);
+  const [opcionDemora, setOpcionDemora] = useState<'OLVIDE_CERRAR' | 'OTRO'>('OLVIDE_CERRAR');
+  const [detalleDemora, setDetalleDemora] = useState('');
+  const [horaRealDemora, setHoraRealDemora] = useState('');
+  const [errorDemora, setErrorDemora] = useState<string | null>(null);
+  const demoraConfirmada = useRef(false);
+  const demoraPayload = useRef<{ motivo: 'OLVIDE_CERRAR' | 'OTRO'; detalle: string } | null>(null);
   const materialElegido = materiales.find((material) => material.id === materialId) ?? null;
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
@@ -805,6 +813,59 @@ export function DetalleProcesoOperador({
     });
   }
 
+  /** Hora local por defecto: inicio de la sesión + tiempo estimado. */
+  function horaEstimadaLocal(): string {
+    const inicio = new Date(proceso!.sesionActiva!.fechaInicio);
+    const estimada = new Date(inicio.getTime() + proceso!.horasEstimadas * 3_600_000);
+    const dos = (valor: number) => String(valor).padStart(2, '0');
+    return `${estimada.getFullYear()}-${dos(estimada.getMonth() + 1)}-${dos(estimada.getDate())}T${dos(estimada.getHours())}:${dos(estimada.getMinutes())}`;
+  }
+
+  /** C31/A12: abre el paso obligatorio cuando el tiempo real supera el estimado. */
+  function requireMotivoDemora(): boolean {
+    if (estadoDestino !== 'finalizada' || demoraConfirmada.current) return false;
+    if (horasSesion <= proceso!.horasEstimadas + 10 / 60) return false;
+    setOpcionDemora('OLVIDE_CERRAR');
+    setDetalleDemora('');
+    setHoraRealDemora(horaEstimadaLocal());
+    setErrorDemora(null);
+    setDemoraAbierta(true);
+    return true;
+  }
+
+  /** C31/A12: guarda la elección del modal y reintenta el cierre con la captura intacta. */
+  function confirmarDemora(): void {
+    const texto = detalleDemora.trim();
+    if (opcionDemora === 'OTRO') {
+      if (texto.length < 10) {
+        setErrorDemora('Escribe al menos 10 caracteres para explicar la demora.');
+        return;
+      }
+    } else {
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(horaRealDemora)) {
+        setErrorDemora('Indica la hora real en que terminaste.');
+        return;
+      }
+      const fin = new Date(horaRealDemora).getTime();
+      const inicio = new Date(proceso!.sesionActiva!.fechaInicio).getTime();
+      if (!Number.isFinite(fin) || fin <= inicio || fin > ahoraAviso.getTime() + 120_000) {
+        setErrorDemora('La hora real debe estar entre el inicio de la sesión y ahora.');
+        return;
+      }
+      if (horaFinRef.current) horaFinRef.current.value = horaRealDemora;
+      horaFinEditada.current = true;
+    }
+    const detalle = opcionDemora === 'OTRO'
+      ? texto
+      : `Hora real declarada: ${horaRealDemora.replace('T', ' ')}`;
+    demoraPayload.current = { motivo: opcionDemora, detalle };
+    setDetalleDemora(detalle);
+    demoraConfirmada.current = true;
+    setErrorDemora(null);
+    setDemoraAbierta(false);
+    void ejecutarCierre();
+  }
+
   async function ejecutarCierre(): Promise<void> {
     if (!proceso?.sesionActiva) return;
     setErrorCierre(null);
@@ -824,6 +885,7 @@ export function DetalleProcesoOperador({
       fallarCierre({ exito: false, error: errorLimitePiezas });
       return;
     }
+    if (requireMotivoDemora()) return;
     const valorHoraFin = horaFinRef.current?.value ?? '';
     if (horaFinEditada.current && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(valorHoraFin)) {
       fallarCierre({ exito: false, error: 'Indica la hora real de conclusión.' });
@@ -1031,6 +1093,9 @@ export function DetalleProcesoOperador({
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
       ...(horaFinEditada.current && valorHoraFin ? { horaFin: valorHoraFin } : {}),
+      ...(demoraPayload.current
+        ? { motivoExceso: demoraPayload.current.motivo, detalleExceso: demoraPayload.current.detalle }
+        : {}),
       ...(incluirConsumo
         ? {
             consumo: {
@@ -1106,6 +1171,9 @@ export function DetalleProcesoOperador({
       return;
     }
     if (resultado.exito) {
+      demoraConfirmada.current = false;
+      demoraPayload.current = null;
+      setDetalleDemora('');
       setNotas('');
       setMotivoConsumo('');
       // Punto 11: el cierre ya se registró; el formulario se repliega solo para
@@ -1748,6 +1816,19 @@ export function DetalleProcesoOperador({
             className="rounded-md bg-acento-suave p-3 text-sm text-acento-texto"
           >
             {mensajeAvisoSupervision(proceso.avisoSupervision)}
+          </p>
+        ) : null}
+
+        {proceso.ultimaSesion?.motivoExceso ? (
+          <p
+            role="status"
+            data-testid="aviso-motivo-demora"
+            className="rounded-md bg-superficie-2 p-3 text-xs text-texto-secundario"
+          >
+            Demora registrada: {proceso.ultimaSesion.motivoExceso === 'OLVIDE_CERRAR'
+              ? 'olvidó cerrar la sesión'
+              : proceso.ultimaSesion.motivoExcesoDetalle}.
+            {' '}{proceso.ultimaSesion.motivoExcesoDetalle ?? ''}
           </p>
         ) : null}
 
@@ -3043,6 +3124,81 @@ export function DetalleProcesoOperador({
     </Dialog>
   ) : null;
 
+  const dialogoDemora = (
+    <Dialog open={demoraAbierta} onOpenChange={setDemoraAbierta}>
+      <DialogContent data-testid="dialogo-motivo-demora" aria-label="Motivo de la demora">
+        <DialogHeader>
+          <DialogTitle>La sesión superó el tiempo estimado</DialogTitle>
+          <DialogDescription>
+            Estimado: {horasLegibles(proceso?.horasEstimadas ?? 0)} · Transcurrido:{' '}
+            {duracionLegible(horasSesion)}. Necesitamos saber por qué para el cierre administrativo.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <label className={CLASE_ETIQUETA}>
+            ¿Por qué se tardó más?
+            <Select
+              value={opcionDemora}
+              onChange={(evento) => {
+                setOpcionDemora(evento.target.value as 'OLVIDE_CERRAR' | 'OTRO');
+                setErrorDemora(null);
+              }}
+              data-testid="opcion-demora"
+            >
+              <option value="OLVIDE_CERRAR">Olvidé cerrar la sesión</option>
+              <option value="OTRO">Otro</option>
+            </Select>
+          </label>
+          {opcionDemora === 'OLVIDE_CERRAR' ? (
+            <label className={CLASE_ETIQUETA}>
+              Hora real en que terminaste
+              <Input
+                type="datetime-local"
+                value={horaRealDemora}
+                onChange={(evento) => {
+                  setHoraRealDemora(evento.target.value);
+                  setErrorDemora(null);
+                }}
+                data-testid="hora-real-demora"
+              />
+              <span className="text-xs font-normal text-texto-tenue">
+                Se ajustará el tiempo de la sesión a esta hora. Por defecto: inicio + tiempo estimado.
+              </span>
+            </label>
+          ) : (
+            <label className={CLASE_ETIQUETA}>
+              ¿Qué pasó?
+              <Textarea
+                maxLength={270}
+                value={detalleDemora}
+                onChange={(evento) => {
+                  setDetalleDemora(evento.target.value);
+                  setErrorDemora(null);
+                }}
+                placeholder="Explica por qué la operación tardó más de lo estimado"
+                data-testid="detalle-demora"
+              />
+              <span className="text-xs font-normal text-texto-tenue">
+                Mínimo 10 caracteres. Se guarda con el total de horas de la sesión.
+              </span>
+            </label>
+          )}
+          {errorDemora ? (
+            <p role="alert" className="text-sm text-peligro-texto">{errorDemora}</p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variante="contorno" onClick={() => setDemoraAbierta(false)}>
+              Volver al cierre
+            </Button>
+            <Button type="button" onClick={confirmarDemora} data-testid="confirmar-demora">
+              Guardar y cerrar sesión
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const dialogoPrimeraPieza = (
     <Dialog
       open={primeraPiezaAbierta}
@@ -3201,6 +3357,7 @@ export function DetalleProcesoOperador({
         {contenido}
         {anuncioResumenCierre}
         {dialogoResumenCierre}
+        {dialogoDemora}
         {dialogoPrimeraPieza}
         {dialogoErrorPrimeraPieza}
         {dialogoCierreFallido}
@@ -3223,7 +3380,8 @@ export function DetalleProcesoOperador({
       </Dialog>
       {anuncioResumenCierre}
       {dialogoResumenCierre}
-      {dialogoPrimeraPieza}
+      {dialogoDemora}
+        {dialogoPrimeraPieza}
       {dialogoErrorPrimeraPieza}
       {dialogoCierreFallido}
       {dialogoAvanceFallido}

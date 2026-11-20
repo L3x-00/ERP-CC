@@ -9,6 +9,7 @@ import {
   cerrarSesionTrabajoServicio,
   limpiarHoraFinSesionServicio,
   mensajeErrorSesion,
+  registrarMotivoExcesoSesionServicio,
   type CierreSesionRegistrado,
 } from '@/modulos/produccion/servicios/indice';
 import { esquemaCerrarSesion } from '@/modulos/produccion/validaciones/indice';
@@ -43,6 +44,16 @@ export async function cerrarSesionOperadorAccion(
   }
 
   try {
+    // C31/A12: el motivo de la demora se guarda antes del cierre. La RPC de
+    // cierre no cambia de firma y sigue su flujo normal.
+    if (analisis.data.motivoExceso && analisis.data.detalleExceso) {
+      await registrarMotivoExcesoSesionServicio(crearClienteSupabaseAdmin(), {
+        sesionId: analisis.data.sesionId,
+        operadorId: operador.id,
+        motivoExceso: analisis.data.motivoExceso,
+        detalleExceso: analisis.data.detalleExceso,
+      });
+    }
     const sesion = await cerrarSesionTrabajoServicio(crearClienteSupabaseAdmin(), {
       ...analisis.data,
       operadorId: operador.id,
