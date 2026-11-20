@@ -67,8 +67,10 @@ import {
   ventanaTurno,
 } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
+  duracionLegible,
   etiquetaDiaLargo,
   etiquetaFechaHora,
+  horasBloquePausa,
   horasLegibles,
   tamanoLegible,
   textoCompromiso,
@@ -248,6 +250,10 @@ export function DetalleProcesoOperador({
   const [avanceMotivoConsumo, setAvanceMotivoConsumo] = useState('');
   // El formulario de avance se cierra en cuanto el servidor confirma el guardado.
   const [avanceGuardado, setAvanceGuardado] = useState(false);
+  // C30: la operación quedó completa pero la sesión sigue pausada porque falta
+  // asentar el consumo de materia prima. El formulario se repliega a un único
+  // bloque con el consumo, sin repetir piezas ni horas.
+  const [consumoPendienteAvance, setConsumoPendienteAvance] = useState(false);
   const [errorAvance, setErrorAvance] = useState<DatosErrorCierre | null>(null);
   const [sesionAnteriorAbierta, setSesionAnteriorAbierta] = useState(false);
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
@@ -486,6 +492,37 @@ export function DetalleProcesoOperador({
     && !proceso.pendienteActualizacionAvance
     && !proceso.procesoCompleto
     && proceso.piezasDisponibles === 0;
+  const haySesionPausada = proceso.sesiones.some(
+    (sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado,
+  );
+  // C30: una operación que queda completa en este mismo avance ya no puede
+  // "dejar el consumo para el cierre": el cierre requiere el consumo y la
+  // sesión quedaría pausada. En la primera operación se pide aquí mismo.
+  const sesionAvanceActual = proceso.sesiones.find(
+    (item) => item.id === (sesionCorreccionId ?? pausaCorregible(proceso)?.id),
+  );
+  // El tiempo real declarado pertenece al bloque de pausa seleccionado, no al
+  // proceso completo. El servidor lo limita a la duración real del bloque;
+  // mostrar el máximo evita que el operador caiga en el error una y otra vez.
+  const maximoHorasBloque = sesionAvanceActual
+    ? horasBloquePausa(sesionAvanceActual)
+    : null;
+  const avanceCompletaOperacion = proceso.metaPiezas > 0
+    && proceso.hechoPiezas
+      + ((Number(avancePiezas) || 0) - (sesionAvanceActual?.piezasProducidas ?? 0))
+      >= proceso.metaPiezas;
+  const requiereConsumoEnAvance = !esProcesoPosterior
+    && materiales.length > 0
+    // Si la partida ya registró consumo, el servidor no lo vuelve a exigir.
+    && consumosDePartida.length === 0
+    && (proceso.procesoCompleto || avanceCompletaOperacion);
+  // Si el consumo es obligatorio para cerrar, se usa el material del ítem sin
+  // obligar al operador a elegirlo otra vez.
+  const materialConsumoAvanceId = avanceMaterialId !== ''
+    ? avanceMaterialId
+    : requiereConsumoEnAvance
+      ? (materiales[0]?.id ?? '')
+      : '';
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
@@ -524,13 +561,46 @@ export function DetalleProcesoOperador({
     if (!proceso || !sesionId) return;
     const sesionActual = proceso.sesiones.find((item) => item.id === sesionId);
     const piezasDeclaradas = Number(avancePiezas) || 0;
+    // El tiempo real es del bloque pausado, no del proceso completo. Se valida
+    // aquí con el mismo límite del servidor para no gastar el viaje ni caer en
+    // un bucle de «ajustar y volver a fallar».
+    const horasDeclaradas = Number(avanceHoras) || 0;
+    const maximoBloque = sesionActual ? horasBloquePausa(sesionActual) : null;
+    if (!Number.isFinite(horasDeclaradas) || horasDeclaradas < 0) {
+      setErrorAvance({
+        titulo: 'Tiempo real inválido',
+        mensaje: 'Indica cuántas horas reales tardó este bloque (cero o más).',
+      });
+      return;
+    }
+    if (maximoBloque !== null && horasDeclaradas > maximoBloque) {
+      mostrarErrorAvance({
+        error: 'El tiempo real no puede ser mayor al que duró el bloque de pausa',
+        codigo: 'horas_reales_exceden_sesion',
+      });
+      return;
+    }
     // ¿Este avance deja la operación completa? El servidor solo mantiene la
     // pausa cuando falta el consumo de material; en ese caso el formulario debe
     // seguir visible para asentarlo. Un avance parcial sí cierra el formulario.
     const hechoEsperado = proceso.hechoPiezas
       + (piezasDeclaradas - (sesionActual?.piezasProducidas ?? 0));
     const operacionCompleta = proceso.metaPiezas > 0 && hechoEsperado >= proceso.metaPiezas;
-    const registrarConsumo = avanceMaterialId !== '';
+    const materialConsumo = materialConsumoAvanceId;
+    const usadaConsumo = Number(avanceUsada) || 0;
+    const scrapConsumo = Number(avanceScrap) || 0;
+    // Sin cantidades no hay consumo que registrar: no se envía material_id para
+    // no finalizar la sesión dejando el consumo sin asentar.
+    const registrarConsumo = materialConsumo !== ''
+      && !esProcesoPosterior
+      && usadaConsumo + scrapConsumo > 0;
+    if (requiereConsumoEnAvance && !registrarConsumo) {
+      setErrorAvance({
+        titulo: 'Falta el consumo de material',
+        mensaje: 'La operación queda completa con este avance. Indica cuánto material usaste (o la merma) para poder cerrar la pausa.',
+      });
+      return;
+    }
     const resultado = await acciones.actualizarAvance(proceso, {
       sesionId,
       piezasProducidas: piezasDeclaradas,
@@ -538,43 +608,131 @@ export function DetalleProcesoOperador({
       ...(avanceNotas.trim() ? { notas: avanceNotas.trim() } : {}),
       ...(registrarConsumo
         ? {
-            materialId: avanceMaterialId,
-            cantidadUsada: Number(avanceUsada) || 0,
-            cantidadScrap: Number(avanceScrap) || 0,
+            materialId: materialConsumo,
+            cantidadUsada: usadaConsumo,
+            cantidadScrap: scrapConsumo,
             motivoConsumo: avanceMotivoConsumo.trim() || 'Consumo al actualizar avance',
           }
         : {}),
     });
-    setMensaje(resultado);
     if (!resultado.exito) {
       mostrarErrorAvance(resultado);
       return;
     }
-    // Solo se cierra el formulario cuando la pausa quedó resuelta. Si la sesión
-    // sigue pausada (operación completa con consumo pendiente, o avance
-    // parcial), el formulario debe seguir disponible para terminarla.
+    // C30: solo la falta de consumo de materia prima deja la operación completa
+    // en pausa. Ese caso no es un error: se repliega el formulario a un único
+    // bloque para registrar el consumo y cerrar. El aviso genérico de éxito sobra.
+    setMensaje(null);
     const estadoFinal = resultado.estadoSesion ?? resultado.datos?.estadoSesion;
-    const pausaResuelta = estadoFinal === 'finalizada'
-      || estadoFinal === undefined
-      || !operacionCompleta;
-    setAvanceGuardado(pausaResuelta);
-    if (pausaResuelta) {
-      setAvancePiezas('0');
-      setAvanceHoras('0');
+    const faltaConsumo = estadoFinal === 'pausada' && operacionCompleta;
+    setConsumoPendienteAvance(faltaConsumo);
+    setAvanceGuardado(!faltaConsumo);
+    if (faltaConsumo) {
+      if (avanceMaterialId === '' && materiales[0]) setAvanceMaterialId(materiales[0].id);
+      return;
     }
+    setAvancePiezas('0');
+    setAvanceHoras('0');
+    setAvanceMaterialId('');
+  }
+
+  /** C30: campos de consumo de materia prima, compartidos por el formulario
+   *  de avance y por el bloque que cierra la pausa con consumo pendiente. */
+  function camposConsumoAvance() {
+    const materialIdActual = materialConsumoAvanceId || (materiales[0]?.id ?? '');
+    return (
+      <div className="grid gap-2 rounded-md border border-borde bg-superficie p-2">
+        <label className={CLASE_ETIQUETA}>
+          Material consumido
+          <Select
+            value={materialIdActual}
+            onChange={(evento) => setAvanceMaterialId(evento.target.value)}
+            data-testid="avance-material"
+          >
+            {materiales.map((material) => (
+              <option key={material.id} value={material.id}>{material.nombre}</option>
+            ))}
+          </Select>
+        </label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className={CLASE_ETIQUETA}>
+            Cantidad usada
+            <Input
+              value={avanceUsada}
+              onChange={(evento) => setAvanceUsada(evento.target.value)}
+              inputMode="decimal"
+              data-testid="avance-material-usada"
+            />
+          </label>
+          <label className={CLASE_ETIQUETA}>
+            Merma
+            <Input
+              value={avanceScrap}
+              onChange={(evento) => setAvanceScrap(evento.target.value)}
+              inputMode="decimal"
+              data-testid="avance-material-merma"
+            />
+          </label>
+        </div>
+        <label className={CLASE_ETIQUETA}>
+          Motivo del consumo
+          <Input
+            value={avanceMotivoConsumo}
+            onChange={(evento) => setAvanceMotivoConsumo(evento.target.value)}
+            data-testid="avance-material-motivo"
+          />
+        </label>
+      </div>
+    );
   }
 
   /** Errores de avance con salidas accionables, no callejones sin salida. */
   function mostrarErrorAvance(resultado: { error: string; codigo?: string }): void {
-    const sesion = proceso?.sesiones.find((item) => item.id === sesionCorreccionId);
-    const maximo = sesion?.fechaFin && sesion.fechaInicio
-      ? Math.max(0, Math.round(((new Date(sesion.fechaFin).getTime() - new Date(sesion.fechaInicio).getTime()) / 3_600_000) * 100) / 100)
-      : null;
+    const sesionIdElegida = sesionCorreccionId ?? pausaCorregible(proceso)?.id ?? null;
+    const sesion = proceso?.sesiones.find((item) => item.id === sesionIdElegida)
+      ?? pausaCorregible(proceso);
+    // Se trunca a minutos completos: un máximo redondeado hacia arriba supera
+    // la duración real y el reintento vuelve a fallar (bucle de O-1126_09).
+    const maximo = sesion ? horasBloquePausa(sesion) : null;
+    const horasDeclaradas = Number(avanceHoras) || 0;
     const acciones: DatosErrorCierre['acciones'] = [];
-    if (resultado.codigo === 'horas_reales_exceden_sesion' || resultado.codigo === 'horas_a_restar_exceden_sesion') {
+    let mensaje = resultado.error;
+    if (resultado.codigo === 'horas_reales_exceden_sesion') {
+      const otrasPausas = (proceso?.sesiones ?? []).filter(
+        (item) => item.estadoSesion === 'pausada'
+          && !item.sesionInvalida
+          && !item.recursoLiberado
+          && item.id !== sesion?.id,
+      );
+      const alternativa = otrasPausas.find(
+        (item) => (horasBloquePausa(item) ?? 0) >= horasDeclaradas,
+      );
+      if (maximo !== null) {
+        const duracion = duracionLegible(maximo);
+        mensaje = `Este bloque de pausa duró ${duracion}. El tiempo real que declares no puede ser mayor a esa duración.`
+          + (otrasPausas.length > 0
+            ? ' Si trabajaste más tiempo, cambia en «Sesión a actualizar» al bloque donde estuvo ese tiempo.'
+            : ' Si seguiste trabajando después de la pausa, continúa la sesión para que el reloj cuente ese tiempo.');
+        acciones.push({
+          etiqueta: `Ajustar a ${duracion}`,
+          alElegir: () => setAvanceHoras(String(maximo)),
+        });
+      }
+      if (alternativa) {
+        acciones.push({
+          etiqueta: `Usar el bloque del ${etiquetaFechaHora(alternativa.fechaInicio)}`,
+          alElegir: () => {
+            setSesionCorreccionId(alternativa.id);
+            setAvancePiezas(String(alternativa.piezasProducidas));
+            setAvanceHoras(String(alternativa.horasNetas));
+          },
+        });
+      }
+    }
+    if (resultado.codigo === 'horas_a_restar_exceden_sesion') {
       if (maximo !== null) {
         acciones.push({
-          etiqueta: `Ajustar a ${maximo} h`,
+          etiqueta: `Ajustar a ${duracionLegible(maximo)}`,
           alElegir: () => setAvanceHoras(String(maximo)),
         });
       }
@@ -620,7 +778,7 @@ export function DetalleProcesoOperador({
     }
     setErrorAvance({
       titulo: 'No se pudo actualizar el avance',
-      mensaje: resultado.error,
+      mensaje,
       acciones,
     });
   }
@@ -1724,6 +1882,13 @@ export function DetalleProcesoOperador({
               {' · '}{etiquetaFechaHora(sesionPausada.fechaInicio)} → {etiquetaFechaHora(sesionPausada.fechaFin)}
               {' · '}{horasLegibles(sesionPausada.horasNetas)} netas
             </p>
+            <p
+              className="text-xs text-texto-secundario"
+              data-testid="duracion-bloque-pausa"
+            >
+              Este bloque de pausa duró {duracionLegible(horasBloquePausa(sesionPausada) ?? 0)}.
+              El tiempo real que declares al actualizar el avance no puede ser mayor.
+            </p>
             {sesionPausada.motivoPausaNota ? (
               <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
             ) : null}
@@ -1840,21 +2005,23 @@ export function DetalleProcesoOperador({
                     modifican desde aquí.
                   </p>
                 ) : null}
-                <p className="text-xs text-texto-secundario">
-                  La jornada es de {HORAS_JORNADA_PREDETERMINADA} h netas acumuladas del día
-                  (la comida de 12 a 13 no se cuenta). {AYUDA_HORAS_EXTRA}
-                </p>
-                <p
-                  data-testid="horas-netas-operacion"
-                  className="rounded-md bg-superficie-2 px-3 py-2 text-xs text-texto-secundario"
-                >
-                  {horasNetasOperacion > 0
-                    ? `Este proceso ya registró ${horasNetasOperacion.toFixed(2)} h netas en sesiones cerradas. `
-                    : 'Este proceso aún no tiene horas netas cerradas. '}
-                  Llevas {horasSesion.toFixed(1)} h de reloj en la sesión en marcha; el servidor
-                  suma todas tus sesiones del día y pausa la sesión cuando se cumplen las
-                  {' '}{HORAS_JORNADA_PREDETERMINADA} h netas.
-                </p>
+                <details className="rounded-md bg-superficie-2 px-3 py-2">
+                  <summary className="cursor-pointer list-none text-xs text-texto-secundario marker:content-none">
+                    Jornada y horas de esta sesión
+                  </summary>
+                  <div className="mt-2 grid gap-1 text-xs text-texto-secundario">
+                    <p>
+                      La jornada es de {HORAS_JORNADA_PREDETERMINADA} h netas acumuladas del día
+                      (la comida de 12 a 13 no se cuenta). {AYUDA_HORAS_EXTRA}
+                    </p>
+                    <p data-testid="horas-netas-operacion">
+                      {horasNetasOperacion > 0
+                        ? `Este proceso ya registró ${horasNetasOperacion.toFixed(2)} h netas en sesiones cerradas. `
+                        : 'Este proceso aún no tiene horas netas cerradas. '}
+                      Llevas {horasSesion.toFixed(1)} h de reloj en la sesión en marcha.
+                    </p>
+                  </div>
+                </details>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1">
                     <label className={CLASE_ETIQUETA}>
@@ -2202,8 +2369,11 @@ export function DetalleProcesoOperador({
                       ) : null}
 
                       {materialClientePartida.length > 0 ? (
-                        <div className="grid gap-3 rounded-lg border border-borde p-3">
-                          <p className="text-sm font-semibold text-texto-primario">Material del cliente</p>
+                        <details className="rounded-lg border border-borde p-3">
+                          <summary className="cursor-pointer list-none text-sm font-semibold text-texto-primario marker:content-none">
+                            Material del cliente
+                          </summary>
+                          <div className="mt-3 grid gap-3">
                           <ul className="flex flex-col gap-1 text-xs text-texto-secundario">
                             {materialClientePartida.map((material) => (
                               <li key={material.materialId}>
@@ -2290,10 +2460,15 @@ export function DetalleProcesoOperador({
                           >
                             Pausar por falta de material del cliente
                           </Button>
-                        </div>
+                          </div>
+                        </details>
                       ) : null}
 
-                      <div className="grid gap-3 rounded-lg border border-borde p-3">
+                      <details className="rounded-lg border border-borde p-3">
+                        <summary className="cursor-pointer list-none text-sm font-semibold text-texto-primario marker:content-none">
+                          Retrabajo
+                        </summary>
+                        <div className="mt-3 grid gap-3">
                         <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
                           <input
                             type="checkbox"
@@ -2414,7 +2589,8 @@ export function DetalleProcesoOperador({
                             </label>
                           </>
                         ) : null}
-                      </div>
+                        </div>
+                      </details>
                     </div>
                   )}
                 </div>
@@ -2498,16 +2674,16 @@ export function DetalleProcesoOperador({
               </div>
             ) : null}
 
-            {proceso.procesoCompleto
-              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado) ? (
+            {proceso.procesoCompleto && haySesionPausada && !consumoPendienteAvance ? (
               <p
                 className="rounded-lg border border-advertencia/50 bg-advertencia-suave p-3 text-sm text-advertencia-texto"
                 data-testid="aviso-operacion-completa"
               >
                 La operación ya está completa ({formatearNumero(proceso.hechoPiezas, 0)} de{' '}
-                {formatearNumero(proceso.metaPiezas, 0)} piezas). No hace falta continuar la
-                sesión: actualiza el avance de la pausa y, si la partida usa material, registra
-                el consumo para cerrarla.
+                {formatearNumero(proceso.metaPiezas, 0)} piezas).{' '}
+                {esProcesoPosterior
+                  ? 'Actualiza el avance de la pausa para cerrarla; no hace falta continuar la sesión.'
+                  : 'Registra el consumo de material para cerrar la pausa.'}
               </p>
             ) : null}
             {avanceGuardado ? (
@@ -2519,12 +2695,34 @@ export function DetalleProcesoOperador({
                 Avance y hora real actualizados correctamente.
               </p>
             ) : null}
-            {!avanceGuardado
-              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
-              && !soloDetalle ? (
+            {consumoPendienteAvance && haySesionPausada && !soloDetalle ? (
               <form
                 noValidate
-                className="grid gap-3 rounded-lg border border-peligro/40 bg-peligro-suave/60 p-3"
+                className="grid gap-3 rounded-lg border border-advertencia/60 bg-advertencia-suave p-3"
+                aria-label="Registrar consumo y cerrar pausa"
+                data-testid="formulario-actualizar-avance"
+                onSubmit={(evento) => {
+                  evento.preventDefault();
+                  void actualizarAvance();
+                }}
+              >
+                <div>
+                  <p className="text-sm font-semibold text-advertencia-texto">
+                    Avance guardado: falta el consumo de material
+                  </p>
+                  <p className="text-xs text-texto-secundario">
+                    La operación quedó completa. Registra el material usado para cerrar la pausa.
+                  </p>
+                </div>
+                {camposConsumoAvance()}
+                <Button type="submit" disabled={procesando} data-testid="actualizar-avance-detalle">
+                  {procesando ? 'Cerrando…' : 'Registrar consumo y cerrar pausa'}
+                </Button>
+              </form>
+            ) : !avanceGuardado && haySesionPausada && !soloDetalle ? (
+              <form
+                noValidate
+                className="grid gap-3 rounded-lg border border-advertencia/50 bg-superficie p-3"
                 aria-label="Actualizar avance de la pausa"
                 data-testid="formulario-actualizar-avance"
                 onSubmit={(evento) => {
@@ -2533,7 +2731,7 @@ export function DetalleProcesoOperador({
                 }}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-peligro-texto">
+                  <p className="text-sm font-semibold text-texto-primario">
                     Actualizar avance y hora real
                   </p>
                   {proceso.sesiones.filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado).length > 1 ? (
@@ -2548,8 +2746,9 @@ export function DetalleProcesoOperador({
                   ) : null}
                 </div>
                 <p className="text-xs text-texto-secundario">
-                  Declara cuántas piezas produjiste y cuánto tardó realmente este bloque.
-                  Ese tiempo se suma al del resto de sesiones del proceso, aunque hayan sido en días distintos.
+                  Declara cuántas piezas produjiste y cuánto tardó realmente este bloque
+                  (no el proceso completo). Ese tiempo se suma al del resto de sesiones del
+                  proceso, aunque hayan sido en días distintos.
                 </p>
                 <label className={CLASE_ETIQUETA}>
                   Sesión a actualizar
@@ -2573,6 +2772,7 @@ export function DetalleProcesoOperador({
                       .map((sesion) => (
                         <option key={sesion.id} value={sesion.id}>
                           {etiquetaFechaHora(sesion.fechaInicio)} · {horasLegibles(sesion.horasNetas)} registradas
+                          {' · '}bloque de {duracionLegible(horasBloquePausa(sesion) ?? 0)}
                         </option>
                       ))}
                   </Select>
@@ -2588,17 +2788,25 @@ export function DetalleProcesoOperador({
                     />
                   </label>
                   <label className={CLASE_ETIQUETA}>
-                    Tiempo real de proceso
+                    Tiempo real de este bloque
                     <input
                       type="number"
                       min="0"
-                      max="24"
+                      max={maximoHorasBloque ?? 24}
                       step="any"
                       value={avanceHoras}
                       onChange={(evento) => setAvanceHoras(evento.target.value)}
                       className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
                       data-testid="avance-horas"
                     />
+                    <span
+                      className="text-xs font-normal text-texto-tenue"
+                      data-testid="avance-horas-ayuda"
+                    >
+                      {maximoHorasBloque !== null
+                        ? `Este bloque duró ${duracionLegible(maximoHorasBloque)}. Declara como máximo ese tiempo.`
+                        : 'Tiempo que tardó este bloque de trabajo.'}
+                    </span>
                   </label>
                 </div>
                 <label className={CLASE_ETIQUETA}>
@@ -2611,60 +2819,40 @@ export function DetalleProcesoOperador({
                     data-testid="avance-notas"
                   />
                 </label>
-                <label className={CLASE_ETIQUETA}>
-                  Consumo de material
-                  <Select
-                    value={avanceMaterialId === '' ? 'despues' : 'aquí'}
-                    onChange={(evento) => setAvanceMaterialId(evento.target.value === 'aquí' ? (materiales[0]?.id ?? '') : '')}
-                    data-testid="avance-opcion-consumo"
-                  >
-                    <option value="despues">Dejar el consumo para el cierre</option>
-                    <option value="aquí">Registrar el consumo aquí</option>
-                  </Select>
-                </label>
-                {avanceMaterialId !== '' ? (
-                  <div className="grid gap-3 rounded-md border border-borde p-2">
-                    <label className={CLASE_ETIQUETA}>
-                      Material
-                      <Select
-                        value={avanceMaterialId}
-                        onChange={(evento) => setAvanceMaterialId(evento.target.value)}
-                        data-testid="avance-material"
-                      >
-                        {materiales.map((material) => (
-                          <option key={material.id} value={material.id}>{material.nombre}</option>
-                        ))}
-                      </Select>
-                    </label>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className={CLASE_ETIQUETA}>
-                        Cantidad usada
-                        <Input
-                          value={avanceUsada}
-                          onChange={(evento) => setAvanceUsada(evento.target.value)}
-                          inputMode="decimal"
-                          data-testid="avance-material-usada"
-                        />
-                      </label>
-                      <label className={CLASE_ETIQUETA}>
-                        Merma
-                        <Input
-                          value={avanceScrap}
-                          onChange={(evento) => setAvanceScrap(evento.target.value)}
-                          inputMode="decimal"
-                          data-testid="avance-material-merma"
-                        />
-                      </label>
+                {esProcesoPosterior ? (
+                  <p className="text-xs text-texto-tenue">
+                    El consumo de piezas de {nombreProcesoPrevio} se registra al cerrar la operación.
+                  </p>
+                ) : materiales.length > 0 ? (
+                  requiereConsumoEnAvance ? (
+                    <div className="grid gap-2 rounded-md border border-advertencia/50 bg-advertencia-suave p-2">
+                      <p className="text-xs text-advertencia-texto">
+                        Con este avance la operación queda completa. Registra el consumo para poder
+                        cerrarla; de lo contrario la pausa no podrá terminar.
+                      </p>
+                      {camposConsumoAvance()}
                     </div>
-                    <label className={CLASE_ETIQUETA}>
-                      Motivo del consumo
-                      <Input
-                        value={avanceMotivoConsumo}
-                        onChange={(evento) => setAvanceMotivoConsumo(evento.target.value)}
-                        data-testid="avance-material-motivo"
-                      />
-                    </label>
-                  </div>
+                  ) : (
+                    <details className="rounded-md border border-borde p-2">
+                      <summary className="cursor-pointer list-none text-sm text-texto-secundario marker:content-none">
+                        Consumo de material (opcional)
+                      </summary>
+                      <div className="mt-2 grid gap-2">
+                        <label className={CLASE_ETIQUETA}>
+                          ¿Registrar consumo ahora?
+                          <Select
+                            value={avanceMaterialId === '' ? 'despues' : 'aquí'}
+                            onChange={(evento) => setAvanceMaterialId(evento.target.value === 'aquí' ? (materiales[0]?.id ?? '') : '')}
+                            data-testid="avance-opcion-consumo"
+                          >
+                            <option value="despues">No, dejarlo para el cierre</option>
+                            <option value="aquí">Sí, registrarlo aquí</option>
+                          </Select>
+                        </label>
+                        {avanceMaterialId !== '' ? camposConsumoAvance() : null}
+                      </div>
+                    </details>
+                  )
                 ) : null}
                 <Button type="submit" disabled={procesando} data-testid="actualizar-avance-detalle">
                   {procesando ? 'Actualizando…' : 'Actualizar avance'}
@@ -2695,9 +2883,12 @@ export function DetalleProcesoOperador({
               ) : null}
             </div>
 
-            {/* Con una sesión en marcha, el motivo de "ya hay una sesión activa"
-                es redundante: el formulario de cierre ya está arriba. */}
-            {proceso.motivoNoInicia && !proceso.sesionActiva ? (
+            {/* El motivo de «no inicia» solo aporta cuando no lo explica ya el
+                aviso de avance pendiente o el bloque de operación completa. */}
+            {proceso.motivoNoInicia
+              && !proceso.sesionActiva
+              && !proceso.pendienteActualizacionAvance
+              && !(proceso.procesoCompleto && haySesionPausada) ? (
               <p className="text-xs text-texto-secundario">{proceso.motivoNoInicia}</p>
             ) : null}
           </section>
@@ -2744,7 +2935,6 @@ export function DetalleProcesoOperador({
             etiqueta="Tiempo neto"
             valor={horasLegibles(resumenCierre.resultado.horasNetas)}
           />
-          <Dato etiqueta="Resultado" valor="Sesión finalizada" />
           <Dato etiqueta="Estado de orden" valor={etiquetaEstadoOrden(resumenCierre.resultado.estadoOrden)} />
           <Dato etiqueta="Planeación" valor={etiquetaEstadoPlaneacion(resumenCierre.resultado.estadoPlaneacion)} />
           <Dato
