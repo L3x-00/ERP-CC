@@ -112,6 +112,12 @@ export function ResumenCargaSemanal({
               {matriz.filas.map((fila) => {
                 const enUso = recursosEnUso?.has(fila.recursoId) ?? false;
                 const etiquetaEstado = enUso ? 'En uso' : 'Libre';
+                // El chip describe el **equipo**, no el proceso del operador que
+                // está mirando: el mismo recurso puede estar ocupado por otra
+                // orden. El detalle al pulsarlo dice quién lo ocupa.
+                const ayudaEstado = enUso
+                  ? `Equipo en uso por una sesión en marcha. Pulsa para ver la orden y el operador de ${fila.codigo}`
+                  : `Equipo libre. Pulsa para ver el detalle de ${fila.codigo}`;
                 const clasesEstado = cn(
                   'rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
                   enUso
@@ -135,7 +141,8 @@ export function ResumenCargaSemanal({
                               className={clasesEstado}
                               data-testid={`estado-${fila.codigo}`}
                               aria-haspopup="dialog"
-                              title={`Ver detalle de ${fila.codigo}`}
+                              aria-label={ayudaEstado}
+                              title={ayudaEstado}
                             >
                               {etiquetaEstado}
                             </button>

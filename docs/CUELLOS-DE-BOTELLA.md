@@ -300,6 +300,19 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | En Carga (operador y administrador) el equipo mostraba `0/8 h` y «Libre 8 h» después de varias horas reales trabajadas en el día; no se veía qué equipo estaba en marcha ni con qué orden | La matriz calculaba `Libre = capacidad − pendientes`, y `pendientes` ya viene descontado de las horas reales (`horas_estimadas − horas_reales`). Al restar solo el pendiente, las horas ya trabajadas desaparecían del saldo y el equipo parecía libre otra vez | `Libre = max(0, capacidad − pendientes − horas_reales)` en `construirMatrizCargaSemanal`; el saldo refleja la jornada ya consumida. El chip del equipo siempre muestra su estado (`En uso` en ámbar, `Libre` en neutro), sin teñir la fila, y al pulsarlo abre el diálogo con el proceso en marcha (orden, cliente, operador, desde, cronómetro vivo, avance y entrega), los procesos cerrados del día y la capacidad del área. Las horas reales se rotulan «trabajadas». No se agregan consultas: todo se deriva del mismo espacio del operador que pinta el Kanban y se refresca con el sincronizador de piso |
 
+## 24. Bucle al declarar el tiempo real de una pausa (O-1126_09)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El operador declaraba 240 piezas y 3 h en una pausa de Doblado y recibía «El tiempo real de proceso no puede ser mayor al tiempo de la sesión pausada». El diálogo ofrecía «Ajustar a 0.08 h» y, al aceptarlo, volvía a fallar con el mismo error | Dos defectos sumados: (1) `p_horas_reales` es el tiempo del **bloque de pausa seleccionado**, no del proceso completo, y ese bloque solo había durado ~4.7 min; (2) el máximo sugerido se calculaba con `Math.round(... * 100) / 100`, que para 0.0797 h devuelve 0.08 h —por encima de la duración real— y el reintento siempre excedía el `fecha_fin − fecha_inicio` que valida la RPC | El máximo de horas de un bloque se calcula con `horasBloquePausa` (truncado a minutos completos, nunca redondeado hacia arriba) y se usa en el `max` del campo, en el texto de ayuda y en la acción «Ajustar a …». El cliente valida antes de enviar y el diálogo explica en lenguaje del piso cuánto duró el bloque. Si el tiempo declarado no cabe, ofrece cambiar a otro bloque pausado que sí lo soporte; si no existe, indica continuar la sesión para que el reloj cuente ese tiempo. La validación SQL no se relaja: protege la integridad del tiempo. El formulario rotula «Tiempo real de este bloque» y cada opción del selector muestra la duración del bloque |
+
+## 25. El panel del operador dice «pausa» y Carga dice «En uso»
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El operador ve su proceso en pausa en su ficha, pero la tabla de Carga marca el área como «En uso» y parece que no hay sincronización | El chip de Carga es del **equipo/área**, no del proceso del operador: `equiposEnUso` marca el recurso si **cualquier** proceso tiene `sesionActiva`. Puede ser otra orden del mismo equipo, no la sesión pausada que el operador está mirando. La consulta y el SSE sí están al día (`sesiones_trabajo`, `programacion_areas`, metas y corridas) | Antes de tocar la tabla, abrir el detalle del chip: muestra la orden, el proceso, el operador y la hora de inicio de quien ocupa el equipo. Si esa orden no es la del operador, no hay desincronización: el equipo está ocupado por otro trabajo. No comparar el estado de una sesión pausada con un chip agregado por recurso |
+
+
 
 
 
