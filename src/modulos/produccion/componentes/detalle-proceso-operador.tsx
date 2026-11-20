@@ -67,8 +67,10 @@ import {
   ventanaTurno,
 } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
+  duracionLegible,
   etiquetaDiaLargo,
   etiquetaFechaHora,
+  horasBloquePausa,
   horasLegibles,
   tamanoLegible,
   textoCompromiso,
@@ -481,6 +483,15 @@ export function DetalleProcesoOperador({
     && !proceso.pendienteActualizacionAvance
     && !proceso.procesoCompleto
     && proceso.piezasDisponibles === 0;
+  // El tiempo real declarado pertenece al bloque de pausa seleccionado, no al
+  // proceso completo. El servidor lo limita a la duración real del bloque;
+  // mostrar el máximo evita que el operador caiga en el error una y otra vez.
+  const sesionBloqueAvance = proceso.sesiones.find(
+    (item) => item.id === (sesionCorreccionId ?? pausaCorregible(proceso)?.id),
+  );
+  const maximoHorasBloque = sesionBloqueAvance
+    ? horasBloquePausa(sesionBloqueAvance)
+    : null;
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
@@ -519,6 +530,25 @@ export function DetalleProcesoOperador({
     if (!proceso || !sesionId) return;
     const sesionActual = proceso.sesiones.find((item) => item.id === sesionId);
     const piezasDeclaradas = Number(avancePiezas) || 0;
+    // El tiempo real es del bloque pausado, no del proceso completo. Se valida
+    // aquí con el mismo límite del servidor para no gastar el viaje ni caer en
+    // un bucle de «ajustar y volver a fallar».
+    const horasDeclaradas = Number(avanceHoras) || 0;
+    const maximoBloque = sesionActual ? horasBloquePausa(sesionActual) : null;
+    if (!Number.isFinite(horasDeclaradas) || horasDeclaradas < 0) {
+      setErrorAvance({
+        titulo: 'Tiempo real inválido',
+        mensaje: 'Indica cuántas horas reales tardó este bloque (cero o más).',
+      });
+      return;
+    }
+    if (maximoBloque !== null && horasDeclaradas > maximoBloque) {
+      mostrarErrorAvance({
+        error: 'El tiempo real no puede ser mayor al que duró el bloque de pausa',
+        codigo: 'horas_reales_exceden_sesion',
+      });
+      return;
+    }
     // ¿Este avance deja la operación completa? El servidor solo mantiene la
     // pausa cuando falta el consumo de material; en ese caso el formulario debe
     // seguir visible para asentarlo. Un avance parcial sí cierra el formulario.
@@ -561,15 +591,51 @@ export function DetalleProcesoOperador({
 
   /** Errores de avance con salidas accionables, no callejones sin salida. */
   function mostrarErrorAvance(resultado: { error: string; codigo?: string }): void {
-    const sesion = proceso?.sesiones.find((item) => item.id === sesionCorreccionId);
-    const maximo = sesion?.fechaFin && sesion.fechaInicio
-      ? Math.max(0, Math.round(((new Date(sesion.fechaFin).getTime() - new Date(sesion.fechaInicio).getTime()) / 3_600_000) * 100) / 100)
-      : null;
+    const sesionIdElegida = sesionCorreccionId ?? pausaCorregible(proceso)?.id ?? null;
+    const sesion = proceso?.sesiones.find((item) => item.id === sesionIdElegida)
+      ?? pausaCorregible(proceso);
+    // Se trunca a minutos completos: un máximo redondeado hacia arriba supera
+    // la duración real y el reintento vuelve a fallar (bucle de O-1126_09).
+    const maximo = sesion ? horasBloquePausa(sesion) : null;
+    const horasDeclaradas = Number(avanceHoras) || 0;
     const acciones: DatosErrorCierre['acciones'] = [];
-    if (resultado.codigo === 'horas_reales_exceden_sesion' || resultado.codigo === 'horas_a_restar_exceden_sesion') {
+    let mensaje = resultado.error;
+    if (resultado.codigo === 'horas_reales_exceden_sesion') {
+      const otrasPausas = (proceso?.sesiones ?? []).filter(
+        (item) => item.estadoSesion === 'pausada'
+          && !item.sesionInvalida
+          && !item.recursoLiberado
+          && item.id !== sesion?.id,
+      );
+      const alternativa = otrasPausas.find(
+        (item) => (horasBloquePausa(item) ?? 0) >= horasDeclaradas,
+      );
+      if (maximo !== null) {
+        const duracion = duracionLegible(maximo);
+        mensaje = `Este bloque de pausa duró ${duracion}. El tiempo real que declares no puede ser mayor a esa duración.`
+          + (otrasPausas.length > 0
+            ? ' Si trabajaste más tiempo, cambia en «Sesión a actualizar» al bloque donde estuvo ese tiempo.'
+            : ' Si seguiste trabajando después de la pausa, continúa la sesión para que el reloj cuente ese tiempo.');
+        acciones.push({
+          etiqueta: `Ajustar a ${duracion}`,
+          alElegir: () => setAvanceHoras(String(maximo)),
+        });
+      }
+      if (alternativa) {
+        acciones.push({
+          etiqueta: `Usar el bloque del ${etiquetaFechaHora(alternativa.fechaInicio)}`,
+          alElegir: () => {
+            setSesionCorreccionId(alternativa.id);
+            setAvancePiezas(String(alternativa.piezasProducidas));
+            setAvanceHoras(String(alternativa.horasNetas));
+          },
+        });
+      }
+    }
+    if (resultado.codigo === 'horas_a_restar_exceden_sesion') {
       if (maximo !== null) {
         acciones.push({
-          etiqueta: `Ajustar a ${maximo} h`,
+          etiqueta: `Ajustar a ${duracionLegible(maximo)}`,
           alElegir: () => setAvanceHoras(String(maximo)),
         });
       }
@@ -615,7 +681,7 @@ export function DetalleProcesoOperador({
     }
     setErrorAvance({
       titulo: 'No se pudo actualizar el avance',
-      mensaje: resultado.error,
+      mensaje,
       acciones,
     });
   }
@@ -1709,6 +1775,13 @@ export function DetalleProcesoOperador({
               {' · '}{etiquetaFechaHora(sesionPausada.fechaInicio)} → {etiquetaFechaHora(sesionPausada.fechaFin)}
               {' · '}{horasLegibles(sesionPausada.horasNetas)} netas
             </p>
+            <p
+              className="text-xs text-texto-secundario"
+              data-testid="duracion-bloque-pausa"
+            >
+              Este bloque de pausa duró {duracionLegible(horasBloquePausa(sesionPausada) ?? 0)}.
+              El tiempo real que declares al actualizar el avance no puede ser mayor.
+            </p>
             {sesionPausada.motivoPausaNota ? (
               <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
             ) : null}
@@ -2528,8 +2601,9 @@ export function DetalleProcesoOperador({
                   ) : null}
                 </div>
                 <p className="text-xs text-texto-secundario">
-                  Declara cuántas piezas produjiste y cuánto tardó realmente este bloque.
-                  Ese tiempo se suma al del resto de sesiones del proceso, aunque hayan sido en días distintos.
+                  Declara cuántas piezas produjiste y cuánto tardó realmente este bloque
+                  (no el proceso completo). Ese tiempo se suma al del resto de sesiones del
+                  proceso, aunque hayan sido en días distintos.
                 </p>
                 <label className={CLASE_ETIQUETA}>
                   Sesión a actualizar
@@ -2553,6 +2627,7 @@ export function DetalleProcesoOperador({
                       .map((sesion) => (
                         <option key={sesion.id} value={sesion.id}>
                           {etiquetaFechaHora(sesion.fechaInicio)} · {horasLegibles(sesion.horasNetas)} registradas
+                          {' · '}bloque de {duracionLegible(horasBloquePausa(sesion) ?? 0)}
                         </option>
                       ))}
                   </Select>
@@ -2568,17 +2643,25 @@ export function DetalleProcesoOperador({
                     />
                   </label>
                   <label className={CLASE_ETIQUETA}>
-                    Tiempo real de proceso
+                    Tiempo real de este bloque
                     <input
                       type="number"
                       min="0"
-                      max="24"
+                      max={maximoHorasBloque ?? 24}
                       step="any"
                       value={avanceHoras}
                       onChange={(evento) => setAvanceHoras(evento.target.value)}
                       className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
                       data-testid="avance-horas"
                     />
+                    <span
+                      className="text-xs font-normal text-texto-tenue"
+                      data-testid="avance-horas-ayuda"
+                    >
+                      {maximoHorasBloque !== null
+                        ? `Este bloque duró ${duracionLegible(maximoHorasBloque)}. Declara como máximo ese tiempo.`
+                        : 'Tiempo que tardó este bloque de trabajo.'}
+                    </span>
                   </label>
                 </div>
                 <label className={CLASE_ETIQUETA}>
