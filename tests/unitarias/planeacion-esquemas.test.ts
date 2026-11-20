@@ -319,6 +319,10 @@ describe('mappers de Planeación', () => {
     creado_en: '2026-08-01T12:00:00.000Z',
     actualizado_en: '2026-08-10T12:00:00.000Z',
     meta_proceso_id: null,
+    reabierta_correlation_id: null,
+    reabierta_en: null,
+    reabierta_por: null,
+    reabierta_reclamos_count: null,
   };
 
   it('mapea un recurso a camelCase conservando área y estado activo', () => {

@@ -267,6 +267,8 @@ export interface ProcesoEspacioOperador {
   puedeIniciar: boolean;
   puedeReanudar: boolean;
   motivoNoInicia: string | null;
+  /** C31/A2: código estable del bloqueo; la UI deriva texto y testid de aquí. */
+  motivoBloqueo: CodigoBloqueo | null;
 }
 
 /** Ítem de la orden con las operaciones visibles de ese ítem. */
@@ -527,11 +529,17 @@ export interface ResumenEspacioOperador {
   horasReclamadasHoy: number;
 }
 
+import { matrizAccionesProceso, type CodigoBloqueo } from '@/modulos/produccion/tipos/acciones-proceso';
+
 export type TipoAccionTarjeta =
   | 'reclamar'
   | 'iniciar'
   | 'reanudar'
   | 'sesion'
+  | 'registrar_cierre'
+  | 'reabrir_operacion'
+  | 'liberar_reserva'
+  | 'consultar'
   | 'bloqueada';
 
 export interface AccionTarjeta {
@@ -545,31 +553,14 @@ export interface AccionTarjeta {
  * una orden que aún no se libera, ni reclamar un proceso ya tomado.
  */
 export function accionPrincipal(proceso: ProcesoEspacioOperador): AccionTarjeta {
-  // Un proceso tomado por otro operador se consulta, no se opera: aunque tenga
-  // sesión activa o pausa, la tarjeta no ofrece acciones a quien no lo reclamó.
-  if (proceso.reclamo && !proceso.reclamadoPorMi) {
-    return { tipo: 'bloqueada', etiqueta: 'Tomado', deshabilitada: true };
-  }
-  if (proceso.sesionActiva) {
-    return { tipo: 'sesion', etiqueta: 'Registrar cierre', deshabilitada: false };
-  }
-  if (proceso.puedeReanudar) {
-    return { tipo: 'reanudar', etiqueta: 'Continuar', deshabilitada: false };
-  }
-  if (proceso.puedeIniciar) {
-    return { tipo: 'iniciar', etiqueta: 'Iniciar', deshabilitada: false };
-  }
-  if (proceso.reclamo) {
-    return {
-      tipo: 'bloqueada',
-      etiqueta: proceso.reclamadoPorMi ? 'Reservado' : 'Tomado',
-      deshabilitada: true,
-    };
-  }
-  if (proceso.columna === 'lista') {
-    return { tipo: 'bloqueada', etiqueta: 'Completado', deshabilitada: true };
-  }
-  return { tipo: 'reclamar', etiqueta: 'Reclamar', deshabilitada: false };
+  // La matriz única es la fuente de verdad; este wrapper conserva la firma
+  // pública usada por las tarjetas existentes.
+  const matriz = matrizAccionesProceso(proceso);
+  return {
+    tipo: matriz.principal,
+    etiqueta: matriz.etiqueta,
+    deshabilitada: matriz.deshabilitada,
+  };
 }
 
 type EntradaColumnaProceso = {

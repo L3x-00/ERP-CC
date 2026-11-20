@@ -60,6 +60,7 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
         operadorId={operador?.id ?? null}
         usuarioActualId={usuario.id}
         esAdmin={usuario.rol === 'admin'}
+        puedeReabrirOperacion={await can(usuario, 'gestionar_planeacion')}
         ordenInicialId={ordenInicialId}
       />
     </div>

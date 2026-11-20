@@ -32,6 +32,7 @@ export {
   cancelarCorridaAccion,
 } from '@/modulos/produccion/acciones/estado-corrida';
 export { reclamarRecursoAccion } from '@/modulos/produccion/acciones/reclamar-recurso';
+export { reabrirOperacionBloqueadaAccion } from '@/modulos/produccion/acciones/reabrir-operacion-bloqueada';
 export {
   iniciarProcesoReclamadoAccion,
   liberarReclamoAccion,

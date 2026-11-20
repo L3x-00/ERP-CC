@@ -266,7 +266,9 @@ export function TarjetaOrdenMisProcesos({
 
                 <button
                   type="button"
-                  data-testid={`gestionar-proceso-${proceso.id}`}
+                  data-testid={proceso.motivoBloqueo
+                    ? `motivo-${proceso.motivoBloqueo}-${proceso.id}`
+                    : `gestionar-proceso-${proceso.id}`}
                   disabled={!puedeGestionar || procesando !== null}
                   onClick={() => onGestionar(proceso)}
                   className={

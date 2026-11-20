@@ -17,6 +17,10 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: empujarRutaMock, refresh: vi.fn() }),
 }));
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
 vi.mock('@/modulos/produccion/acciones/registrar-consumo-piezas', () => ({
   registrarConsumoPiezasAccion: vi.fn().mockResolvedValue({ exito: true, datos: {} }),
 }));

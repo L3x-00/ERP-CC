@@ -1,6 +1,27 @@
 import type { ReclamacionRecurso } from '@/modulos/produccion/servicios/corridas-servicio';
+import type { ReaperturaOperacion } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 import { etiquetaFechaHoraNegocio } from '@/modulos/produccion/utilidades/formato-operador';
 import type { AvisoSupervision } from '@/modulos/produccion/tipos/espacio-operador';
+
+/** C31/A2: texto exacto al reabrir una operación bloqueada sin sesión. */
+export function mensajeReaperturaOperacion(
+  resultado: ReaperturaOperacion,
+  partidaCodigo: string,
+): string {
+  const actor = resultado.reabiertaPorNombre ?? 'administración';
+  if (resultado.yaAplicado) {
+    if (resultado.reabiertaEn === null) {
+      return `${partidaCodigo} ya estaba abierta antes de que se registrara el responsable. No se registró ningún cambio nuevo.`;
+    }
+    return `${partidaCodigo} ya había sido reabierta por ${actor} el ${etiquetaFechaHoraNegocio(resultado.reabiertaEn)}. No se registró ningún cambio nuevo.`;
+  }
+  const reclamos = resultado.reclamosLiberados === 0
+    ? 'no había reclamo activo que cerrar'
+    : resultado.reclamosLiberados === 1
+      ? 'se cerró 1 reclamo'
+      : `se cerraron ${resultado.reclamosLiberados} reclamos`;
+  return `${partidaCodigo} reabierta por ${actor}: volvió a Planeación y ${reclamos}. Ya puedes reclamarla de nuevo.`;
+}
 
 /**
  * C31/A1: textos exactos para la liberación de una máquina. Ningún mensaje dice

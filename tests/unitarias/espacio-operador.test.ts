@@ -94,6 +94,7 @@ function crearProceso(
     ultimaSesion: null,
     sesiones: [],
     avisoSupervision: null,
+    motivoBloqueo: null,
     pendienteActualizacionAvance: false,
     procesosRuteo: [],
     archivos: [],

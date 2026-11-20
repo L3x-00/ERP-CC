@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
@@ -9,6 +10,9 @@ import { cn } from '@/compartido/utilidades/cn';
 import { etiquetaEstado } from '@/compartido/utilidades/estados';
 import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
+import { reabrirOperacionBloqueadaAccion } from '@/modulos/produccion/acciones/indice';
+import { mensajeReaperturaOperacion } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
+import { MOTIVO_BLOQUEO_TEXTO } from '@/modulos/produccion/tipos/acciones-proceso';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
@@ -67,6 +71,8 @@ export interface PropsPanelOperadorProduccion {
   operadorDisponible: boolean;
   /** Vista de administrador: ofrece el piso completo en solo lectura, sin PIN. */
   esAdmin?: boolean;
+  /** C31/A2: permiso real de `gestionar_planeacion`, resuelto en el servidor. */
+  puedeReabrirOperacion?: boolean;
   procesando: boolean;
   /** SII-B6: corrida elegida en el panel de corridas (opcional). */
   corridaId?: string | null;
@@ -118,6 +124,7 @@ export function PanelOperadorProduccion({
   sesionActiva,
   operadorDisponible,
   esAdmin = false,
+  puedeReabrirOperacion = false,
   procesando,
   corridaId = null,
   motivosPausa,
@@ -129,6 +136,7 @@ export function PanelOperadorProduccion({
   onCerrar,
 }: PropsPanelOperadorProduccion) {
   const enrutador = useRouter();
+  const clienteConsultas = useQueryClient();
   const preparaciones = useMemo(() => orden?.partidas.flatMap((partida) => (
     partida.programaciones
       .filter((programacion) => programacion.estadoPlaneacion === 'en_preparacion')
@@ -136,6 +144,22 @@ export function PanelOperadorProduccion({
         partidaId: partida.id,
         programacionId: programacion.id,
         etiqueta: `${partida.codigoPieza} · ${programacion.fechaProgramada} / ${programacion.turno}`,
+      }))
+  )) ?? [], [orden]);
+  // C31/A2: misma regla del diagnóstico C23 (sin sesión válida) para ofrecer
+  // la reapertura solo donde la RPC realmente puede aplicarla.
+  const bloqueadasSinSesion = useMemo(() => orden?.partidas.flatMap((partida) => (
+    partida.programaciones
+      .filter((programacion) => programacion.estadoPlaneacion === 'bloqueada'
+        && !(orden.sesiones ?? []).some((sesion) => sesion.programacionId === programacion.id
+          && (sesion.estadoSesion === 'activa' || sesion.estadoSesion === 'pausada')
+          && !sesion.sesionInvalida
+          && !sesion.recursoLiberado))
+      .map((programacion) => ({
+        partidaId: partida.id,
+        partidaCodigo: partida.codigoPieza,
+        programacionId: programacion.id,
+        actualizadoEn: programacion.actualizadoEn,
       }))
   )) ?? [], [orden]);
   const [programacionId, setProgramacionId] = useState('');
@@ -166,6 +190,13 @@ export function PanelOperadorProduccion({
   const [cantidadMerma, setCantidadMerma] = useState('0');
   const [motivoConsumo, setMotivoConsumo] = useState('');
   const [mensaje, setMensaje] = useState<MensajePanelOperador | null>(null);
+  // C31/A2: estado local por programación para evitar doble pulsación; la RPC
+  // también es idempotente por correlation.
+  const [reabriendo, setReabriendo] = useState<string | null>(null);
+  const [mensajeReapertura, setMensajeReapertura] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
+  const correlacionesReapertura = useRef<Record<string, string>>({});
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
   const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
@@ -296,6 +327,35 @@ export function PanelOperadorProduccion({
     }
     return null;
   })();
+
+  async function reabrir(item: (typeof bloqueadasSinSesion)[number]): Promise<void> {
+    setMensajeReapertura(null);
+    setReabriendo(item.programacionId);
+    const correlationId = correlacionesReapertura.current[item.programacionId] ?? crypto.randomUUID();
+    correlacionesReapertura.current[item.programacionId] = correlationId;
+    try {
+      const resultado = await reabrirOperacionBloqueadaAccion({
+        programacionId: item.programacionId,
+        correlationId,
+      });
+      setMensajeReapertura(resultado.exito
+        ? {
+            tipo: 'ok',
+            texto: mensajeReaperturaOperacion(resultado.datos!, item.partidaCodigo),
+          }
+        : { tipo: 'error', texto: resultado.error });
+      delete correlacionesReapertura.current[item.programacionId];
+      await clienteConsultas.invalidateQueries();
+    } catch {
+      delete correlacionesReapertura.current[item.programacionId];
+      setMensajeReapertura({
+        tipo: 'error',
+        texto: `No se pudo confirmar la reapertura de ${item.partidaCodigo}. Vuelve a cargar la orden: si la operación ya aparece como programada, el cambio se registró.`,
+      });
+    } finally {
+      setReabriendo(null);
+    }
+  }
 
   async function reanudar(): Promise<void> {
     if (!orden || !ultimaPausa || ultimaPausa.completa) return;
@@ -1132,6 +1192,35 @@ export function PanelOperadorProduccion({
               >
                 Programar la partida en Planeación
               </Button>
+            </div>
+          ) : null}
+          {bloqueadasSinSesion.length > 0 ? (
+            <div className="flex flex-col gap-2 rounded-md border border-advertencia/30 bg-advertencia-suave p-3">
+              <p className="text-sm text-advertencia-texto" data-testid="aviso-operacion-bloqueada-sin-sesion">
+                {MOTIVO_BLOQUEO_TEXTO.programacion_bloqueada_sin_sesion}
+              </p>
+              {puedeReabrirOperacion ? bloqueadasSinSesion.map((item) => (
+                <div key={item.programacionId} className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm text-texto-secundario">{item.partidaCodigo}</span>
+                  <Button
+                    type="button"
+                    tamano="sm"
+                    disabled={reabriendo === item.programacionId}
+                    data-testid={`accion-reabrir_operacion-${item.programacionId}`}
+                    onClick={() => void reabrir(item)}
+                  >
+                    {reabriendo === item.programacionId ? 'Reabriendo…' : 'Reabrir operación'}
+                  </Button>
+                </div>
+              )) : null}
+              {mensajeReapertura ? (
+                <p
+                  role={mensajeReapertura.tipo === 'error' ? 'alert' : 'status'}
+                  className={mensajeReapertura.tipo === 'error' ? 'text-sm text-peligro-texto' : 'text-sm text-exito-texto'}
+                >
+                  {mensajeReapertura.texto}
+                </p>
+              ) : null}
             </div>
           ) : null}
           {preparaciones.length > 0 ? (
