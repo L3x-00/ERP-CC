@@ -13,6 +13,9 @@ import { fechaHoraLocalTallerAIso } from '@/modulos/produccion/servicios/calculo
 export type CodigoErrorProduccion =
   | 'inicio_sesion_invalido'
   | 'cierre_sesion_invalido'
+  | 'cierre_consumo_invalido'
+  | 'proceso_corrida_no_corresponde'
+  | 'material_no_corresponde_corrida'
   | 'sesion_no_activa'
   | 'sesion_partida_inconsistente'
   | 'orden_partida_inconsistente'
@@ -195,6 +198,9 @@ export interface CierreSesionRegistrado {
 const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'inicio_sesion_invalido',
   'cierre_sesion_invalido',
+  'cierre_consumo_invalido',
+  'proceso_corrida_no_corresponde',
+  'material_no_corresponde_corrida',
   'sesion_no_activa',
   'sesion_partida_inconsistente',
   'orden_partida_inconsistente',
@@ -688,7 +694,14 @@ export async function registrarConsumoPiezasSesionServicio(
 }
 
 export function mensajeErrorSesion(error: unknown): string {
-  if (!(error instanceof ErrorProduccion)) return 'No se pudo registrar la sesión de producción';
+  // C31/A10: ningún error llega al operador como texto genérico. Si vino de
+  // otra capa, se muestra su causa exacta y el paso siguiente.
+  if (!(error instanceof ErrorProduccion)) {
+    const causa = error instanceof Error ? error.message.trim() : '';
+    return causa
+      ? `La operación no se pudo completar: ${causa}. Corrige lo indicado y vuelve a intentarlo; si continúa, pide a administración que revise la orden.`
+      : 'La operación no se pudo completar porque la respuesta del sistema no fue válida. Vuelve a cargar la ficha y reintenta; si continúa, pide a administración que revise la orden.';
+  }
 
   switch (error.codigo) {
     case 'jornada_cerrada':
@@ -702,6 +715,12 @@ export function mensajeErrorSesion(error: unknown): string {
       return detalleDelMensaje(error) ?? 'Sin disponibilidad suficiente: el proceso no cabe en el tiempo libre del equipo ese día.';
     case 'cierre_sesion_invalido':
       return 'El cierre requiere datos válidos; el consumo de material solo es obligatorio cuando la ruta lo exige';
+    case 'cierre_consumo_invalido':
+      return 'El consumo capturado no es válido para este cierre. Revisa el material, la cantidad usada y la merma, y vuelve a registrarlos.';
+    case 'proceso_corrida_no_corresponde':
+      return 'La corrida elegida no corresponde a este proceso. Abre de nuevo la ficha y selecciona la corrida correcta.';
+    case 'material_no_corresponde_corrida':
+      return 'El material elegido no pertenece a la corrida de esta orden. Selecciona el material del ítem.';
     case 'operador_o_programacion_con_sesion_activa':
       return 'Esa operación ya tiene una sesión activa en el recurso; espera a que se cierre o elige otra.';
     case 'programacion_no_preparada':
@@ -941,8 +960,10 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'tipo_cambio_no_configurado':
       return 'Configura el tipo de cambio USD antes de registrar el consumo';
     default:
-      // C24: regla transversal: nunca un error genérico si la base explicó la causa.
-      return detalleDelMensaje(error) ?? 'No se pudo registrar la sesión de producción';
+      // C24/C31-A10: regla transversal: nunca un error genérico. Si la base no
+      // tradujo el código, se muestra el código exacto y qué hacer.
+      return detalleDelMensaje(error)
+        ?? `El sistema rechazó la operación con el código «${error.codigo}». Vuelve a cargar la ficha y reintenta; si continúa, comunica este código a administración.`;
   }
 }
 
