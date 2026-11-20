@@ -35,6 +35,8 @@ export interface PropsDetalleOrdenConcluida {
   procesando: boolean;
   usuarioActualId?: string;
   esAdmin?: boolean;
+  puedeGestionarProduccion?: boolean;
+  puedeGestionarPlaneacion?: boolean;
   onEntregar: (datos: {
     ordenId: string;
     recibidoPor: string;
@@ -62,6 +64,8 @@ export function DetalleOrdenConcluida({
   procesando,
   usuarioActualId,
   esAdmin = false,
+  puedeGestionarProduccion = false,
+  puedeGestionarPlaneacion = false,
   onEntregar,
 }: PropsDetalleOrdenConcluida) {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
@@ -215,7 +219,12 @@ export function DetalleOrdenConcluida({
         </dl>
       </section>
 
-      <PanelSaludOrden ordenId={orden.id} esAdmin={esAdmin} />
+      <PanelSaludOrden
+        ordenId={orden.id}
+        esAdmin={esAdmin}
+        puedeGestionarProduccion={puedeGestionarProduccion}
+        puedeGestionarPlaneacion={puedeGestionarPlaneacion}
+      />
 
       <AccesosRapidosOrden ordenId={orden.id} />
 

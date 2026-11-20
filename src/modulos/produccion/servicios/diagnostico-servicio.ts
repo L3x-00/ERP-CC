@@ -8,7 +8,21 @@ import {
 
 type Admin = SupabaseClient<Database>;
 
-/** C23: una inconsistencia accionable detectada en una orden de producción. */
+/** C31/A6: acción concreta sugerida por cada código de diagnóstico. */
+export type AccionDiagnostico =
+  | 'cerrar_pausa'
+  | 'reabrir_operacion'
+  | 'registrar_consumo'
+  | 'generar_nota_entrega'
+  | 'revisar_planeacion'
+  | 'ver_detalle';
+
+export type PermisoDiagnostico =
+  | 'gestionar_produccion'
+  | 'gestionar_planeacion'
+  | 'operador';
+
+/** C23/C31-A6: una inconsistencia accionable de una orden de producción. */
 export interface DiagnosticoOrdenItem {
   codigo: string;
   severidad: 'alta' | 'media' | 'baja';
@@ -18,6 +32,72 @@ export interface DiagnosticoOrdenItem {
   detalle: string;
   valorActual: number | null;
   valorEsperado: number | null;
+  accionSugerida: AccionDiagnostico;
+  textoAccion: string;
+  destino: string;
+  permisoRequerido: PermisoDiagnostico;
+}
+
+interface GuiaDiagnostico {
+  accionSugerida: AccionDiagnostico;
+  textoAccion: string;
+  permisoRequerido: PermisoDiagnostico;
+}
+
+/** Fuente única de las 11 guías; la UI no inventa texto ni botones. */
+export const GUIAS_DIAGNOSTICO: Readonly<Record<string, GuiaDiagnostico>> = {
+  tiempo_real_desincronizado: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Revisar las horas en Planeación',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  produccion_excede_solicitada: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Revisar el exceso en Planeación',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  meta_excede_piezas: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Revisar el avance de la operación',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  cantidad_producida_inconsistente: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Conciliar las piezas producidas',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  produccion_sin_programacion: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Registrar la operación programada que falta',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  pausa_huerfana: {
+    accionSugerida: 'cerrar_pausa', textoAccion: 'Cerrar pausa pendiente',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  sesion_vacia: {
+    accionSugerida: 'revisar_planeacion', textoAccion: 'Descartar la sesión vacía desde la ficha',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  sesion_activa_programacion_inoperable: {
+    accionSugerida: 'ver_detalle', textoAccion: 'Ver la sesión activa en la ficha',
+    permisoRequerido: 'gestionar_produccion',
+  },
+  programacion_bloqueada_sin_sesion: {
+    accionSugerida: 'reabrir_operacion', textoAccion: 'Reabrir la operación en el panel de piso',
+    permisoRequerido: 'gestionar_planeacion',
+  },
+  consumo_material_pendiente: {
+    accionSugerida: 'registrar_consumo', textoAccion: 'Registrar el consumo pendiente',
+    permisoRequerido: 'operador',
+  },
+  orden_completada_sin_entrega: {
+    accionSugerida: 'generar_nota_entrega', textoAccion: 'Generar la nota de entrega',
+    permisoRequerido: 'gestionar_produccion',
+  },
+};
+
+function guia(codigo: string): GuiaDiagnostico {
+  return GUIAS_DIAGNOSTICO[codigo] ?? {
+    accionSugerida: 'revisar_planeacion',
+    textoAccion: 'Revisar el registro en la ficha de la orden',
+    permisoRequerido: 'gestionar_produccion',
+  };
 }
 
 function severidadDesdeBase(valor: string): DiagnosticoOrdenItem['severidad'] {
@@ -37,16 +117,26 @@ export async function obtenerDiagnosticoOrdenServicio(
     p_orden_id: ordenId,
   });
   if (error) lanzarErrorProduccion(error.message);
-  return (data ?? []).map((fila) => ({
-    codigo: fila.codigo,
-    severidad: severidadDesdeBase(fila.severidad),
-    partidaId: fila.partida_id,
-    sesionId: fila.sesion_id,
-    programacionId: fila.programacion_id,
-    detalle: fila.detalle,
-    valorActual: fila.valor_actual === null ? null : Number(fila.valor_actual),
-    valorEsperado: fila.valor_esperado === null ? null : Number(fila.valor_esperado),
-  }));
+  return (data ?? []).map((fila) => {
+    const guiaCodigo = guia(fila.codigo);
+    const destino = fila.codigo === 'programacion_bloqueada_sin_sesion'
+      ? '/produccion-piso'
+      : fila.codigo === 'consumo_material_pendiente'
+        ? '/produccion-piso'
+        : `/produccion?ordenId=${ordenId}`;
+    return {
+      codigo: fila.codigo,
+      severidad: severidadDesdeBase(fila.severidad),
+      partidaId: fila.partida_id,
+      sesionId: fila.sesion_id,
+      programacionId: fila.programacion_id,
+      detalle: fila.detalle,
+      valorActual: fila.valor_actual === null ? null : Number(fila.valor_actual),
+      valorEsperado: fila.valor_esperado === null ? null : Number(fila.valor_esperado),
+      ...guiaCodigo,
+      destino,
+    };
+  });
 }
 
 export interface PausaHuerfanaCerrada {
