@@ -4597,6 +4597,8 @@ export type Database = {
           motivo_pausa: string | null
           motivo_pausa_codigo: string | null
           motivo_pausa_nota: string | null
+          motivo_exceso: string | null
+          motivo_exceso_detalle: string | null
           notas: string | null
           operador_id: string
           orden_id: string
@@ -4628,6 +4630,8 @@ export type Database = {
           motivo_pausa?: string | null
           motivo_pausa_codigo?: string | null
           motivo_pausa_nota?: string | null
+          motivo_exceso?: string | null
+          motivo_exceso_detalle?: string | null
           notas?: string | null
           operador_id: string
           orden_id: string
@@ -4659,6 +4663,8 @@ export type Database = {
           motivo_pausa?: string | null
           motivo_pausa_codigo?: string | null
           motivo_pausa_nota?: string | null
+          motivo_exceso?: string | null
+          motivo_exceso_detalle?: string | null
           notas?: string | null
           operador_id?: string
           orden_id?: string
@@ -7421,6 +7427,15 @@ export type Database = {
           p_actor_id: string
           p_correlation_id?: string
           p_programacion_id: string
+        }
+        Returns: Json
+      }
+      registrar_motivo_exceso_sesion: {
+        Args: {
+          p_detalle: string
+          p_motivo: string
+          p_operador_id: string
+          p_sesion_id: string
         }
         Returns: Json
       }

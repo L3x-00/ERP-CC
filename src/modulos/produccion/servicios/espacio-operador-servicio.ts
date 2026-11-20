@@ -333,6 +333,8 @@ function sesionResumen(
       && corridasConPrimeraPiezaPendiente.has(sesion.corridaId),
     motivoPausa: sesion.motivoPausaCodigo ?? sesion.motivoPausa,
     motivoPausaNota: sesion.motivoPausaNota,
+    motivoExceso: sesion.motivoExceso,
+    motivoExcesoDetalle: sesion.motivoExcesoDetalle,
     notas: sesion.notas,
     verificacionCompleta: sesion.verificacionInicio !== null,
   };

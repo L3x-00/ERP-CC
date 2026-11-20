@@ -15,6 +15,7 @@ export type CodigoErrorProduccion =
   | 'inicio_sesion_invalido'
   | 'cierre_sesion_invalido'
   | 'cierre_consumo_invalido'
+  | 'motivo_exceso_invalido'
   | 'proceso_corrida_no_corresponde'
   | 'material_no_corresponde_corrida'
   | 'sesion_no_activa'
@@ -200,6 +201,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'inicio_sesion_invalido',
   'cierre_sesion_invalido',
   'cierre_consumo_invalido',
+  'motivo_exceso_invalido',
   'proceso_corrida_no_corresponde',
   'material_no_corresponde_corrida',
   'sesion_no_activa',

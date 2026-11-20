@@ -126,6 +126,9 @@ export interface SesionProceso {
   primeraPiezaPendiente?: boolean;
   motivoPausa: string | null;
   motivoPausaNota: string | null;
+  /** C31/A12: motivo y detalle cuando la sesión superó el estimado. */
+  motivoExceso: 'OLVIDE_CERRAR' | 'OTRO' | null;
+  motivoExcesoDetalle: string | null;
   notas: string | null;
   verificacionCompleta: boolean;
 }

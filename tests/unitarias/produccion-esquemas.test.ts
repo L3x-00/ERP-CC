@@ -195,6 +195,8 @@ describe('mappers de Producción', () => {
     motivo_pausa: 'mantenimiento',
     motivo_pausa_codigo: 'FALLA',
     motivo_pausa_nota: null,
+    motivo_exceso: null,
+    motivo_exceso_detalle: null,
     recurso_liberado: false,
     recurso_liberado_por: null,
     recurso_liberado_en: null,

@@ -127,6 +127,9 @@ export type {
 export { reabrirOperacionBloqueadaServicio } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 export type { ReaperturaOperacion } from '@/modulos/produccion/servicios/reabrir-operacion-servicio';
 
+export { registrarMotivoExcesoSesionServicio } from '@/modulos/produccion/servicios/registrar-motivo-exceso-servicio';
+export type { MotivoExcesoRegistrado } from '@/modulos/produccion/servicios/registrar-motivo-exceso-servicio';
+
 export { reasignarPartidaServicio } from '@/modulos/produccion/servicios/reasignar-partida-servicio';
 export type { ReasignacionPartida } from '@/modulos/produccion/servicios/reasignar-partida-servicio';
 

@@ -9,6 +9,7 @@ import {
   ErrorProduccion,
   cerrarSesionTrabajoServicio,
   mensajeErrorSesion,
+  registrarMotivoExcesoSesionServicio,
   type CierreSesionRegistrado,
 } from '@/modulos/produccion/servicios/indice';
 import { esquemaCerrarSesionSupervisor } from '@/modulos/produccion/validaciones/indice';
@@ -50,6 +51,16 @@ export async function cerrarSesionSupervisorAccion(
   }
 
   try {
+    // C31/A12: si el cierre administrativo trae motivo de demora, se guarda
+    // con el operador dueño de la sesión antes de cerrar.
+    if (analisis.data.motivoExceso && analisis.data.detalleExceso) {
+      await registrarMotivoExcesoSesionServicio(admin, {
+        sesionId: analisis.data.sesionId,
+        operadorId: sesion.operador_id,
+        motivoExceso: analisis.data.motivoExceso,
+        detalleExceso: analisis.data.detalleExceso,
+      });
+    }
     const cierre = await cerrarSesionTrabajoServicio(admin, {
       ...analisis.data,
       operadorId: sesion.operador_id,

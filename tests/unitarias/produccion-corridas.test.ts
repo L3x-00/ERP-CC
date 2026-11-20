@@ -266,6 +266,8 @@ describe('mappers B6', () => {
       motivo_pausa: 'material_pendiente',
       motivo_pausa_codigo: 'MATERIAL',
       motivo_pausa_nota: null,
+      motivo_exceso: null,
+      motivo_exceso_detalle: null,
       recurso_liberado: true,
       recurso_liberado_por: null,
       recurso_liberado_en: null,

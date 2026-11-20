@@ -31,6 +31,7 @@ export const MENSAJES_ERROR_PRODUCCION: Readonly<Record<string, DescripcionError
   // Cierre y consumo
   cierre_sesion_invalido: { mensaje: 'Faltan datos para cerrar la sesión. Revisa las piezas y el consumo antes de intentarlo.', campo: 'piezas-cierre', accion: 'Revisar piezas' },
   cierre_consumo_invalido: { mensaje: 'El consumo capturado no es válido para este cierre. Revisa el material y las cantidades.', campo: 'material-cierre', accion: 'Revisar material' },
+  motivo_exceso_invalido: { mensaje: 'El motivo de la demora no es válido. Elige una opción y escribe el detalle antes de cerrar.', accion: 'Revisar demora' },
   consumo_material_requerido: { mensaje: 'Este proceso necesita registrar el consumo de material antes de finalizar. Captura el material usado y la merma.', campo: 'material-cierre', accion: 'Registrar consumo' },
   consumo_piezas_invalido: { mensaje: 'Captura cuántas piezas usaste del proceso anterior, cuántas salieron mal y el motivo.', campo: 'usado-cierre', accion: 'Revisar consumo de piezas' },
   consumo_piezas_menor_produccion: { mensaje: 'Las piezas usadas del proceso anterior deben ser al menos las que produciste. Ajusta «Usado» o la merma.', campo: 'usado-cierre', accion: 'Corregir usado' },
