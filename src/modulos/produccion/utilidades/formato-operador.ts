@@ -51,6 +51,34 @@ export function horasLegibles(horas: number): string {
   return `${new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(redondeado)} h`;
 }
 
+/**
+ * Duración real de un bloque de pausa, en horas, truncada a minutos completos.
+ *
+ * El servidor rechaza cualquier tiempo real mayor al que duró la sesión pausada
+ * (`horas_reales_exceden_sesion`). El máximo sugerido debe quedar siempre por
+ * debajo de esa duración: redondear hacia arriba producía un valor mayor al
+ * bloque y «Ajustar a X h» volvía a fallar en bucle (caso O-1126_09).
+ * Truncar a minutos completos pierde menos de un minuto y da un texto claro.
+ */
+export function horasBloquePausa(sesion: {
+  fechaInicio: string;
+  fechaFin: string | null;
+}): number | null {
+  if (!sesion.fechaFin) return null;
+  const inicio = new Date(sesion.fechaInicio).getTime();
+  const fin = new Date(sesion.fechaFin).getTime();
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin) || fin < inicio) return null;
+  return Math.floor((fin - inicio) / 60_000) / 60;
+}
+
+/** Duración corta y en lenguaje del piso: `4 min`, `1.5 h`, `menos de 1 min`. */
+export function duracionLegible(horas: number): string {
+  if (!Number.isFinite(horas) || horas <= 0) return 'menos de 1 min';
+  const minutos = Math.round(horas * 60);
+  if (minutos < 60) return `${minutos} min`;
+  return horasLegibles(minutos / 60);
+}
+
 export function turnoLegible(turno: string): string {
   return TURNOS[turno] ?? turno;
 }

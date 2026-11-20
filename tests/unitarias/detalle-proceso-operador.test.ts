@@ -1259,9 +1259,12 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     puedeIniciar: false,
   } as unknown as ProcesoEspacioOperador;
 
-  function montar(actualizarAvance: ReturnType<typeof vi.fn>) {
+  function montar(
+    actualizarAvance: ReturnType<typeof vi.fn>,
+    procesoBase: ProcesoEspacioOperador = pausado,
+  ) {
     return render(createElement(DetalleProcesoOperador, {
-      proceso: pausado,
+      proceso: procesoBase,
       hoy: '2026-11-18',
       soloLectura: false,
       procesando: false,
@@ -1342,6 +1345,7 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(datos).not.toHaveProperty('pinConfirmacion');
     expect(screen.queryByTestId('avance-pin')).toBeNull();
   });
+
 
   it('no pide consumo de lámina en una operación posterior y lo explica', () => {
     const posterior = {
@@ -1469,7 +1473,8 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(actualizar.mock.calls[0]?.[1]).not.toHaveProperty('materialId');
   });
 
-  it('repliega el avance a solo el consumo si el servidor deja la pausa abierta', async () => {    const actualizar = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'pausada' });
+  it('repliega el avance a solo el consumo si el servidor deja la pausa abierta', async () => {
+    const actualizar = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'pausada' });
 
     render(createElement(DetalleProcesoOperador, {
       proceso: pausado,
@@ -1508,5 +1513,106 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(screen.getByTestId('actualizar-avance-detalle').textContent).toContain(
       'Registrar consumo',
     );
+  });
+
+  it('no envía horas mayores a la duración del bloque y explica cuánto duró', async () => {
+    const actualizar = vi.fn().mockResolvedValue({ exito: true });
+    montar(actualizar);
+
+    expect((screen.getByTestId('avance-horas') as HTMLInputElement).max).toBe('2');
+    expect(screen.getByTestId('avance-horas-ayuda').textContent).toContain('duró 2 h');
+    expect(screen.getByTestId('duracion-bloque-pausa').textContent).toContain('duró 2 h');
+
+    fireEvent.change(screen.getByTestId('avance-horas'), { target: { value: '3' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    const dialogo = await screen.findByTestId('error-avance-dialogo');
+    expect(dialogo.getAttribute('role')).toBe('alertdialog');
+    expect(actualizar).not.toHaveBeenCalled();
+    expect(screen.getByTestId('error-cierre-mensaje').textContent).toContain('duró 2 h');
+    expect(screen.getByTestId('error-cierre-mensaje').textContent).toContain('no puede ser mayor');
+    expect(screen.getByTestId('error-cierre-accion').textContent).toBe('Ajustar a 2 h');
+  });
+
+  it('el ajuste sugerido nunca supera el bloque: 5 min no se redondea a 0.08 h', async () => {
+    // Bloque de 4 min 30 s. El redondeo a dos decimales lo dejaba en 0.08 h y
+    // el reintento volvía a fallar con «horas_reales_exceden_sesion».
+    const sesionCorta = {
+      ...sesionPausada,
+      id: 'sesion-corta',
+      fechaInicio: '2026-11-18T10:55:30.000Z',
+      fechaFin: '2026-11-18T11:00:00.000Z',
+      horasNetas: 0.075,
+      piezasProducidas: 0,
+    };
+    const pausadoCorto = {
+      ...pausado,
+      ultimaSesion: sesionCorta,
+      sesiones: [sesionCorta],
+      hechoPiezas: 0,
+    } as unknown as ProcesoEspacioOperador;
+    const actualizar = vi.fn().mockResolvedValue({ exito: true });
+    montar(actualizar, pausadoCorto);
+
+    const campo = screen.getByTestId('avance-horas') as HTMLInputElement;
+    expect(Number(campo.max)).toBeLessThanOrEqual(0.075);
+    expect(Number(campo.max)).toBeGreaterThan(0);
+
+    fireEvent.change(campo, { target: { value: '0.08' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await screen.findByTestId('error-avance-dialogo');
+    expect(screen.getByTestId('error-cierre-accion').textContent).toBe('Ajustar a 4 min');
+    expect(actualizar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('error-cierre-accion'));
+    await waitFor(() => expect(screen.queryByTestId('error-avance-dialogo')).toBeNull());
+    expect(Number((screen.getByTestId('avance-horas') as HTMLInputElement).value))
+      .toBeLessThanOrEqual(0.075);
+
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+    await waitFor(() => expect(actualizar).toHaveBeenCalledTimes(1));
+    const [, datos] = actualizar.mock.calls[0] ?? [];
+    expect(datos.horasReales).toBeLessThanOrEqual(0.075);
+  });
+
+  it('ofrece cambiar al bloque donde sí cupo el tiempo declarado', async () => {
+    const sesionAntigua = {
+      ...sesionPausada,
+      id: 'sesion-antigua',
+      fechaInicio: '2026-11-18T06:00:00.000Z',
+      fechaFin: '2026-11-18T09:00:00.000Z',
+      piezasProducidas: 4,
+      horasNetas: 3,
+    };
+    const sesionReciente = {
+      ...sesionPausada,
+      id: 'sesion-reciente',
+      fechaInicio: '2026-11-18T09:00:00.000Z',
+      fechaFin: '2026-11-18T09:05:00.000Z',
+      piezasProducidas: 2,
+      horasNetas: 0.08,
+    };
+    const pausadoDoble = {
+      ...pausado,
+      ultimaSesion: sesionReciente,
+      sesiones: [sesionAntigua, sesionReciente],
+      hechoPiezas: 6,
+    } as unknown as ProcesoEspacioOperador;
+    const actualizar = vi.fn().mockResolvedValue({ exito: true });
+    montar(actualizar, pausadoDoble);
+
+    fireEvent.change(screen.getByTestId('avance-horas'), { target: { value: '3' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await screen.findByTestId('error-avance-dialogo');
+    expect(actualizar).not.toHaveBeenCalled();
+    const usarBloque = screen.getByTestId('error-cierre-accion-1');
+    expect(usarBloque.textContent).toContain('Usar el bloque del');
+
+    fireEvent.click(usarBloque);
+    await waitFor(() => expect(screen.queryByTestId('error-avance-dialogo')).toBeNull());
+    expect((screen.getByTestId('avance-piezas') as HTMLInputElement).value).toBe('4');
+    expect((screen.getByTestId('avance-sesion') as HTMLSelectElement).value).toBe('sesion-antigua');
   });
 });
