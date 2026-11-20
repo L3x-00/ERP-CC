@@ -36,7 +36,9 @@ export async function reclamarRecursoAccion(
     return { exito: false, error: 'Sin permiso para reclamar recursos' };
   }
 
-  const correlationId = nuevoCorrelationId();
+  // El panel reutiliza el mismo correlation durante un doble clic. Si no viene
+  // (llamadas antiguas o servidor), se genera uno nuevo como siempre.
+  const correlationId = resultado.data.correlationId ?? nuevoCorrelationId();
   try {
     const reclamacion = await reclamarRecursoLiberadoServicio(crearClienteSupabaseAdmin(), {
       recursoId: resultado.data.recursoId,
@@ -44,11 +46,15 @@ export async function reclamarRecursoAccion(
       actorId: actor.id,
       correlationId,
     });
-    await registrarLog(actor, 'reclamar_recurso_liberado', 'produccion', reclamacion.sesionId, {
-      recursoId: reclamacion.recursoId,
-      motivoPausaCodigo: reclamacion.motivoPausaCodigo,
-      pausadaDesde: reclamacion.pausadaDesde,
-    }, correlationId);
+    // Un replay no es una segunda acción: no se registra otro log de éxito.
+    if (!reclamacion.yaAplicado) {
+      await registrarLog(actor, 'reclamar_recurso_liberado', 'produccion', reclamacion.sesionId, {
+        recursoId: reclamacion.recursoId,
+        motivoPausaCodigo: reclamacion.motivoPausaCodigo,
+        pausadaDesde: reclamacion.pausadaDesde,
+        reclamosLiberados: reclamacion.reclamosLiberados,
+      }, correlationId);
+    }
     return { exito: true, datos: reclamacion };
   } catch (error) {
     console.error('[PRODUCCION] Error al reclamar recurso:', error);

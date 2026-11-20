@@ -4584,6 +4584,10 @@ export type Database = {
           piezas_producidas: number
           programacion_id: string
           recurso_liberado: boolean
+          recurso_liberado_correlation_id: string | null
+          recurso_liberado_en: string | null
+          recurso_liberado_por: string | null
+          recurso_liberado_reclamos_count: number | null
           sesion_invalida: boolean
           verificacion_inicio: Json | null
         }
@@ -4611,6 +4615,10 @@ export type Database = {
           piezas_producidas?: number
           programacion_id: string
           recurso_liberado?: boolean
+          recurso_liberado_correlation_id?: string | null
+          recurso_liberado_en?: string | null
+          recurso_liberado_por?: string | null
+          recurso_liberado_reclamos_count?: number | null
           sesion_invalida?: boolean
           verificacion_inicio?: Json | null
         }
@@ -4637,6 +4645,10 @@ export type Database = {
           piezas_producidas?: number
           programacion_id?: string
           recurso_liberado?: boolean
+          recurso_liberado_correlation_id?: string | null
+          recurso_liberado_en?: string | null
+          recurso_liberado_por?: string | null
+          recurso_liberado_reclamos_count?: number | null
           sesion_invalida?: boolean
           verificacion_inicio?: Json | null
         }

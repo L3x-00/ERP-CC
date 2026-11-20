@@ -78,7 +78,22 @@ describe('máquinas liberadas', () => {
 
   it('reclama la sesión mostrada y confirma que la orden volvió a Planeación', async () => {
     obtenerRecursosLiberablesAccion.mockResolvedValue({ exito: true, datos: [RECURSO] });
-    reclamarRecursoAccion.mockResolvedValue({ exito: true, datos: { sesionId: RECURSO.sesionId } });
+    reclamarRecursoAccion.mockResolvedValue({
+      exito: true,
+      datos: {
+        sesionId: RECURSO.sesionId,
+        recursoId: RECURSO.recursoId,
+        ordenId: RECURSO.ordenId,
+        partidaId: RECURSO.partidaId,
+        motivoPausaCodigo: 'DUDA',
+        pausadaDesde: RECURSO.pausadaDesde,
+        yaAplicado: false,
+        reclamosLiberados: 1,
+        liberadoPor: 'admin-1',
+        liberadoPorNombre: 'Gerente A1',
+        liberadoEn: '2026-11-20T12:00:00Z',
+      },
+    });
     montar();
 
     fireEvent.click(await screen.findByTestId('reclamar-recurso-CNC-02'));
@@ -86,9 +101,23 @@ describe('máquinas liberadas', () => {
     await waitFor(() => expect(reclamarRecursoAccion).toHaveBeenCalledWith({
       recursoId: RECURSO.recursoId,
       sesionId: RECURSO.sesionId,
+      correlationId: expect.any(String),
     }));
     expect((await screen.findByText(/volvió a Planeación/u)).textContent)
       .toContain('OP-1042');
+  });
+
+  it('deshabilita el botón mientras la liberación está en curso', async () => {
+    obtenerRecursosLiberablesAccion.mockResolvedValue({ exito: true, datos: [RECURSO] });
+    reclamarRecursoAccion.mockImplementation(() => new Promise(() => {}));
+    montar();
+
+    const boton = await screen.findByTestId('reclamar-recurso-CNC-02');
+    fireEvent.click(boton);
+
+    await waitFor(() => expect((boton as HTMLButtonElement).disabled).toBe(true));
+    const llamada = reclamarRecursoAccion.mock.calls[0][0] as { correlationId: string };
+    expect(llamada.correlationId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('muestra el mensaje específico cuando la pausa ya no es reclamable', async () => {

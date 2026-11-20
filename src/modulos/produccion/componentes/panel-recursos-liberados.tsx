@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
@@ -14,6 +14,10 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
+import {
+  mensajeFalloConfirmacionRecurso,
+  mensajeLiberacionRecurso,
+} from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
 
 import { reclamarRecursoAccion } from '../acciones/indice';
 import { obtenerRecursosLiberablesAccion } from '../acciones/consultas-b6';
@@ -33,6 +37,8 @@ export function PanelRecursosLiberados() {
   const [mensaje, setMensaje] = useState<MensajeRecursos | null>(null);
   const [reclamando, setReclamando] = useState<string | null>(null);
   const [detalle, setDetalle] = useState<RecursoLiberable | null>(null);
+  // C31/A1: un doble clic debe llegar al servidor con el MISMO correlation.
+  const correlaciones = useRef<Record<string, string>>({});
 
   const consulta = useQuery({
     queryKey: CLAVE_RECURSOS_LIBERABLES,
@@ -49,22 +55,35 @@ export function PanelRecursosLiberados() {
   async function reclamar(recurso: RecursoLiberable): Promise<void> {
     setMensaje(null);
     setReclamando(recurso.sesionId);
+    const correlationId = correlaciones.current[recurso.sesionId] ?? crypto.randomUUID();
+    correlaciones.current[recurso.sesionId] = correlationId;
     try {
       const resultado = await reclamarRecursoAccion({
         recursoId: recurso.recursoId,
         sesionId: recurso.sesionId,
+        correlationId,
       });
       setMensaje(resultado.exito
         ? {
-            texto: `Máquina ${recurso.recursoCodigo} liberada: ${recurso.ordenFolio} volvió a Planeación.`,
+            texto: mensajeLiberacionRecurso(
+              resultado.datos!,
+              recurso.recursoCodigo,
+              recurso.ordenFolio,
+            ),
             tipo: 'estado',
           }
         : { texto: resultado.error, tipo: 'error' });
-      if (resultado.exito) setDetalle(null);
+      if (resultado.exito) {
+        delete correlaciones.current[recurso.sesionId];
+        setDetalle(null);
+      } else {
+        delete correlaciones.current[recurso.sesionId];
+      }
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_RECURSOS_LIBERABLES });
     } catch {
+      delete correlaciones.current[recurso.sesionId];
       setMensaje({
-        texto: 'No se pudo reclamar la máquina. Comprueba que siga disponible y vuelve a intentarlo.',
+        texto: mensajeFalloConfirmacionRecurso(recurso.recursoCodigo),
         tipo: 'error',
       });
     } finally {

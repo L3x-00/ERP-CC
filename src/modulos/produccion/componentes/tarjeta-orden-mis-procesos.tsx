@@ -8,6 +8,7 @@ import {
   horasLegibles,
   textoCompromiso,
 } from '@/modulos/produccion/utilidades/formato-operador';
+import { mensajeAvisoSupervision } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
 import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
 import type { MiProceso, EstadoMiProceso } from '@/modulos/produccion/utilidades/mi-panel-operador';
 import type { GrupoOrdenEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
@@ -153,6 +154,15 @@ export function TarjetaOrdenMisProcesos({
                   <strong className="tabular-nums">{Math.round(proceso.piezasDisponibles)}</strong>
                   {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}
                   {proceso.procesoPrevioNombre ? `, listas desde ${proceso.procesoPrevioNombre}` : ''}.
+                </p>
+              ) : null}
+
+              {proceso.avisoSupervision ? (
+                <p
+                  className="rounded bg-acento-suave px-2 py-1 text-[11px] text-acento-texto"
+                  data-testid={`aviso-supervision-${proceso.id}`}
+                >
+                  {mensajeAvisoSupervision(proceso.avisoSupervision)}
                 </p>
               ) : null}
 

@@ -76,6 +76,7 @@ import {
   textoCompromiso,
   turnoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
+import { mensajeAvisoSupervision } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
 import {
   resumirConsumosMateriales,
   type ConsumoMaterialVisible,
@@ -1729,6 +1730,16 @@ export function DetalleProcesoOperador({
             </div>
           </details>
         </section>
+
+        {proceso.avisoSupervision ? (
+          <p
+            role="status"
+            data-testid={`aviso-supervision-${proceso.id}`}
+            className="rounded-md bg-acento-suave p-3 text-sm text-acento-texto"
+          >
+            {mensajeAvisoSupervision(proceso.avisoSupervision)}
+          </p>
+        ) : null}
 
         {procesoAjeno ? (
           <p

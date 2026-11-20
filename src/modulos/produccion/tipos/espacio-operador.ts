@@ -112,8 +112,14 @@ export interface SesionProceso {
   pendienteActualizacionAvance: boolean;
   /** C21: pausa marcada como no válida al completar la producción. */
   sesionInvalida: boolean;
-  /** C22: pausa reclamada por supervisión; ya no ocupa la máquina ni se reanuda. */
+  /** C22/C31-A1: pausa liberada por administración; ya no ocupa la máquina ni se reanuda. */
   recursoLiberado: boolean;
+  /** C31/A1: actor que liberó la máquina; null en liberaciones históricas. */
+  recursoLiberadoPor: string | null;
+  /** C31/A1: fecha y hora exactas de la liberación. */
+  recursoLiberadoEn: string | null;
+  /** C31/A1: cuántos reclamos se cerraron con la liberación. */
+  recursoLiberadoReclamosCount: number | null;
   piezasProducidas: number;
   horasNetas: number;
   /** true si la corrida exige primera pieza y aún no hay una aprobada. */
@@ -188,6 +194,13 @@ export interface ProgramacionProceso {
   actualizadoEn: string;
 }
 
+/** C31/A1: rastro de la acción administrativa que el operador debe poder ver. */
+export interface AvisoSupervision {
+  actorNombre: string | null;
+  fecha: string | null;
+  reclamosCerrados: number;
+}
+
 /** Tarjeta atómica del espacio: una operación del ruteo o la partida sin ruteo. */
 export interface ProcesoEspacioOperador {
   id: string;
@@ -239,6 +252,8 @@ export interface ProcesoEspacioOperador {
   sesionActiva: SesionProceso | null;
   ultimaSesion: SesionProceso | null;
   sesiones: SesionProceso[];
+  /** C31/A1: quién liberó la máquina y cuándo, buscado en todas las sesiones. */
+  avisoSupervision: AvisoSupervision | null;
   /** C20: la última sesión es una pausa automática pendiente de declarar. */
   pendienteActualizacionAvance: boolean;
   procesosRuteo: ProcesoRuteoResumen[];

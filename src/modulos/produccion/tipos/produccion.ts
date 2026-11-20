@@ -86,8 +86,13 @@ export interface SesionTrabajo {
   /** SII-B6.2: código del catálogo de motivos y nota asociada. */
   motivoPausaCodigo: string | null;
   motivoPausaNota: string | null;
-  /** SII-B6.2: true si un supervisor reclamó el recurso tras ≥60 min. */
+  /** SII-B6.2/C31-A1: true si administración liberó el recurso tras ≥60 min. */
   recursoLiberado: boolean;
+  /** C31/A1: actor, fecha, correlation y conteo de la liberación. */
+  recursoLiberadoPor: string | null;
+  recursoLiberadoEn: string | null;
+  recursoLiberadoCorrelationId: string | null;
+  recursoLiberadoReclamosCount: number | null;
   /** SII-B6.2: checklist de eventos críticos capturado en el inicio. */
   verificacionInicio: VerificacionInicio | null;
   notas: string | null;
@@ -123,7 +128,7 @@ export interface PartidaNotaEntrega {
 export type FilaSesionTrabajo = Tables<'sesiones_trabajo'>;
 export type FilaSesionTrabajoOperativa = Omit<FilaSesionTrabajo, 'costo_hora_interno'>;
 export const COLUMNAS_SESION_TRABAJO_OPERATIVA =
-  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, fecha_fin_declarada, horas_brutas, horas_netas, minutos_setup, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, verificacion_inicio, notas, estado_sesion, pendiente_actualizacion_avance, sesion_invalida, creado_en, actualizado_en';
+  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, fecha_fin_declarada, horas_brutas, horas_netas, minutos_setup, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, recurso_liberado_por, recurso_liberado_en, recurso_liberado_correlation_id, recurso_liberado_reclamos_count, verificacion_inicio, notas, estado_sesion, pendiente_actualizacion_avance, sesion_invalida, creado_en, actualizado_en';
 export type FilaNotaEntrega = Tables<'notas_entrega'>;
 export type FilaPartidaNotaEntrega = Tables<'partidas_nota_entrega'>;
 export type FilaMetaProcesoPartida = Tables<'metas_proceso_partida'>;
@@ -201,6 +206,10 @@ export function filaASesionTrabajo(fila: FilaSesionTrabajoOperativa): SesionTrab
     motivoPausaCodigo: fila.motivo_pausa_codigo ?? null,
     motivoPausaNota: fila.motivo_pausa_nota ?? null,
     recursoLiberado: fila.recurso_liberado ?? false,
+    recursoLiberadoPor: fila.recurso_liberado_por ?? null,
+    recursoLiberadoEn: fila.recurso_liberado_en ?? null,
+    recursoLiberadoCorrelationId: fila.recurso_liberado_correlation_id ?? null,
+    recursoLiberadoReclamosCount: fila.recurso_liberado_reclamos_count ?? null,
     verificacionInicio: verificacionInicioDesdeJson(fila.verificacion_inicio),
     notas: fila.notas,
     estadoSesion: validarValorEnumerado(

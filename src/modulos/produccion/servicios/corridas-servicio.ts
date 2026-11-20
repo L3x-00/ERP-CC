@@ -19,6 +19,13 @@ export type ReclamacionRecurso = {
   partidaId: string;
   motivoPausaCodigo: string | null;
   pausadaDesde: string | null;
+  /** C31/A1: true cuando la llamada es un replay de una liberación ya hecha. */
+  yaAplicado: boolean;
+  /** C31/A1: cuántos reclamos se cerraron (0 en el caso heredado sin reclamo). */
+  reclamosLiberados: number;
+  liberadoPor: string | null;
+  liberadoPorNombre: string | null;
+  liberadoEn: string | null;
 };
 
 export type ResultadoCerrarJornada = { fecha: string; sesionesCerradas: number };
@@ -40,6 +47,10 @@ export type AutorizacionHorasExtraRegistrada = {
 
 function texto(valor: unknown): string {
   return typeof valor === 'string' ? valor : '';
+}
+
+function textoNulo(valor: unknown): string | null {
+  return typeof valor === 'string' ? valor : null;
 }
 
 function numero(valor: unknown): number {
@@ -121,6 +132,11 @@ export async function reclamarRecursoLiberadoServicio(
     partidaId: texto(fila.partida_id),
     motivoPausaCodigo: typeof fila.motivo_pausa_codigo === 'string' ? fila.motivo_pausa_codigo : null,
     pausadaDesde: typeof fila.pausada_desde === 'string' ? fila.pausada_desde : null,
+    yaAplicado: fila.ya_aplicado === true,
+    reclamosLiberados: numero(fila.reclamos_liberados),
+    liberadoPor: textoNulo(fila.liberado_por),
+    liberadoPorNombre: textoNulo(fila.liberado_por_nombre),
+    liberadoEn: textoNulo(fila.liberado_en),
   };
 }
 
