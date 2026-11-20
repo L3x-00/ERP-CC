@@ -1342,4 +1342,171 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(datos).not.toHaveProperty('pinConfirmacion');
     expect(screen.queryByTestId('avance-pin')).toBeNull();
   });
+
+  it('no pide consumo de lámina en una operación posterior y lo explica', () => {
+    const posterior = {
+      ...pausado,
+      piezasDisponibles: 8,
+      procesoPrevioNombre: 'Corte',
+      puedeReanudar: false,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: posterior,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('avance-opcion-consumo')).toBeNull();
+    expect(screen.queryByTestId('avance-material')).toBeNull();
+    expect(screen.getByTestId('formulario-actualizar-avance').textContent).toContain(
+      'se registra al cerrar la operación',
+    );
+  });
+
+  it('exige consumo cuando el avance completa la primera operación', async () => {
+    const actualizar = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'finalizada' });
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: pausado,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: actualizar as never,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '10' } });
+    expect(screen.getByTestId('avance-material')).toBeDefined();
+
+    // Sin cantidades no se envía: finalizaría sin asentar el consumo.
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+    await waitFor(() => expect(screen.getByTestId('error-avance-dialogo')).toBeDefined());
+    expect(actualizar).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByTestId('avance-material-usada'), { target: { value: '5' } });
+    fireEvent.change(screen.getByTestId('avance-material-motivo'), {
+      target: { value: 'Consumo de lámina' },
+    });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await waitFor(() => expect(actualizar).toHaveBeenCalledWith(
+      pausado,
+      expect.objectContaining({
+        materialId: 'material-1',
+        cantidadUsada: 5,
+        motivoConsumo: 'Consumo de lámina',
+      }),
+    ));
+  });
+
+  it('no vuelve a exigir consumo si la partida ya lo registró', async () => {
+    const actualizar = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'finalizada' });
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: pausado,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [{
+        id: 'consumo-1',
+        partidaId: 'partida-1',
+        materialId: 'material-1',
+        cantidadUsada: 12,
+        cantidadScrap: 0,
+        creadoEn: '2026-11-18T08:00:00.000Z',
+      }],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: actualizar as never,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '10' } });
+    expect(screen.queryByTestId('avance-material')).toBeNull();
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await waitFor(() => expect(actualizar).toHaveBeenCalledTimes(1));
+    expect(actualizar.mock.calls[0]?.[1]).not.toHaveProperty('materialId');
+  });
+
+  it('repliega el avance a solo el consumo si el servidor deja la pausa abierta', async () => {    const actualizar = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'pausada' });
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: pausado,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: actualizar as never,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('avance-material-usada'), { target: { value: '5' } });
+    fireEvent.change(screen.getByTestId('avance-material-motivo'), {
+      target: { value: 'Consumo de lámina' },
+    });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await waitFor(() => expect(actualizar).toHaveBeenCalledTimes(1));
+    const formulario = screen.getByTestId('formulario-actualizar-avance');
+    expect(formulario.textContent).toContain('falta el consumo de material');
+    expect(screen.queryByTestId('avance-piezas')).toBeNull();
+    expect(screen.queryByTestId('avance-horas')).toBeNull();
+    expect(screen.getByTestId('actualizar-avance-detalle').textContent).toContain(
+      'Registrar consumo',
+    );
+  });
 });

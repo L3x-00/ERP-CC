@@ -762,7 +762,9 @@ export async function obtenerEspacioOperadorServicio(
       else if (pendienteActualizacionAvance) {
         motivoNoInicia = 'Actualiza el avance y la hora real antes de continuar';
       } else if (pausado && procesoCompleto) {
-        motivoNoInicia = 'Operación completa: registra el consumo pendiente para cerrarla';
+        motivoNoInicia = disponibilidad.procesoPrevioNombre
+          ? 'Operación completa: actualiza el avance de la pausa para cerrarla'
+          : 'Operación completa: registra el consumo de material para cerrarla';
       } else if (sinPiezasPrevias) motivoNoInicia = motivoSinPiezas;
       else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
 
