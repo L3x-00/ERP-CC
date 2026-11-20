@@ -26,6 +26,8 @@ export {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
   ahoraLocalDatetimeInput,
+  ahoraHoraInput,
+  fechaHoraNegocioDesdeHora,
   horasTranscurridasSesion,
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/horas-extra';

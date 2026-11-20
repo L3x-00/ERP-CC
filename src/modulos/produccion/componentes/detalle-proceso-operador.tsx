@@ -18,6 +18,7 @@ import { cn } from '@/compartido/utilidades/cn';
 import { etiquetaEstado } from '@/compartido/utilidades/estados';
 import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador, EstadoSesionTrabajo } from '@/modulos/produccion/tipos/indice';
@@ -25,7 +26,8 @@ import { ETIQUETAS_COLUMNA, etiquetaMotivoPausa } from '@/modulos/produccion/tip
 import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
-  ahoraLocalDatetimeInput,
+  ahoraHoraInput,
+  fechaHoraNegocioDesdeHora,
   ayudaLimitePiezas,
   etiquetaEstadoOrden,
   etiquetaEstadoPlaneacion,
@@ -237,7 +239,7 @@ export function DetalleProcesoOperador({
   useEffect(() => {
     const campo = horaFinRef.current;
     if (!campo) return;
-    campo.value = ahoraLocalDatetimeInput();
+    campo.value = ahoraHoraInput();
     horaFinEditada.current = false;
   }, [proceso?.sesionActiva?.id]);
   // C20/C21: corrección de la pausa (piezas, horas y notas). Se prefija con la
@@ -817,8 +819,7 @@ export function DetalleProcesoOperador({
   function horaEstimadaLocal(): string {
     const inicio = new Date(proceso!.sesionActiva!.fechaInicio);
     const estimada = new Date(inicio.getTime() + proceso!.horasEstimadas * 3_600_000);
-    const dos = (valor: number) => String(valor).padStart(2, '0');
-    return `${estimada.getFullYear()}-${dos(estimada.getMonth() + 1)}-${dos(estimada.getDate())}T${dos(estimada.getHours())}:${dos(estimada.getMinutes())}`;
+    return ahoraHoraInput(estimada);
   }
 
   /** C31/A12: abre el paso obligatorio cuando el tiempo real supera el estimado. */
@@ -842,11 +843,14 @@ export function DetalleProcesoOperador({
         return;
       }
     } else {
-      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(horaRealDemora)) {
+      if (!/^\d{2}:\d{2}$/u.test(horaRealDemora)) {
         setErrorDemora('Indica la hora real en que terminaste.');
         return;
       }
-      const fin = new Date(horaRealDemora).getTime();
+      const fin = new Date(fechaHoraNegocioDesdeHora(
+        horaRealDemora,
+        fechaLocalNegocio(new Date(proceso!.sesionActiva!.fechaInicio)),
+      )).getTime();
       const inicio = new Date(proceso!.sesionActiva!.fechaInicio).getTime();
       if (!Number.isFinite(fin) || fin <= inicio || fin > ahoraAviso.getTime() + 120_000) {
         setErrorDemora('La hora real debe estar entre el inicio de la sesión y ahora.');
@@ -857,7 +861,7 @@ export function DetalleProcesoOperador({
     }
     const detalle = opcionDemora === 'OTRO'
       ? texto
-      : `Hora real declarada: ${horaRealDemora.replace('T', ' ')}`;
+      : `Hora real declarada: ${horaRealDemora}`;
     demoraPayload.current = { motivo: opcionDemora, detalle };
     setDetalleDemora(detalle);
     demoraConfirmada.current = true;
@@ -887,7 +891,7 @@ export function DetalleProcesoOperador({
     }
     if (requireMotivoDemora()) return;
     const valorHoraFin = horaFinRef.current?.value ?? '';
-    if (horaFinEditada.current && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(valorHoraFin)) {
+    if (horaFinEditada.current && !/^\d{2}:\d{2}$/u.test(valorHoraFin)) {
       fallarCierre({ exito: false, error: 'Indica la hora real de conclusión.' });
       return;
     }
@@ -1092,7 +1096,14 @@ export function DetalleProcesoOperador({
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(horaFinEditada.current && valorHoraFin ? { horaFin: valorHoraFin } : {}),
+      ...(horaFinEditada.current && valorHoraFin
+        ? {
+            horaFin: fechaHoraNegocioDesdeHora(
+              valorHoraFin,
+              fechaLocalNegocio(new Date(proceso.sesionActiva.fechaInicio)),
+            ),
+          }
+        : {}),
       ...(demoraPayload.current
         ? { motivoExceso: demoraPayload.current.motivo, detalleExceso: demoraPayload.current.detalle }
         : {}),
@@ -2155,7 +2166,7 @@ export function DetalleProcesoOperador({
                     <Input
                       ref={horaFinRef}
                       id="hora-fin-cierre"
-                      type="datetime-local"
+                      type="time"
                       defaultValue=""
                       required
                       onChange={() => {
@@ -2164,8 +2175,9 @@ export function DetalleProcesoOperador({
                       data-testid="hora-fin-cierre"
                     />
                     <span className="text-xs font-normal text-texto-tenue">
-                      Se usa para calcular el tiempo real del proceso. Si terminó antes y olvidaste
-                      cerrar la sesión, corrige esta hora para no cargar horas de más.
+                      Solo la hora: la fecha se toma del día de negocio del taller. Se usa para
+                      calcular el tiempo real del proceso. Si terminó antes y olvidaste cerrar la
+                      sesión, corrige esta hora para no cargar horas de más.
                     </span>
                   </label>
                   {estadoDestino === 'pausada' ? (
@@ -3153,7 +3165,7 @@ export function DetalleProcesoOperador({
             <label className={CLASE_ETIQUETA}>
               Hora real en que terminaste
               <Input
-                type="datetime-local"
+                type="time"
                 value={horaRealDemora}
                 onChange={(evento) => {
                   setHoraRealDemora(evento.target.value);
