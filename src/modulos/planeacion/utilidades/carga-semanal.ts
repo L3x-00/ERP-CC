@@ -38,12 +38,15 @@ export interface CeldaCargaSemanal {
   fecha: string;
   horasCapacidad: number;
   horasProgramadas: number;
-  /** Suma por turno de `max(0, capacidad − programadas)`; la sobrecarga no resta. */
+  /**
+   * Suma por turno de `max(0, capacidad − pendientes − reales)`; la sobrecarga
+   * no resta. Las horas ya trabajadas consumieron la jornada aunque el pendiente
+   * de la programación haya bajado, así que también descuentan.
+   */
   horasLibres: number;
   /**
-   * Tiempo real registrado ese día. No altera el saldo (`horasLibres`), pero se
-   * muestra porque un día sin jornada puede conservar trabajo real aunque su
-   * capacidad y su carga programada sean 0.
+   * Tiempo real registrado ese día. Descuenta del saldo libre: un equipo con
+   * 4 h ya trabajadas no puede ofrecer la jornada completa otra vez.
    */
   horasReales: number;
   /** Peor semáforo de los turnos del día. */
@@ -137,7 +140,7 @@ export function construirMatrizCargaSemanal(
         horasCapacidad += carga.horasCapacidad;
         horasProgramadas += carga.horasProgramadas;
         horasReales += carga.horasReales;
-        horasLibres += Math.max(0, carga.horasCapacidad - carga.horasProgramadas);
+        horasLibres += Math.max(0, carga.horasCapacidad - carga.horasProgramadas - carga.horasReales);
         nivel = nivelSemaforoMasGrave(
           nivel,
           nivelSemaforo(clasificarSaturacion(carga.horasCapacidad, carga.horasProgramadas)),

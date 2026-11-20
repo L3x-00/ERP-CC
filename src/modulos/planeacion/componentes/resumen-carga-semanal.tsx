@@ -2,6 +2,7 @@
 
 import { useId } from 'react';
 
+import { cn } from '@/compartido/utilidades/cn';
 import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
 import type {
   CargaCapacidadDiaria,
@@ -22,6 +23,11 @@ export interface PropsResumenCargaSemanal {
   rango: RangoFechas;
   /** Filtro de recurso del calendario; área y turno no aplican a la matriz. */
   filtroRecursoId?: string | null;
+  /**
+   * Recursos con una sesión en marcha. El piso los marca como «En uso» para no
+   * confundir capacidad pendiente con un equipo realmente disponible.
+   */
+  recursosEnUso?: ReadonlySet<string>;
   /** Consulta en vuelo sin datos previos: aún no se puede declarar «sin capacidad». */
   cargando?: boolean;
   /** Título visible; el panel del operador lo adapta a día o semana. */
@@ -40,9 +46,10 @@ export function ResumenCargaSemanal({
   recursos,
   rango,
   filtroRecursoId = null,
+  recursosEnUso,
   cargando = false,
   titulo = 'Carga semanal',
-  descripcion = 'Horas pendientes/capacidad por equipo; la columna Libre es lo que resta en el rango.',
+  descripcion = 'Horas pendientes/capacidad por equipo; Libre descuenta lo pendiente y lo ya trabajado.',
 }: PropsResumenCargaSemanal) {
   const idTitulo = useId();
   const matriz = construirMatrizCargaSemanal(cargas, recursos, rango, filtroRecursoId);
@@ -96,10 +103,29 @@ export function ResumenCargaSemanal({
               </tr>
             </thead>
             <tbody>
-              {matriz.filas.map((fila) => (
-                <tr key={fila.recursoId} className="border-b border-borde/60 last:border-0">
+              {matriz.filas.map((fila) => {
+                const enUso = recursosEnUso?.has(fila.recursoId) ?? false;
+                return (
+                <tr
+                  key={fila.recursoId}
+                  className={cn(
+                    'border-b border-borde/60 last:border-0',
+                    enUso && 'bg-exito-suave/40',
+                  )}
+                  data-en-uso={enUso ? 'true' : undefined}
+                >
                   <th scope="row" className="px-2 py-1 text-left font-medium">
-                    {fila.codigo} · {fila.nombre}
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      {fila.codigo} · {fila.nombre}
+                      {enUso ? (
+                        <span
+                          className="rounded-full bg-exito-suave px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-exito-texto"
+                          data-testid={`en-uso-${fila.codigo}`}
+                        >
+                          En uso
+                        </span>
+                      ) : null}
+                    </span>
                   </th>
                   {fila.sinCapacidad ? (
                     <td
@@ -157,7 +183,8 @@ export function ResumenCargaSemanal({
                     {fila.sinCapacidad ? '—' : `${formatearHoras(fila.horasLibresTotales)} h`}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

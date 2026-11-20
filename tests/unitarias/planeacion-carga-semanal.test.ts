@@ -175,18 +175,31 @@ describe('matriz de carga semanal (C9.1)', () => {
     });
   });
 
-  it('las horas reales no alteran el saldo libre ni convierten 0/0 en capacidad', () => {
+  it('las horas reales descuentan del saldo libre y no convierten 0/0 en capacidad', () => {
     const matriz = construirMatrizCargaSemanal(
       [
-        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 2),
+        // Lunes: 5 h de capacidad, 2 h pendientes y 1 h ya trabajada.
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 2, 1),
+        // Martes: 8 h de capacidad y 3 h ya trabajadas sin pendiente.
+        carga(RECURSO_A.id, '2026-09-22', 'matutino', 8, 0, 3),
+        // Domingo sin jornada: conserva 3 h reales, pero no aporta capacidad.
         carga(RECURSO_A.id, '2026-09-27', 'matutino', 0, 0, 3),
       ],
       [RECURSO_A],
       RANGO_SEMANA,
     );
 
-    // El domingo suma 0 h libres: 5 − 2 = 3 h del lunes y nada del día cerrado.
-    expect(matriz?.filas[0].horasLibresTotales).toBe(3);
+    expect(matriz?.filas[0].celdas[0]).toMatchObject({
+      horasLibres: 2,
+      horasProgramadas: 2,
+      horasReales: 1,
+    });
+    expect(matriz?.filas[0].celdas[1]).toMatchObject({
+      horasLibres: 5,
+      horasProgramadas: 0,
+      horasReales: 3,
+    });
+    expect(matriz?.filas[0].horasLibresTotales).toBe(7);
     expect(matriz?.filas[0].celdas.at(-1)).toMatchObject({
       horasLibres: 0,
       horasProgramadas: 0,
