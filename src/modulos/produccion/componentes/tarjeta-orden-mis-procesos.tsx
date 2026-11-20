@@ -101,13 +101,16 @@ export function TarjetaOrdenMisProcesos({
           const pendienteAvance = proceso.pendienteActualizacionAvance;
           // Solo el operador que reclamó el proceso (o quien puede reclamarlo)
           // gestiona acciones; los procesos ajenos quedan en consulta.
-          const puedeGestionar = puedeReclamar
-            || (proceso.reclamadoPorMi && (!completado || pendienteAvance));
+          // C31/A3: si la producción está completa pero el reclamo sigue activo,
+          // falta asentar el consumo. El trigger cierra el reclamo solo cuando la
+          // programación se completó, así que «completo + reclamado por mí» es
+          // exactamente el caso con salida pendiente.
+          const puedeGestionar = puedeReclamar || proceso.reclamadoPorMi;
           const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
           const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
           const etiquetaGestion = completado
-            ? (pendienteAvance && proceso.reclamadoPorMi
-              ? 'Revisar avance pendiente'
+            ? (proceso.reclamadoPorMi
+              ? (pendienteAvance ? 'Revisar avance pendiente' : 'Registrar consumo pendiente')
               : 'Proceso completado')
             : puedeGestionar
               ? 'Gestionar proceso'

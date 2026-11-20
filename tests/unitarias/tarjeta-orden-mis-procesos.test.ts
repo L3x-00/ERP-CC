@@ -172,7 +172,7 @@ describe('Mis procesos · una tarjeta por orden (punto 10)', () => {
     expect(screen.queryByTestId('contador-sesion-p5')).toBeNull();
   });
 
-  it('deshabilita Gestionar proceso cuando ya se completó la producción', () => {
+  it('ofrece registrar el consumo cuando la producción está completa y el reclamo sigue activo', () => {
     const completo = {
       ...proceso('p3', 'Router'),
       columna: 'lista',
@@ -194,6 +194,32 @@ describe('Mis procesos · una tarjeta por orden (punto 10)', () => {
     }));
 
     const boton = screen.getByTestId('gestionar-proceso-p3') as HTMLButtonElement;
+    expect(boton.disabled).toBe(false);
+    expect(boton.textContent).toContain('Registrar consumo pendiente');
+  });
+
+  it('mantiene deshabilitado el proceso completado que otro operador reclamó', () => {
+    const ajeno = {
+      ...proceso('p6', 'Router'),
+      columna: 'lista',
+      hechoPiezas: 40,
+      metaPiezas: 40,
+      reclamadoPorMi: false,
+      reclamanteNombre: 'Otro operador',
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(TarjetaOrdenMisProcesos, {
+      grupo: GRUPO,
+      procesos: [{ proceso: ajeno, estado: 'terminado', horasTrabajadas: 4, piezasRegistradas: 40 }],
+      hoy: '2026-11-18',
+      procesando: null,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+      onLiberar: vi.fn(),
+      onGestionar: vi.fn(),
+    }));
+
+    const boton = screen.getByTestId('gestionar-proceso-p6') as HTMLButtonElement;
     expect(boton.disabled).toBe(true);
     expect(boton.textContent).toContain('Proceso completado');
   });
