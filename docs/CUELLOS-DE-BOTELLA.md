@@ -360,3 +360,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | Al completar una operación, `operador_asignado_id` seguía apuntando al operador anterior. Otro operador no podía reclamar la operación siguiente y no existía forma administrativa de corregirlo | El reclamo se cerraba por el trigger al completar la programación, pero la asignación de la partida no se recalculaba; no había RPC ni UI para reasignarla | `public.reasignar_partida_operador` valida permiso `gestionar_produccion`, operador activo, área, capacidad diaria y ausencia de sesión válida; cierra los reclamos activos, cambia el responsable y audita con actor y correlation. Admin/gerente con el permiso ven «Reasignar» en el panel de piso con selección de partida y operador. Solo se reasignan partidas sin sesión en curso; la RPC es idempotente por correlation. Pruebas: `c31_a4_reasignar_partida_operador.test.sql` y `tests/unitarias/c31-a4-reasignar-partida.test.ts` |
+
+## 34. Pausa invisible en órdenes con otro proceso en marcha (A5)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| En una orden `en_proceso` por una operación, la pausa de otra operación no aparecía para administración | `ultimaPausa` solo se calculaba cuando `orden.estadoKanban === "pausada"`. El listado administrativo, en cambio, deriva de `orden.sesiones` filtrando `activa`/`pausada`, sin depender del estado agregado de la orden | El panel del administrador muestra **todas** las sesiones activas o pausadas de la orden con «En pausa»/«Trabajando» y sus acciones de supervisor, aunque otra operación mantenga la orden en `en_proceso`. El estado agregado solo gobierna el botón «Continuar sesión pausada» del operador. Regresión: `tests/unitarias/produccion-vista-admin.test.ts` con una orden `en_proceso` y una sesión `pausada` |
