@@ -93,7 +93,12 @@ export function TarjetaOrdenPlaneacion({
   const folio = desglosePrincipal?.folio ?? ordenPrincipal.ordenFolio ?? 'Orden';
   const totalHoras = items.reduce((total, item) => total + item.programacion.horasEstimadas, 0);
   const estados = new Set<EstadoPlaneacion>(
-    items.map((item) => item.programacion.estadoPlaneacion),
+    // C31: una orden concluida manda sobre el estado crudo de la programación.
+    // Si quedó una fila sin sincronizar, la tarjeta debe mostrar lo mismo que
+    // la ficha al abrirla: la operación ya terminó.
+    items.map((item) => (
+      operacionConcluida(item.programacion) ? 'completada' : item.programacion.estadoPlaneacion
+    )),
   );
   const estadoUnico = estados.size === 1 ? [...estados][0] : null;
   const saturacionPrincipal = peorSaturacion(items);
@@ -280,6 +285,7 @@ function FilaItemOrden({
 }) {
   const { programacion, recurso, desglose } = item;
   const concluida = operacionConcluida(programacion);
+  const estadoMostrado: EstadoPlaneacion = concluida ? 'completada' : programacion.estadoPlaneacion;
   const puedeArrastrar = arrastrable && !concluida;
   const itemTexto = desglose ? textoODefecto(desglose.codigoItem) : textoODefecto(null);
   const procesosTexto = desglose ? etiquetaProcesos(desglose) : textoODefecto(null);
@@ -377,13 +383,13 @@ function FilaItemOrden({
           </div>
         </div>
         <Badge
-          variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}
+          variante={VARIANTE_ESTADO[estadoMostrado]}
           className={cn(
             'shrink-0 px-1.5 py-0 text-[9px] leading-4',
             compacta ? 'self-start' : null,
           )}
         >
-          {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
+          {ETIQUETA_ESTADO[estadoMostrado]}
         </Badge>
       </div>
     </li>

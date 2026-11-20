@@ -508,6 +508,24 @@ describe('operación de Planeación en cliente', () => {
     expect(screen.queryByTestId('dialogo-reprogramacion-planeacion')).toBeNull();
   });
 
+  it('muestra Completada cuando la orden ya terminó aunque la programación tenga un estado viejo (C31)', () => {
+    const programacionBloqueada = {
+      ...DATOS.programaciones[0],
+      estadoPlaneacion: 'bloqueada' as const,
+      ordenEstado: 'completada' as const,
+    };
+    render(
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{ programacion: programacionBloqueada, desglose: DESGLOSE }],
+        programacionSeleccionadaId: null,
+      }),
+    );
+
+    const fila = screen.getByTestId(`programacion-${programacionBloqueada.id}`);
+    expect(within(fila).getByText('Completada')).toBeTruthy();
+    expect(within(fila).queryByText('Bloqueada')).toBeNull();
+  });
+
   it('programa por operación del ruteo preseleccionando la pendiente (C9.0)', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente, [
