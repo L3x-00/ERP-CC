@@ -4,6 +4,8 @@
  * supera la jornada, la RPC exige autorización. Reanudar el mismo día no reinicia
  * el contador. El aviso es informativo: la base decide y consume la autorización.
  */
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
+
 export const HORAS_JORNADA_PREDETERMINADA = 8;
 
 /** Horas transcurridas desde el inicio de la sesión, nunca negativas. */
@@ -22,6 +24,23 @@ export function ahoraLocalDatetimeInput(ahora: Date = new Date()): string {
   const dos = (valor: number): string => String(valor).padStart(2, '0');
   return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`
     + `T${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`;
+}
+
+/**
+ * C31/A13: el operador solo teclea la hora. La fecha se deriva del día de
+ * negocio (Tijuana) para no pedir día/mes que él no necesita decidir.
+ */
+export function ahoraHoraInput(ahora: Date = new Date()): string {
+  const dos = (valor: number): string => String(valor).padStart(2, '0');
+  return `${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`;
+}
+
+/** Compone `AAAA-MM-DDTHH:mm` con la fecha de negocio de la sesión. */
+export function fechaHoraNegocioDesdeHora(
+  hora: string,
+  fecha: string = fechaLocalNegocio(),
+): string {
+  return `${fecha.slice(0, 10)}T${hora.slice(0, 5)}`;
 }
 
 /**

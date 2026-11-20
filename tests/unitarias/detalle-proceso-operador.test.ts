@@ -1185,7 +1185,8 @@ describe('DetalleProcesoOperador', () => {
 
     fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
     const campo = screen.getByTestId('hora-fin-cierre') as HTMLInputElement;
-    expect(campo.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u);
+    expect(campo.value).toMatch(/^\d{2}:\d{2}$/u);
+    expect(campo.type).toBe('time');
     expect(campo.required).toBe(true);
     expect(screen.queryByTestId('minutos-setup')).toBeNull();
   });
@@ -1217,14 +1218,14 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
     fireEvent.change(screen.getByTestId('piezas-cierre'), { target: { value: '1' } });
     fireEvent.change(screen.getByTestId('hora-fin-cierre'), {
-      target: { value: '2026-10-28T11:00' },
+      target: { value: '11:00' },
     });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
     expect(cerrar).toHaveBeenCalledWith(
       proceso,
-      expect.objectContaining({ horaFin: '2026-10-28T11:00' }),
+      expect.objectContaining({ horaFin: expect.stringMatching(/T11:00$/) }),
     );
   });
 

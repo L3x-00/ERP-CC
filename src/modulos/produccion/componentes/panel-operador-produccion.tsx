@@ -28,7 +28,8 @@ import {
   ayudaLimitePiezas,
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/limites-piezas';
-import { ahoraLocalDatetimeInput } from '@/modulos/produccion/utilidades/horas-extra';
+import { ahoraHoraInput, fechaHoraNegocioDesdeHora } from '@/modulos/produccion/utilidades/horas-extra';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 import { CampoEntero } from './campo-entero';
 import { ContadorSesionVivo } from './contador-sesion-vivo';
@@ -186,7 +187,7 @@ export function PanelOperadorProduccion({
     sesionHoraFinPrellenada.current = idSesion;
     horaFinEditada.current = false;
     const campo = horaFinRef.current;
-    if (campo) campo.value = ahoraLocalDatetimeInput();
+    if (campo) campo.value = ahoraHoraInput();
   }, [sesionActiva?.id]);
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
@@ -464,7 +465,7 @@ export function PanelOperadorProduccion({
       return;
     }
     const valorHoraFin = horaFinRef.current?.value ?? '';
-    if (horaFinEditada.current && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(valorHoraFin)) {
+    if (horaFinEditada.current && !/^\d{2}:\d{2}$/u.test(valorHoraFin)) {
       fallarCierre('Indica la hora real de conclusión.');
       return;
     }
@@ -527,7 +528,16 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(horaFinEditada.current && valorHoraFin ? { horaFin: valorHoraFin } : {}),
+      ...(horaFinEditada.current && valorHoraFin
+        ? {
+            horaFin: fechaHoraNegocioDesdeHora(
+              valorHoraFin,
+              sesionActivaRegistro?.fechaInicio
+                ? fechaLocalNegocio(new Date(sesionActivaRegistro.fechaInicio))
+                : fechaLocalNegocio(),
+            ),
+          }
+        : {}),
       ...(incluirConsumo ? {
         consumo: {
           materialId,
@@ -950,7 +960,7 @@ export function PanelOperadorProduccion({
             Hora real de conclusión
             <Input
               ref={horaFinRef}
-              type="datetime-local"
+              type="time"
               className="min-h-11"
               defaultValue=""
               required
