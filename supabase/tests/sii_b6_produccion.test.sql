@@ -308,6 +308,13 @@ INSERT INTO public.sesiones_trabajo (
   'pausada', 'falta_informacion', 'DUDA',
   (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida1'), now() + interval '1 second');
 
+-- C31/A1: reclamar el recurso cerró el reclamo y limpió la asignación huérfana.
+-- Esta fixture inserta la sesión nueva por SQL (sin pasar por el reclamo), así
+-- que debe asignar al operador para poder probar la reanudación.
+UPDATE public.partidas_orden_produccion
+SET operador_asignado_id = '00000000-0000-4000-8000-00000000b603'
+WHERE id = '00000000-0000-4000-8000-00000000b608';
+
 -- -----------------------------------------------------------------------------
 -- 42-47. Reanudación con checklist heredado y pausas inválidas
 -- -----------------------------------------------------------------------------
