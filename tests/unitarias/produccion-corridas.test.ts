@@ -267,6 +267,10 @@ describe('mappers B6', () => {
       motivo_pausa_codigo: 'MATERIAL',
       motivo_pausa_nota: null,
       recurso_liberado: true,
+      recurso_liberado_por: null,
+      recurso_liberado_en: null,
+      recurso_liberado_correlation_id: null,
+      recurso_liberado_reclamos_count: null,
       verificacion_inicio: VERIFICACION,
       notas: null,
       estado_sesion: 'pausada',
@@ -277,6 +281,10 @@ describe('mappers B6', () => {
       corridaId: UUID2,
       motivoPausaCodigo: 'MATERIAL',
       recursoLiberado: true,
+      recursoLiberadoPor: null,
+      recursoLiberadoEn: null,
+      recursoLiberadoCorrelationId: null,
+      recursoLiberadoReclamosCount: null,
       verificacionInicio: VERIFICACION,
     });
   });

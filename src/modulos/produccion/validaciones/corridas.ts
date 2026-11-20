@@ -71,6 +71,8 @@ export const esquemaReclamarRecurso = z
   .object({
     recursoId: z.uuid('ID de recurso inválido'),
     sesionId: z.uuid('ID de sesión inválido').optional(),
+    /** C31/A1: el panel reutiliza el mismo id en un doble clic; si no viene, se genera. */
+    correlationId: z.uuid('ID de petición inválido').optional(),
   })
   .strict();
 

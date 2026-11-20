@@ -44,6 +44,24 @@ export function etiquetaFechaHora(marca: string | null): string {
   return `${fecha.getDate()} ${MESES_CORTOS[fecha.getMonth()]} · ${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * C31/A1: fecha y hora en la zona de negocio (Tijuana). `etiquetaFechaHora`
+ * usa la zona del navegador; un operador fuera de Tijuana vería otro día.
+ */
+export function etiquetaFechaHoraNegocio(marca: string | null): string {
+  if (!marca) return 'sin fecha registrada';
+  const fecha = new Date(marca);
+  if (Number.isNaN(fecha.getTime())) return 'fecha inválida';
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Tijuana',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(fecha).replace('.', '');
+}
+
 /** Horas con un decimal cuando hace falta (`8 h`, `1.5 h`, `0.25 h`). */
 export function horasLegibles(horas: number): string {
   if (!Number.isFinite(horas)) return '—';

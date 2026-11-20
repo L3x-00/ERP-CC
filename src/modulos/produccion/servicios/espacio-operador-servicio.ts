@@ -30,6 +30,7 @@ import {
   sumarDias,
   type AreaEspacioOperador,
   type ArchivoProceso,
+  type AvisoSupervision,
   type ComentarioOrdenVisible,
   type DiaCalendarioOperador,
   type MaterialProceso,
@@ -322,6 +323,9 @@ function sesionResumen(
     pendienteActualizacionAvance: sesion.pendienteActualizacionAvance,
     sesionInvalida: sesion.sesionInvalida,
     recursoLiberado: sesion.recursoLiberado,
+    recursoLiberadoPor: sesion.recursoLiberadoPor,
+    recursoLiberadoEn: sesion.recursoLiberadoEn,
+    recursoLiberadoReclamosCount: sesion.recursoLiberadoReclamosCount,
     piezasProducidas: sesion.piezasProducidas,
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
@@ -330,6 +334,31 @@ function sesionResumen(
     motivoPausaNota: sesion.motivoPausaNota,
     notas: sesion.notas,
     verificacionCompleta: sesion.verificacionInicio !== null,
+  };
+}
+
+/**
+ * C31/A1: la traza de liberación se busca en todas las sesiones de la
+ * operación, no solo en `ultimaSesion`: si otro operador inicia después, el
+ * aviso no debe desaparecer.
+ */
+function avisoSupervisionDesdeSesiones(
+  sesiones: readonly SesionTrabajo[],
+  responsables: Readonly<Record<string, string>>,
+): AvisoSupervision | null {
+  const liberadas = sesiones
+    .filter((sesion) => sesion.recursoLiberado)
+    .sort((primera, segunda) => (
+      (segunda.recursoLiberadoEn ?? segunda.fechaInicio)
+        .localeCompare(primera.recursoLiberadoEn ?? primera.fechaInicio)
+    ));
+  const liberada = liberadas[0];
+  if (!liberada) return null;
+  const actorId = liberada.recursoLiberadoPor;
+  return {
+    actorNombre: actorId === null ? null : responsables[actorId] ?? null,
+    fecha: liberada.recursoLiberadoEn,
+    reclamosCerrados: liberada.recursoLiberadoReclamosCount ?? 0,
   };
 }
 
@@ -568,6 +597,7 @@ export async function obtenerEspacioOperadorServicio(
     ...new Set([
       ...reclamos.map((reclamo) => reclamo.operadorId),
       ...sesiones.map((sesion) => sesion.operadorId),
+      ...sesiones.map((sesion) => sesion.recursoLiberadoPor).filter((id): id is string => id !== null),
       ...partidas.map((partida) => partida.operadorAsignadoId).filter((id): id is string => id !== null),
     ]),
   ];
@@ -841,6 +871,7 @@ export async function obtenerEspacioOperadorServicio(
           : null,
         sesiones: sesionesOrdenadas.map((sesion) =>
           sesionResumen(sesion, responsables, corridasConPrimeraPiezaPendiente)),
+        avisoSupervision: avisoSupervisionDesdeSesiones(sesionesOrdenadas, responsables),
         pendienteActualizacionAvance,
         procesosRuteo,
         archivos,

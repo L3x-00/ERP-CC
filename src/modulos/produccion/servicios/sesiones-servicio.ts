@@ -97,6 +97,7 @@ export type CodigoErrorProduccion =
   | 'fecha_jornada_invalida'
   | 'sin_sesion_liberable'
   | 'recurso_ya_reclamado'
+  | 'conflicto_idempotencia'
   | 'motivo_no_liberable'
   | 'pausa_reciente'
   | 'programacion_no_liberable'
@@ -256,6 +257,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'fecha_jornada_invalida',
   'sin_sesion_liberable',
   'recurso_ya_reclamado',
+  'sesion_no_pausada',
+  'pausa_ya_superada',
+  'conflicto_idempotencia',
   'motivo_no_liberable',
   'pausa_reciente',
   'programacion_no_liberable',
@@ -733,6 +737,8 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La pausa ya no cumple las condiciones para liberar la máquina (motivo, 60 minutos o sesión vigente). Actualiza el panel.';
     case 'recurso_ya_reclamado':
       return 'Otra persona ya reclamó esta máquina; actualiza el panel.';
+    case 'conflicto_idempotencia':
+      return 'Esa petición ya se usó para liberar otra máquina o sesión. Recarga la página y vuelve a pulsar Reclamar desde el panel.';
     case 'motivo_no_liberable':
       return 'El motivo de la pausa no libera la máquina; no se puede reclamar desde aquí.';
     case 'pausa_reciente':

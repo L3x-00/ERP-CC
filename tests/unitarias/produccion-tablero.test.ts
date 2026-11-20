@@ -56,6 +56,8 @@ function crearSesion(estadoSesion: SesionTrabajo['estadoSesion']): SesionTrabajo
     fechaFinDeclarada: null, pendienteActualizacionAvance: false, sesionInvalida: false,
     horasBrutas: 0, horasNetas: 0, piezasProducidas: 0, motivoPausa: null, notas: null,
     motivoPausaCodigo: null, motivoPausaNota: null, recursoLiberado: false,
+    recursoLiberadoPor: null, recursoLiberadoEn: null,
+    recursoLiberadoCorrelationId: null, recursoLiberadoReclamosCount: null,
     verificacionInicio: null,
     estadoSesion, creadoEn: orden.creadoEn, actualizadoEn: orden.actualizadoEn,
   };
