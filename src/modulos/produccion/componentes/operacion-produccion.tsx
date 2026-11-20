@@ -404,6 +404,8 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                 procesando={procesando}
                 usuarioActualId={usuarioActualId}
                 esAdmin={esAdmin}
+                puedeGestionarProduccion={puedeReasignar}
+                puedeGestionarPlaneacion={puedeReabrirOperacion}
                 onEntregar={generarNota}
               />
             ) : (

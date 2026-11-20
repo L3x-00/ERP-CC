@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -46,8 +47,12 @@ const CLASE_SEVERIDAD: Record<DiagnosticoOrdenItem['severidad'], string> = {
 
 export interface PropsPanelSaludOrden {
   ordenId: string;
-  /** Solo un administrador puede cerrar pausas huérfanas. */
+  /** Compatibilidad: administrador implícito. Preferir los permisos reales. */
   esAdmin?: boolean;
+  /** C31/A6: permiso real de la RPC que cierra pausas. */
+  puedeGestionarProduccion?: boolean;
+  /** C31/A6: permiso real para reabrir operaciones bloqueadas. */
+  puedeGestionarPlaneacion?: boolean;
 }
 
 /**
@@ -56,7 +61,13 @@ export interface PropsPanelSaludOrden {
  * entrega) y permite al administrador cerrar pausas huérfanas sin inventar
  * piezas.
  */
-export function PanelSaludOrden({ ordenId, esAdmin = false }: PropsPanelSaludOrden) {
+export function PanelSaludOrden({
+  ordenId,
+  esAdmin = false,
+  puedeGestionarProduccion = false,
+  puedeGestionarPlaneacion = false,
+}: PropsPanelSaludOrden) {
+  const enrutador = useRouter();
   const clienteConsultas = useQueryClient();
   const [pausaSeleccionada, setPausaSeleccionada] = useState<DiagnosticoOrdenItem | null>(null);
   const [conservarTiempo, setConservarTiempo] = useState(true);
@@ -180,17 +191,45 @@ export function PanelSaludOrden({ ordenId, esAdmin = false }: PropsPanelSaludOrd
                 ) : null}
               </div>
               <p className="mt-1 text-sm text-texto-secundario">{incidencia.detalle}</p>
-              {esAdmin && incidencia.codigo === 'pausa_huerfana' && incidencia.sesionId ? (
-                <Button
-                  type="button"
-                  variante="contorno"
-                  tamano="sm"
-                  className="mt-2"
-                  onClick={() => abrirCierre(incidencia)}
-                >
-                  Cerrar pausa
-                </Button>
-              ) : null}
+              {(() => {
+                const permiso = incidencia.permisoRequerido;
+                const puede = permiso === 'operador'
+                  || (permiso === 'gestionar_produccion' && (puedeGestionarProduccion || esAdmin))
+                  || (permiso === 'gestionar_planeacion' && puedeGestionarPlaneacion);
+                if (!puede) {
+                  return (
+                    <p className="mt-2 text-xs text-texto-secundario" data-testid={`sin-permiso-${incidencia.codigo}`}>
+                      {incidencia.textoAccion}. Necesitas permiso de {permiso === 'gestionar_planeacion' ? 'Planeación' : 'Producción'} para ejecutarlo.
+                    </p>
+                  );
+                }
+                if (incidencia.accionSugerida === 'cerrar_pausa' && incidencia.sesionId) {
+                  return (
+                    <Button
+                      type="button"
+                      variante="contorno"
+                      tamano="sm"
+                      className="mt-2"
+                      data-testid={`accion-cerrar-pausa-${incidencia.sesionId}`}
+                      onClick={() => abrirCierre(incidencia)}
+                    >
+                      {incidencia.textoAccion}
+                    </Button>
+                  );
+                }
+                return (
+                  <Button
+                    type="button"
+                    variante="fantasma"
+                    tamano="sm"
+                    className="mt-2"
+                    data-testid={`accion-${incidencia.accionSugerida}-${incidencia.codigo}`}
+                    onClick={() => enrutador.push(incidencia.destino)}
+                  >
+                    {incidencia.textoAccion}
+                  </Button>
+                );
+              })()}
             </li>
           ))}
         </ul>
