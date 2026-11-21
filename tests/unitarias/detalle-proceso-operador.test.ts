@@ -563,6 +563,54 @@ describe('DetalleProcesoOperador', () => {
     await waitFor(() => expect(cerrar).toHaveBeenCalledTimes(2));
   });
 
+  it('A14: pausa manual con avance declarado ofrece continuar, no actualizar avance', () => {
+    const sesionPausada = {
+      ...proceso.sesionActiva,
+      id: 'sesion-pausada-declarada',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-11-20T20:15:48.000Z',
+      fechaFin: '2026-11-20T20:48:44.000Z',
+      horasNetas: 0,
+      piezasProducidas: 50,
+      motivoPausa: 'COMIDA',
+      motivoPausaCodigo: 'COMIDA',
+      pendienteActualizacionAvance: false,
+    };
+    const manual = {
+      ...proceso,
+      columna: 'pausada',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      programacion: { ...proceso.programacion, estadoPlaneacion: 'bloqueada' },
+      pendienteActualizacionAvance: false,
+      puedeReanudar: true,
+      puedeIniciar: false,
+      procesoCompleto: false,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: manual,
+      hoy: '2026-11-20',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('formulario-actualizar-avance')).toBeNull();
+    expect(screen.getByTestId('reanudar-detalle').textContent).toContain('Continuar');
+    expect(screen.getByTestId('aviso-pausa-declarada').textContent)
+      .toContain('ya está declarado');
+  });
+
   it('muestra la pausa vigente y permite cerrarla sin producir sin tocar otras sesiones', async () => {
     const cerrarPausa = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
     const sesionPausada = {
