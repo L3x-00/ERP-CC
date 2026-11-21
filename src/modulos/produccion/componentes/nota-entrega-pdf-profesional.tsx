@@ -1,13 +1,29 @@
+/* eslint-disable jsx-a11y/alt-text -- `Image` es el componente de @react-pdf/renderer, no un <img> HTML. */
 import {
   Document,
+  Image,
   Page,
   StyleSheet,
   Text,
   View,
 } from '@react-pdf/renderer';
 
+import { LOGO_EMPRESA_RUTA, resolverLogoDocumento } from '@/compartido/constantes/marca';
 import type { DocumentoNotaEntrega } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
 import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
+
+/** El PDF se arma en el navegador: la ruta del logo debe ser absoluta. */
+function logoDocumento(logoUrl: string | null | undefined): string {
+  const valor = resolverLogoDocumento(logoUrl || LOGO_EMPRESA_RUTA);
+  if (typeof window !== 'undefined' && valor.startsWith('/')) {
+    try {
+      return new URL(valor, window.location.origin).href;
+    } catch {
+      return valor;
+    }
+  }
+  return valor;
+}
 
 const azul = '#16395f';
 const azulSuave = '#eaf2fb';
@@ -21,6 +37,8 @@ const estilos = StyleSheet.create({
     borderBottomColor: azul, paddingBottom: 14,
   },
   marca: { width: '55%' },
+  logo: { width: 46, height: 46, objectFit: 'contain', marginBottom: 5 },
+  marcaAgua: { position: 'absolute', top: 250, left: 147, width: 300, height: 300, opacity: 0.045 },
   nombreEmpresa: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: azul },
   datoEmpresa: { marginTop: 2, color: gris },
   titulo: { fontSize: 20, fontFamily: 'Helvetica-Bold', textAlign: 'right', color: azul },
@@ -65,6 +83,7 @@ function numero(valor: number): string {
 export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoNotaEntrega }) {
   const empresa = documento.empresa;
   const nombreEmpresa = empresa.razonSocial || empresa.nombre;
+  const logo = logoDocumento(documento.marca.logoUrl);
   const folioVisible = documento.nota.folioSii ?? documento.nota.folio;
   const etiqueta = etiquetaNotaEntrega({
     esParcial: documento.nota.esParcial,
@@ -80,8 +99,10 @@ export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoN
       creator="ORCA MFG ERP"
     >
       <Page size="A4" style={estilos.pagina}>
+        <Image src={logo} style={estilos.marcaAgua} fixed />
         <View style={estilos.encabezado}>
           <View style={estilos.marca}>
+            <Image src={logo} style={estilos.logo} />
             <Text style={estilos.nombreEmpresa}>{nombreEmpresa}</Text>
             {empresa.rfc ? <Text style={estilos.datoEmpresa}>RFC: {empresa.rfc}</Text> : null}
             {[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).map((dato) => (

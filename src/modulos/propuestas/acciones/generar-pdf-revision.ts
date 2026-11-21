@@ -101,6 +101,7 @@ export async function generarPdfRevisionAccion(
       direccion: configuracion.empresa.direccion,
       telefono: configuracion.empresa.telefono,
       email: configuracion.empresa.email,
+      logoUrl: configuracion.empresa.logoUrl,
     },
     cliente: snapshot.cliente ?? {
       razonSocial: null,

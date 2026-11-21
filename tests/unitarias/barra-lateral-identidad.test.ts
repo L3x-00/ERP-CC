@@ -29,7 +29,8 @@ describe('identidad de la navegación', () => {
     }));
 
     expect(screen.getAllByText('CC Manufacturing Group')).toHaveLength(2);
-    expect(screen.getAllByText('CC')).toHaveLength(2);
+    expect(screen.getAllByAltText('CC Manufacturing Group')).toHaveLength(2);
+    expect(screen.queryByText('CC')).toBeNull();
     expect(screen.queryByText('ORCA MFG ERP')).toBeNull();
   });
 });
