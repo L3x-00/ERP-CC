@@ -5,8 +5,8 @@ import { Badge } from '@/compartido/componentes/ui/badge';
 import { ContadorSesionVivo } from '@/modulos/produccion/componentes/contador-sesion-vivo';
 import {
   etiquetaFechaHora,
-  horasLegibles,
   textoCompromiso,
+  tiempoAcumuladoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
 import { mensajeAvisoSupervision } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
 import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
@@ -176,8 +176,11 @@ export function TarjetaOrdenMisProcesos({
                 </div>
                 <div className="flex items-baseline gap-1">
                   <dt className="text-texto-tenue">Tiempo trabajado</dt>
-                  <dd className="font-semibold tabular-nums text-texto-primario">
-                    {horasLegibles(horasTrabajadas)}
+                  <dd
+                    className="font-semibold tabular-nums text-texto-primario"
+                    data-testid={`tiempo-acumulado-${proceso.id}`}
+                  >
+                    {tiempoAcumuladoLegible(horasTrabajadas)}
                   </dd>
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -200,6 +203,7 @@ export function TarjetaOrdenMisProcesos({
                   data-testid={`sesion-en-curso-${proceso.id}`}
                 >
                   <span className="text-texto-tenue">Sesión en curso</span>
+                  <span className="text-texto-tenue">Bloque actual</span>
                   <ContadorSesionVivo
                     fechaInicio={proceso.sesionActiva.fechaInicio}
                     limiteHoras={proceso.horasEstimadas ?? null}

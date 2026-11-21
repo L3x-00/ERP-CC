@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  avisoHorasComida,
   duracionLegible,
   horasBloquePausa,
   maximoHorasVisiblesBloque,
+  tiempoAcumuladoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
 
 describe('horasBloquePausa', () => {
@@ -63,5 +65,52 @@ describe('duracionLegible', () => {
 
   it('avisa cuando el bloque no llega al minuto', () => {
     expect(duracionLegible(0)).toBe('menos de 1 min');
+  });
+});
+
+describe('tiempoAcumuladoLegible', () => {
+  it('expresa el acumulado en horas y minutos, sin decimales confusos', () => {
+    expect(tiempoAcumuladoLegible(2.25)).toBe('2 h 15 min');
+    expect(tiempoAcumuladoLegible(0.91)).toBe('55 min');
+    expect(tiempoAcumuladoLegible(0)).toBe('0 min');
+  });
+});
+
+describe('avisoHorasComida', () => {
+  it('explica las cero horas cuando el bloque cae dentro de la comida', () => {
+    const aviso = avisoHorasComida({
+      fechaInicio: '2026-11-20T20:15:48.000Z',
+      fechaFin: '2026-11-20T20:48:44.000Z',
+      horasBrutas: 0.55,
+      horasNetas: 0,
+    });
+
+    expect(aviso).toContain('Este bloque coincidió con la comida, de 12:00 a 13:00');
+    expect(aviso).toContain('Por eso aparecen 0 horas registradas');
+    expect(aviso).toContain('corrige la hora de conclusión y vuelve a guardar');
+  });
+
+  it('no avisa si el bloque solo tocó la comida y registró horas', () => {
+    expect(avisoHorasComida({
+      fechaInicio: '2026-11-20T19:45:00.000Z',
+      fechaFin: '2026-11-20T20:15:00.000Z',
+      horasBrutas: 0.5,
+      horasNetas: 0.25,
+    })).toBeNull();
+  });
+
+  it('no avisa sin fechas o sin tiempo bruto', () => {
+    expect(avisoHorasComida({
+      fechaInicio: '2026-11-20T20:15:00.000Z',
+      fechaFin: null,
+      horasBrutas: 0.55,
+      horasNetas: 0,
+    })).toBeNull();
+    expect(avisoHorasComida({
+      fechaInicio: '2026-11-20T20:15:00.000Z',
+      fechaFin: '2026-11-20T20:48:00.000Z',
+      horasBrutas: 0,
+      horasNetas: 0,
+    })).toBeNull();
   });
 });

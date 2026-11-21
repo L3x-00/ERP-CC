@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sesionesDeOperacion } from '@/modulos/produccion/servicios/espacio-operador-servicio';
+import { horasAcumuladasSesiones, sesionesDeOperacion } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 import { derivarColumnaProceso, accionPrincipal } from '@/modulos/produccion/tipos/espacio-operador';
 import type { SesionTrabajo } from '@/modulos/produccion/tipos/produccion';
 import type { ProgramacionArea } from '@/modulos/planeacion/tipos/indice';
@@ -45,6 +45,23 @@ describe('C31/A9 — sesiones por operación', () => {
     const sesionesPartida = [sesion('sesion-unica', 'programacion-unica')];
     expect(sesionesDeOperacion(null, new Map(), sesionesPartida, null, 1))
       .toEqual(sesionesPartida);
+  });
+});
+
+describe('C31/A15 — tiempo acumulado de la operación', () => {
+  it('suma las horas netas válidas y descarta las inválidas y las liberadas', () => {
+    const sesiones = [
+      { horasNetas: 0.55, sesionInvalida: false, recursoLiberado: false },
+      { horasNetas: 0.36, sesionInvalida: false, recursoLiberado: false },
+      { horasNetas: 5, sesionInvalida: true, recursoLiberado: false },
+      { horasNetas: 3, sesionInvalida: false, recursoLiberado: true },
+    ] as never;
+
+    expect(horasAcumuladasSesiones(sesiones)).toBeCloseTo(0.91, 2);
+  });
+
+  it('devuelve cero cuando no hay sesiones que contar', () => {
+    expect(horasAcumuladasSesiones([])).toBe(0);
   });
 });
 

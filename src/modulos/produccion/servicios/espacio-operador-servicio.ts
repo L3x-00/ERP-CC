@@ -308,7 +308,18 @@ async function obtenerComentariosDeOrdenes(
   return porOrden;
 }
 
-function sesionResumen(
+/** C31/A15: total de horas netas de las sesiones que todavía cuentan. */
+export function horasAcumuladasSesiones(
+  sesiones: readonly Pick<SesionTrabajo, 'horasNetas' | 'sesionInvalida' | 'recursoLiberado'>[],
+): number {
+  const total = sesiones
+    .filter((sesion) => !sesion.sesionInvalida && !sesion.recursoLiberado)
+    .reduce((suma, sesion) => suma
+      + (Number.isFinite(sesion.horasNetas) ? sesion.horasNetas : 0), 0);
+  return Math.round(total * 100) / 100;
+}
+
+export function sesionResumen(
   sesion: SesionTrabajo,
   responsables: Readonly<Record<string, string>>,
   corridasConPrimeraPiezaPendiente: ReadonlySet<string>,
@@ -328,6 +339,7 @@ function sesionResumen(
     recursoLiberadoEn: sesion.recursoLiberadoEn,
     recursoLiberadoReclamosCount: sesion.recursoLiberadoReclamosCount,
     piezasProducidas: sesion.piezasProducidas,
+    horasBrutas: sesion.horasBrutas,
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
       && corridasConPrimeraPiezaPendiente.has(sesion.corridaId),
@@ -811,6 +823,7 @@ export async function obtenerEspacioOperadorServicio(
         operaciones.length,
         metaProcesoId !== null,
       );
+      const horasAcumuladas = horasAcumuladasSesiones(sesionesOrdenadas);
       const columna = derivarColumnaProceso({
         estadoOrden: orden.estado,
         estadoSii: orden.estadoSii,
@@ -911,6 +924,7 @@ export async function obtenerEspacioOperadorServicio(
         piezasDisponibles: disponibilidad.disponiblePiezas,
         procesoPrevioNombre: disponibilidad.procesoPrevioNombre,
         horasEstimadas,
+        horasAcumuladas,
         programacion: programacion
           ? {
             id: programacion.id,
