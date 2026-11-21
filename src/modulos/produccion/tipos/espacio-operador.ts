@@ -121,6 +121,8 @@ export interface SesionProceso {
   /** C31/A1: cuántos reclamos se cerraron con la liberación. */
   recursoLiberadoReclamosCount: number | null;
   piezasProducidas: number;
+  /** C31/A16: tiempo que duró el bloque antes de descontar la comida. */
+  horasBrutas: number;
   horasNetas: number;
   /** true si la corrida exige primera pieza y aún no hay una aprobada. */
   primeraPiezaPendiente?: boolean;
@@ -248,6 +250,8 @@ export interface ProcesoEspacioOperador {
   procesoPrevioNombre: string | null;
 
   horasEstimadas: number;
+  /** C31/A15: horas netas de las sesiones válidas de esta operación. */
+  horasAcumuladas: number;
   programacion: ProgramacionProceso | null;
   reclamo: ReclamoProcesoOperador | null;
   reclamadoPorMi: boolean;

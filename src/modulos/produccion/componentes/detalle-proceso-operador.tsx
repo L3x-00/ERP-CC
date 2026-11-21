@@ -69,6 +69,7 @@ import {
   ventanaTurno,
 } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
+  avisoHorasComida,
   duracionLegible,
   etiquetaDiaLargo,
   etiquetaFechaHora,
@@ -77,6 +78,7 @@ import {
   maximoHorasVisiblesBloque,
   tamanoLegible,
   textoCompromiso,
+  tiempoAcumuladoLegible,
   turnoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
 import { mensajeAvisoSupervision } from '@/modulos/produccion/utilidades/mensajes-reclamo-recurso';
@@ -521,6 +523,9 @@ export function DetalleProcesoOperador({
   const puedeCerrarPausa = sesionPausada !== null
     && !proceso.pendienteActualizacionAvance
     && !proceso.procesoCompleto;
+  // C31/A16: se explica junto a las horas registradas, no solo dentro del
+  // formulario, porque una pausa manual declarada ya no abre ese formulario.
+  const avisoComidaPausa = sesionPausada ? avisoHorasComida(sesionPausada) : null;
   const sinPiezasParaReanudar = sesionPausada !== null
     && !proceso.pendienteActualizacionAvance
     && !proceso.procesoCompleto
@@ -1716,14 +1721,21 @@ export function DetalleProcesoOperador({
             className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-borde bg-superficie-2/60 px-3 py-2 text-sm"
             data-testid="sesion-en-curso-detalle"
           >
-            <span className="text-texto-secundario">
-              Sesión iniciada {etiquetaFechaHora(proceso.sesionActiva.fechaInicio)}
+            <span
+              className="font-medium text-texto-primario"
+              data-testid="tiempo-acumulado-detalle"
+            >
+              Tiempo acumulado: {tiempoAcumuladoLegible(proceso.horasAcumuladas ?? 0)}
             </span>
+            <span className="text-texto-tenue">Bloque actual</span>
             <ContadorSesionVivo
               fechaInicio={proceso.sesionActiva.fechaInicio}
               limiteHoras={proceso.horasEstimadas}
               testId="contador-sesion-detalle"
             />
+            <span className="text-texto-secundario">
+              Sesión iniciada {etiquetaFechaHora(proceso.sesionActiva.fechaInicio)}
+            </span>
             <span className="text-xs text-texto-tenue">
               Estimado de la orden: {horasLegibles(proceso.horasEstimadas)}. Si ya se superó,
               cierra la sesión igual: se registra el tiempo real.
@@ -2022,6 +2034,14 @@ export function DetalleProcesoOperador({
               Este bloque de pausa duró {duracionLegible(horasBloquePausa(sesionPausada) ?? 0)}.
               El tiempo real que declares al actualizar el avance no puede ser mayor.
             </p>
+            {avisoComidaPausa ? (
+              <p
+                className="rounded-md border border-advertencia/50 bg-superficie p-2 text-xs text-advertencia-texto"
+                data-testid="aviso-comida-sin-horas"
+              >
+                {avisoComidaPausa}
+              </p>
+            ) : null}
             {sesionPausada.motivoPausaNota ? (
               <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
             ) : null}

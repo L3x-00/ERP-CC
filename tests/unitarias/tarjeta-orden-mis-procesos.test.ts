@@ -198,6 +198,47 @@ describe('Mis procesos · una tarjeta por orden (punto 10)', () => {
     expect(boton.textContent).toContain('Registrar consumo pendiente');
   });
 
+  it('A15: distingue el tiempo acumulado del bloque actual en curso', () => {
+    const enProceso = {
+      ...proceso('p7', 'Corte láser'),
+      columna: 'en_proceso',
+      reclamadoPorMi: true,
+      horasEstimadas: 3,
+      horasAcumuladas: 2.25,
+      sesionActiva: {
+        id: 'sesion-7',
+        operadorId: 'operador-1',
+        operadorNombre: 'Operador',
+        estadoSesion: 'activa',
+        fechaInicio: new Date(Date.now() - 20 * 60_000).toISOString(),
+        fechaFin: null,
+        pendienteActualizacionAvance: false,
+        sesionInvalida: false,
+        recursoLiberado: false,
+        piezasProducidas: 0,
+        horasNetas: 0,
+        motivoPausa: null,
+        motivoPausaNota: null,
+        notas: null,
+        verificacionCompleta: true,
+      },
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(TarjetaOrdenMisProcesos, {
+      grupo: GRUPO,
+      procesos: [{ proceso: enProceso, estado: 'en_proceso', horasTrabajadas: 2.25, piezasRegistradas: 0 }],
+      hoy: '2026-11-20',
+      procesando: null,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+      onLiberar: vi.fn(),
+      onGestionar: vi.fn(),
+    }));
+
+    expect(screen.getByTestId('tiempo-acumulado-p7').textContent).toContain('2 h 15 min');
+    expect(screen.getByTestId('sesion-en-curso-p7').textContent).toContain('Bloque actual');
+  });
+
   it('mantiene deshabilitado el proceso completado que otro operador reclamó', () => {
     const ajeno = {
       ...proceso('p6', 'Router'),

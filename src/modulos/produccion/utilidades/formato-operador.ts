@@ -99,12 +99,65 @@ export function maximoHorasVisiblesBloque(horas: number | null): number | undefi
   return horas > 0 ? horas : 1 / 60;
 }
 
+/**
+ * C31/A15: tiempo acumulado en lenguaje de reloj, sin decimales que se puedan
+ * leer como «0 horas con 91 minutos».
+ */
+export function tiempoAcumuladoLegible(horas: number): string {
+  if (!Number.isFinite(horas) || horas <= 0) return '0 min';
+  const minutos = Math.round(horas * 60);
+  const horasEnteras = Math.floor(minutos / 60);
+  const minutosSobrantes = minutos % 60;
+  if (horasEnteras === 0) return `${minutosSobrantes} min`;
+  if (minutosSobrantes === 0) return `${horasEnteras} h`;
+  return `${horasEnteras} h ${minutosSobrantes} min`;
+}
+
 /** Duración corta y en lenguaje del piso: `4 min`, `1.5 h`, `menos de 1 min`. */
 export function duracionLegible(horas: number): string {
   if (!Number.isFinite(horas) || horas <= 0) return 'menos de 1 min';
   const minutos = Math.round(horas * 60);
   if (minutos < 60) return `${minutos} min`;
   return horasLegibles(minutos / 60);
+}
+
+/**
+ * C31/A16: la jornada descuenta la comida de 12:00 a 13:00 en hora de Tijuana.
+ * Un bloque que cae ahí puede durar media hora y registrar cero horas netas.
+ * El texto lo explica y da la salida real: corregir la hora de conclusión.
+ */
+const AVISO_COMIDA_SIN_HORAS =
+  'Este bloque coincidió con la comida, de 12:00 a 13:00, que no se cuenta como tiempo de trabajo. Por eso aparecen 0 horas registradas. Si trabajaste durante la comida, corrige la hora de conclusión y vuelve a guardar.';
+
+function minutosEnTijuana(marca: string): number | null {
+  const fecha = new Date(marca);
+  if (Number.isNaN(fecha.getTime())) return null;
+  const partes = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Tijuana',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(fecha);
+  const hora = Number(partes.find((parte) => parte.type === 'hour')?.value);
+  const minuto = Number(partes.find((parte) => parte.type === 'minute')?.value);
+  if (!Number.isFinite(hora) || !Number.isFinite(minuto)) return null;
+  return hora * 60 + minuto;
+}
+
+export function avisoHorasComida(sesion: {
+  fechaInicio: string;
+  fechaFin: string | null;
+  horasBrutas?: number | null;
+  horasNetas: number;
+}): string | null {
+  if (!sesion.fechaFin || sesion.horasBrutas == null
+    || sesion.horasBrutas <= 0 || sesion.horasNetas !== 0) return null;
+  const inicio = minutosEnTijuana(sesion.fechaInicio);
+  const fin = minutosEnTijuana(sesion.fechaFin);
+  if (inicio === null || fin === null) return null;
+  // Un bloque que cruza medianoche termina en número menor al de inicio.
+  const finDelDia = fin < inicio ? fin + 24 * 60 : fin;
+  return inicio < 13 * 60 && finDelDia > 12 * 60 ? AVISO_COMIDA_SIN_HORAS : null;
 }
 
 export function turnoLegible(turno: string): string {

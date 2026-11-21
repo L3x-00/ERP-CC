@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estimarHorasProceso } from '@/modulos/produccion/servicios/espacio-operador-servicio';
+import { estimarHorasProceso, sesionResumen } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 import {
   HORAS_JORNADA_SABADO,
   HORAS_JORNADA_SEMANA,
@@ -86,6 +86,7 @@ function crearProceso(
     piezasDisponibles: null,
     procesoPrevioNombre: null,
     horasEstimadas: 2,
+    horasAcumuladas: 0,
     programacion: null,
     reclamo: null,
     reclamadoPorMi: false,
@@ -313,6 +314,7 @@ describe('agruparProcesosPorOrdenYColumna', () => {
     recursoLiberadoEn: null,
     recursoLiberadoReclamosCount: null,
     piezasProducidas: 0,
+    horasBrutas: 9,
     horasNetas: 8,
     motivoPausa: 'FIN_JORNADA',
     motivoPausaNota: 'Pausa automática al cumplir la jornada del turno.',
@@ -321,6 +323,19 @@ describe('agruparProcesosPorOrdenYColumna', () => {
     notas: null,
     verificacionCompleta: true,
   };
+
+  it('C31/A15: expone las horas brutas de la sesión para explicar el bloque', () => {
+    const resumen = sesionResumen(
+      {
+        ...sesionPausada,
+        horasBrutas: 0.55,
+        corridaId: null,
+      } as unknown as Parameters<typeof sesionResumen>[0],
+      {},
+      new Set(),
+    );
+    expect(resumen.horasBrutas).toBe(0.55);
+  });
 
   it('separa la operación pausada de la que sigue en proceso', () => {
     const grupos = agruparProcesosPorOrdenYColumna([

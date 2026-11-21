@@ -89,7 +89,8 @@ export function obtenerMisProcesos(
         estado,
         horasTrabajadas: Math.round(
           sesiones.reduce(
-            (total, sesion) => total + sesion.horasNetas,
+            (total, sesion) => total
+              + (!sesion.sesionInvalida && !sesion.recursoLiberado ? sesion.horasNetas : 0),
             0,
           ) * 100,
         ) / 100,

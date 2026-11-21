@@ -611,6 +611,34 @@ describe('DetalleProcesoOperador', () => {
       .toContain('ya está declarado');
   });
 
+  it('A15: muestra el tiempo acumulado junto al bloque actual al reanudar', () => {
+    const reanudado = {
+      ...proceso,
+      horasAcumuladas: 0.91,
+      columna: 'en_proceso',
+      sesionActiva: { ...proceso.sesionActiva, id: 'sesion-nueva', piezasProducidas: 0 },
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: reanudado,
+      hoy: '2026-11-20',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('tiempo-acumulado-detalle').textContent).toContain('55 min');
+    expect(screen.getByTestId('sesion-en-curso-detalle').textContent).toContain('Bloque actual');
+  });
+
   it('muestra la pausa vigente y permite cerrarla sin producir sin tocar otras sesiones', async () => {
     const cerrarPausa = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
     const sesionPausada = {
@@ -1413,6 +1441,30 @@ describe('actualizar avance: cierre visual sin PIN', () => {
       presentacion: 'integrado',
     }));
   }
+
+  it('A16: explica por qué la comida registró cero horas en el bloque', () => {
+    const comida = {
+      ...sesionPausada,
+      id: 'sesion-comida',
+      fechaInicio: '2026-11-20T20:15:48.000Z',
+      fechaFin: '2026-11-20T20:48:44.000Z',
+      horasBrutas: 0.55,
+      horasNetas: 0,
+      piezasProducidas: 50,
+      motivoPausa: 'COMIDA',
+      pendienteActualizacionAvance: false,
+    };
+    const pausaComida = {
+      ...pausado,
+      ultimaSesion: comida,
+      sesiones: [comida],
+    } as unknown as ProcesoEspacioOperador;
+
+    montar(vi.fn(), pausaComida);
+
+    expect(screen.getByTestId('aviso-comida-sin-horas').textContent)
+      .toContain('Este bloque coincidió con la comida, de 12:00 a 13:00');
+  });
 
   it('cierra el formulario y muestra confirmación verde al guardar el avance', async () => {
     const actualizar = vi.fn().mockResolvedValue({
