@@ -13,7 +13,10 @@ import {
   reclamarProcesoOperadorServicio,
   type SesionIniciada,
 } from '@/modulos/produccion/servicios/indice';
-import { notificarSolicitudProgramacionServicio } from '@/modulos/produccion/servicios/notificaciones-produccion-servicio';
+import {
+  notificarInicioProcesoServicio,
+  notificarSolicitudProgramacionServicio,
+} from '@/modulos/produccion/servicios/notificaciones-produccion-servicio';
 import type { ReclamoProcesoOperador } from '@/modulos/produccion/tipos/indice';
 import {
   esquemaIniciarProcesoReclamado,
@@ -170,6 +173,14 @@ export async function iniciarProcesoReclamadoAccion(
       partidaId: sesion.partidaId,
       programacionId: sesion.programacionId,
     }, correlationId);
+    // PLAN-2: avisa a Planeación que el operador ya está trabajando la orden.
+    await notificarInicioProcesoServicio(crearClienteSupabaseAdmin(), {
+      ordenId: sesion.ordenId,
+      partidaId: sesion.partidaId,
+      operadorId: operador.id,
+      operadorNombre: operador.nombreCompleto,
+      reclamoId: analisis.data.reclamoId,
+    });
     return { exito: true, datos: sesion };
   } catch (error) {
     const codigo = error instanceof ErrorProduccion ? error.codigo : 'desconocido';

@@ -8,6 +8,11 @@ export {
 export type { CalculoHorasSesion } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 
 export {
+  notificarInicioProcesoServicio,
+  notificarSolicitudProgramacionServicio,
+} from '@/modulos/produccion/servicios/notificaciones-produccion-servicio';
+
+export {
   ErrorProduccion,
   actualizarAvanceSesionServicio,
   registrarHoraFinSesionServicio,
