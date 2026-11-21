@@ -6,7 +6,6 @@ import {
   ahoraMs,
   esperarDuracionMinima,
   EVENTO_ACCESO_PERMITIDO,
-  EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
 } from '@/compartido/constantes/bienvenida';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -36,11 +35,8 @@ export function FormularioIniciarSesion() {
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
-    const inicio = ahoraMs();
-
-    // Primero se anuncia el splash y luego el estado «enviando», para que el
-    // botón nunca llegue a pintarse solo con «Iniciando sesión…».
-    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+    // El splash se anuncia solo si las credenciales son válidas: un fallo no
+    // debe mostrar una pantalla de bienvenida que no corresponde.
     setError(null);
     setEnviando(true);
 
@@ -54,9 +50,13 @@ export function FormularioIniciarSesion() {
       // Se conserva el mensaje de conexión por defecto.
     }
 
-    await esperarDuracionMinima(inicio);
-
     if (exito) {
+      // Desde aquí se mide la duración mínima del splash (2 s), no desde el
+      // inicio de la validación, que pudo tardar más.
+      const inicio = ahoraMs();
+      window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+      await esperarDuracionMinima(inicio);
+
       // El check se pinta dentro del splash, que sigue visible hasta que la
       // ruta ya cambió a /dashboard.
       window.dispatchEvent(new Event(EVENTO_ACCESO_PERMITIDO));
@@ -65,7 +65,6 @@ export function FormularioIniciarSesion() {
       return;
     }
 
-    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
     setError(mensaje);
     setEnviando(false);
   }
