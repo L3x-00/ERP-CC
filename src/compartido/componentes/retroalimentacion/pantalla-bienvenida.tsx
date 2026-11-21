@@ -9,6 +9,9 @@ import { cn } from '@/compartido/utilidades/cn';
 
 const CLAVE_SESION = 'orca-bienvenida-visual-v1';
 
+/** Duración visual obligatoria, independiente de lo que tarde el servidor. */
+const DURACION_BIENVENIDA_MS = 2000;
+
 const MENSAJES = [
   'Preparando tu espacio de trabajo',
   'Sincronizando el taller',
@@ -20,17 +23,19 @@ const MENSAJES = [
  * Pantalla de bienvenida decorativa al entrar al sistema.
  *
  * - Se muestra una sola vez por sesión de navegador (`sessionStorage`).
+ * - Permanece 2 segundos completos aunque la navegación termine antes.
  * - Nunca bloquea la interacción (`pointer-events-none`) ni hace peticiones.
  * - Respeta `prefers-reduced-motion` y se desmonta sola.
  */
 export function PantallaBienvenida() {
   const pathname = usePathname();
+  const enDocs = pathname.startsWith('/docs');
   const [visible, setVisible] = useState(true);
   const [saliendo, setSaliendo] = useState(false);
   const [indice, setIndice] = useState(0);
 
   useEffect(() => {
-    if (pathname.startsWith('/docs')) return;
+    if (enDocs) return;
 
     let yaVisto = false;
     try {
@@ -45,27 +50,27 @@ export function PantallaBienvenida() {
       return () => window.clearTimeout(ocultar);
     }
 
-    const prefiereMenosMovimiento =
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    const duracion = prefiereMenosMovimiento ? 700 : 2100;
     const intervaloMensajes = window.setInterval(
       () => setIndice((actual) => (actual + 1) % MENSAJES.length),
-      prefiereMenosMovimiento ? 300 : 520,
+      500,
     );
     const temporizadorSalida = window.setTimeout(
       () => setSaliendo(true),
-      Math.max(duracion - 450, 0),
+      Math.max(DURACION_BIENVENIDA_MS - 500, 0),
     );
-    const temporizadorFin = window.setTimeout(() => setVisible(false), duracion);
+    const temporizadorFin = window.setTimeout(
+      () => setVisible(false),
+      DURACION_BIENVENIDA_MS,
+    );
 
     return () => {
       window.clearInterval(intervaloMensajes);
       window.clearTimeout(temporizadorSalida);
       window.clearTimeout(temporizadorFin);
     };
-  }, [pathname]);
+  }, [enDocs]);
 
-  if (!visible || pathname.startsWith('/docs')) return null;
+  if (!visible || enDocs) return null;
 
   return (
     <div
