@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolverLogoDocumento } from '@/compartido/constantes/marca';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   MARCA_DOCUMENTO_NEUTRA,
@@ -198,7 +199,7 @@ export async function obtenerDocumentoNotaEntrega(
     direccion: configuracion.empresa.direccion,
     telefono: configuracion.empresa.telefono,
     email: configuracion.empresa.email,
-    logoUrl: configuracion.empresa.logoUrl,
+    logoUrl: resolverLogoDocumento(configuracion.empresa.logoUrl),
     colorAcento: plantilla?.colorAcento ?? MARCA_DOCUMENTO_NEUTRA.colorAcento,
     textoPiePagina: plantilla?.textoPiePagina ?? '',
   };

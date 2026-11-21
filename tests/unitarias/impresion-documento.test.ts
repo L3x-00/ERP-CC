@@ -78,6 +78,35 @@ describe('documento impreso aislado', () => {
     expect(html).not.toContain('sidebar');
   });
 
+  it('coloca la marca de agua institucional y el nombre debajo del logo', () => {
+    const html = construirHtmlImpresion({
+      titulo: 'Nota de entrega NE-1',
+      folio: 'NE-1',
+      etiqueta: 'Nota de entrega',
+      marca,
+      cuerpoHtml: '<section><p>Contenido</p></section>',
+    });
+
+    expect(html).toContain('class="marca-agua"');
+    expect(html).toContain('/logo/logosf.svg');
+    expect(html.indexOf('class="logo"')).toBeLessThan(
+      html.indexOf('CC Manufacturing Group SA de CV'),
+    );
+  });
+
+  it('usa el logo institucional cuando la empresa no configuró uno', () => {
+    const html = construirHtmlImpresion({
+      titulo: 'Orden de servicio O-2',
+      folio: 'O-2',
+      etiqueta: 'Orden de servicio',
+      marca: { ...marca, logoUrl: null },
+      cuerpoHtml: '<section><p>Contenido</p></section>',
+    });
+
+    expect(html).toContain('/logo/logosf.png');
+    expect(html).toContain('class="marca-agua"');
+  });
+
   it('la hoja de trabajo imprime partidas, archivos y totales autorizados', () => {
     const html = construirHtmlHojaTrabajo({
       hoja,

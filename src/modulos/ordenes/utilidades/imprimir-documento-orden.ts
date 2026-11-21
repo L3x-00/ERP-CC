@@ -1,5 +1,6 @@
 'use client';
 
+import { resolverLogoDocumento } from '@/compartido/constantes/marca';
 import {
   construirHtmlImpresion,
   escaparHtml,
@@ -46,7 +47,7 @@ function marcaDeEmpresa(documento: DocumentoOrden): MarcaDocumento {
     direccion: documento.empresa.direccion,
     telefono: documento.empresa.telefono,
     email: documento.empresa.email,
-    logoUrl: documento.empresa.logoUrl,
+    logoUrl: resolverLogoDocumento(documento.empresa.logoUrl),
     colorAcento: documento.empresa.colorAcento,
     textoPiePagina: documento.empresa.textoPiePagina,
   };

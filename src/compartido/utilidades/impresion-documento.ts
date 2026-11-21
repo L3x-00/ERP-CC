@@ -1,6 +1,11 @@
 'use client';
 
 import {
+  LOGO_EMPRESA_MARCA_AGUA,
+  NOMBRE_EMPRESA,
+  resolverLogoDocumento,
+} from '@/compartido/constantes/marca';
+import {
   MARCA_DOCUMENTO_NEUTRA,
   type MarcaDocumento,
 } from '@/compartido/tipos/impresion';
@@ -35,6 +40,23 @@ export function normalizarColorAcento(valor: string | null | undefined): string 
   return typeof valor === 'string' && COLOR_VALIDO.test(valor) ? valor : ACENTO_POR_DEFECTO;
 }
 
+/**
+ * El documento se imprime dentro de un iframe `about:blank`; una ruta relativa
+ * del logo debe convertirse en absoluta para que el navegador la resuelva igual
+ * que la página que abrió la impresión.
+ */
+function urlParaDocumento(valor: string): string {
+  if (/^(https?:|data:|blob:)/i.test(valor)) return valor;
+  if (typeof window !== 'undefined' && valor.startsWith('/')) {
+    try {
+      return new URL(valor, window.location.origin).href;
+    } catch {
+      return valor;
+    }
+  }
+  return valor;
+}
+
 export interface DocumentoImpresion {
   /** Título del documento (pestaña y encabezado del navegador). */
   titulo: string;
@@ -60,8 +82,10 @@ export interface DocumentoImpresion {
 export function construirHtmlImpresion(documento: DocumentoImpresion): string {
   const marca = documento.marca;
   const acento = normalizarColorAcento(marca?.colorAcento);
-  const nombre = marca?.razonSocial || marca?.nombre || 'Orden de servicio';
+  const nombre = marca?.razonSocial || marca?.nombre || NOMBRE_EMPRESA;
   const pie = documento.piePagina ?? marca?.textoPiePagina ?? marca?.razonSocial ?? '';
+  const logo = urlParaDocumento(resolverLogoDocumento(marca?.logoUrl));
+  const marcaAgua = urlParaDocumento(LOGO_EMPRESA_MARCA_AGUA);
 
   return `<!doctype html>
 <html lang="es">
@@ -71,13 +95,19 @@ export function construirHtmlImpresion(documento: DocumentoImpresion): string {
 <style>
   :root { --acento: ${acento}; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #fff; }
+  html, body { margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #1e293b; }
-  .hoja { padding: 4mm 2mm; }
+  .hoja { position: relative; padding: 4mm 2mm; }
+  .hoja > * { position: relative; z-index: 1; }
+  .marca-agua {
+    position: fixed; top: 50%; left: 50%; width: 105mm; height: 105mm;
+    transform: translate(-50%, -50%); object-fit: contain;
+    opacity: .045; z-index: 0; pointer-events: none;
+  }
   .barra { height: 7px; background: var(--acento); border-radius: 4px; }
   header { display: flex; justify-content: space-between; gap: 24px; padding: 16px 0 12px; border-bottom: 2px solid var(--acento); }
-  .empresa { display: flex; gap: 12px; align-items: flex-start; }
-  .empresa img { max-height: 54px; max-width: 140px; object-fit: contain; }
+  .empresa { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .empresa .logo { height: 54px; width: auto; max-width: 170px; object-fit: contain; }
   .empresa strong { display: block; font-size: 15px; color: var(--acento); }
   .empresa span { display: block; font-size: 11px; color: #475569; line-height: 1.45; }
   .folio { text-align: right; }
@@ -114,10 +144,11 @@ export function construirHtmlImpresion(documento: DocumentoImpresion): string {
 </head>
 <body>
   <div class="hoja">
+    <img class="marca-agua" src="${escaparHtml(marcaAgua)}" alt="" aria-hidden="true" />
     <div class="barra"></div>
     <header>
       <div class="empresa">
-        ${marca?.logoUrl ? `<img src="${escaparHtml(marca.logoUrl)}" alt="${escaparHtml(marca.nombre)}" />` : ''}
+        <img class="logo" src="${escaparHtml(logo)}" alt="${escaparHtml(nombre)}" />
         <div>
           <strong>${escaparHtml(nombre)}</strong>
           ${marca?.rfc ? `<span>RFC: ${escaparHtml(marca.rfc)}</span>` : ''}
@@ -205,6 +236,16 @@ export function imprimirHtmlAislado(html: string, titulo: string): Promise<void>
     }));
 
     const fuentes = destino.fonts?.ready ?? Promise.resolve();
-    void Promise.all([...imagenes, fuentes]).then(imprimir);
+    const recursosListos = Promise.all([...imagenes, fuentes]);
+
+    // Un logo remoto lento o roto no puede dejar la impresión en espera para
+    // siempre: se imprime en cuanto los recursos están listos o, a más tardar,
+    // tras un margen breve.
+    const limite = new Promise<void>((listo) => {
+      const temporizador = window.setTimeout(listo, 1500);
+      void recursosListos.finally(() => window.clearTimeout(temporizador));
+    });
+
+    void Promise.race([recursosListos, limite]).then(imprimir);
   });
 }

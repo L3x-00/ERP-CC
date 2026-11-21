@@ -29,6 +29,8 @@ export type DocumentoPropuesta = {
     direccion: string;
     telefono: string;
     email: string;
+    /** Logo institucional; si falta se usa el incluido con la aplicación. */
+    logoUrl?: string | null;
   };
   cliente: {
     razonSocial: string | null;
@@ -72,6 +74,7 @@ export function construirDocumentoPropuesta(entrada: {
     direccion: string;
     telefono: string;
     email: string;
+    logoUrl?: string | null;
   };
   cliente: {
     razonSocial: string | null;
@@ -129,6 +132,7 @@ export function construirDocumentoPropuesta(entrada: {
       direccion: '',
       telefono: '',
       email: '',
+      logoUrl: null,
     },
     cliente: {
       razonSocial: entrada.cliente.razonSocial,

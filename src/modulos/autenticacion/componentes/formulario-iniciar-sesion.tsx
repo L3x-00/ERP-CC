@@ -55,7 +55,7 @@ export function FormularioIniciarSesion() {
       method="post"
       data-testid="formulario-iniciar-sesion"
       data-hidratado={hidratado ? 'true' : 'false'}
-      className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-borde bg-superficie p-6 shadow-md"
+      className="flex w-full flex-col gap-4"
       noValidate
     >
       <div className="flex flex-col gap-1.5">
