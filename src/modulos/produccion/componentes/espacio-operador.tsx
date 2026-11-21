@@ -488,7 +488,7 @@ export function EspacioOperador({
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7" data-testid="resumen-espacio">
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" data-testid="resumen-espacio">
           <div className="rounded-md bg-superficie-2 p-2">
             <dt className="text-xs text-texto-tenue">Total</dt>
             <dd className="text-lg font-bold tabular-nums">{resumen.total}</dd>
@@ -503,11 +503,15 @@ export function EspacioOperador({
           ))}
         </dl>
 
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div
+          className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+          data-testid="barra-herramientas-tablero"
+        >
           <div
-            className="grid w-full grid-cols-2 gap-1 rounded-lg border border-borde-fuerte p-1 sm:inline-flex sm:w-auto"
+            className="grid w-full grid-cols-2 gap-1 rounded-lg border border-borde-fuerte p-1 sm:inline-flex sm:h-11 sm:w-auto sm:items-center sm:p-0"
             role="group"
             aria-label="Vista del espacio de operador"
+            data-testid="grupo-vistas"
           >
             {VISTAS_ESPACIO_OPERADOR.map((valor) => (
               <button
@@ -517,7 +521,7 @@ export function EspacioOperador({
                 onClick={() => setVista(valor)}
                 data-testid={`vista-${valor}`}
                 className={cn(
-                  'min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 sm:flex-none',
+                  'min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 sm:h-full sm:flex-none sm:rounded-none sm:py-0',
                   vista === valor
                     ? 'bg-acento-hover text-white dark:bg-acento dark:text-fondo'
                     : 'text-texto-secundario hover:bg-superficie-2',
@@ -529,9 +533,12 @@ export function EspacioOperador({
           </div>
 
           {vista !== 'carga' ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div
+              className="flex flex-col gap-2 sm:h-11 sm:flex-row sm:items-center"
+              data-testid="grupo-filtros"
+            >
               <Input
-                className="min-h-11 sm:w-64"
+                className="h-11 sm:w-64"
                 type="search"
                 placeholder="Buscar folio, cliente, pieza…"
                 aria-label="Buscar proceso"
@@ -539,7 +546,7 @@ export function EspacioOperador({
                 onChange={(evento) => setBusqueda(evento.target.value)}
               />
               <Select
-                className="min-h-11 sm:w-48"
+                className="h-11 sm:w-48"
                 aria-label="Filtrar por área"
                 value={areaFiltro}
                 onChange={(evento) => setAreaFiltro(evento.target.value)}
