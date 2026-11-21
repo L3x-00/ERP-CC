@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import { EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
 import { TecladoPin } from '@/modulos/autenticacion/componentes/teclado-pin';
 
@@ -65,6 +66,28 @@ describe('TecladoPin', () => {
     expect(await screen.findByText('Acceso permitido')).toBeTruthy();
     expect(screen.getByTestId('resultado-pin').getAttribute('data-resultado')).toBe('permitido');
     expect(screen.queryByText('Acceso denegado')).toBeNull();
+  });
+
+  it('dispara el splash al entrar y espera a que termine antes de navegar', async () => {
+    validarPinMock.mockResolvedValue({ exito: true, datos: {} } as never);
+    const alIniciarSesion = vi.fn();
+    window.addEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+
+    try {
+      render(createElement(TecladoPin));
+      const campo = screen.getByLabelText('PIN de operador, 6 dígitos') as HTMLInputElement;
+      fireEvent.change(campo, { target: { value: '123456' } });
+
+      await waitFor(() => expect(alIniciarSesion).toHaveBeenCalledTimes(1), { timeout: 3000 });
+      expect(pushMock).not.toHaveBeenCalled();
+
+      await waitFor(
+        () => expect(pushMock).toHaveBeenCalledWith('/produccion-piso'),
+        { timeout: 5000 },
+      );
+    } finally {
+      window.removeEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+    }
   });
 
   it('muestra acceso denegado con animación y limpia el PIN', async () => {

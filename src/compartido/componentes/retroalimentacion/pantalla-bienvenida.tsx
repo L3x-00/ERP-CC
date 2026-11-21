@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 
+import {
+  CLAVE_ACTIVIDAD_BIENVENIDA,
+  CLAVE_SESION_BIENVENIDA,
+  DURACION_BIENVENIDA_MS,
+  EVENTO_FIN_SESION,
+  EVENTO_INICIO_SESION,
+  INACTIVIDAD_BIENVENIDA_MS,
+} from '@/compartido/constantes/bienvenida';
 import { DESCRIPCION_EMPRESA, LOGO_EMPRESA_RUTA, NOMBRE_EMPRESA } from '@/compartido/constantes/marca';
 import { cn } from '@/compartido/utilidades/cn';
-
-const CLAVE_SESION = 'orca-bienvenida-visual-v1';
-
-/** Duración visual obligatoria, independiente de lo que tarde el servidor. */
-const DURACION_BIENVENIDA_MS = 2000;
 
 const MENSAJES = [
   'Preparando tu espacio de trabajo',
@@ -19,60 +22,130 @@ const MENSAJES = [
   'Bienvenido a CC Manufacturing Group',
 ] as const;
 
+function esDocs(ruta: string): boolean {
+  return /^\/(?:[a-z]{2}\/)?docs(?:\/|$)/u.test(ruta);
+}
+
+function esAcceso(ruta: string): boolean {
+  return ruta === '/' || ruta === '/iniciar-sesion' || ruta === '/operador';
+}
+
 /**
- * Pantalla de bienvenida decorativa al entrar al sistema.
+ * Splash de inicio de sesión.
  *
- * - Se muestra una sola vez por sesión de navegador (`sessionStorage`).
- * - Permanece 2 segundos completos aunque la navegación termine antes.
- * - Nunca bloquea la interacción (`pointer-events-none`) ni hace peticiones.
- * - Respeta `prefers-reduced-motion` y se desmonta sola.
+ * No se muestra al abrir la página de login: solo aparece cuando el acceso
+ * (admin u operador) termina correctamente, o cuando se recarga una pantalla
+ * autenticada después de un periodo de inactividad. Permanece 2 segundos.
  */
 export function PantallaBienvenida() {
   const pathname = usePathname();
+  // Se consulta la ruta en el evento/montaje, pero no se pone en las
+  // dependencias del effect: cambiar de ruta con el splash visible no debe
+  // cancelar su temporizador.
+  const rutaRef = useRef(pathname);
   // El manual se sirve bajo /{idioma}/docs (p. ej. /es/docs), no bajo /docs.
-  const enDocs = /^\/(?:[a-z]{2}\/)?docs(?:\/|$)/u.test(pathname);
-  // Arranca oculto: sessionStorage solo se puede leer en el cliente. Así una
-  // recarga dentro de la misma sesión no pinta el splash antes de ocultarlo.
+  const enDocs = esDocs(pathname);
+
+  // Arranca oculto para que el primer paint nunca muestre el splash.
   const [visible, setVisible] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [indice, setIndice] = useState(0);
+  const temporizadores = useRef<number[]>([]);
+
+  const limpiarTemporizadores = useCallback(() => {
+    for (const id of temporizadores.current) {
+      window.clearTimeout(id);
+      window.clearInterval(id);
+    }
+    temporizadores.current = [];
+  }, []);
+
+  const mostrar = useCallback(() => {
+    if (esDocs(rutaRef.current)) return;
+    limpiarTemporizadores();
+    setIndice(0);
+    setSaliendo(false);
+    setVisible(true);
+    temporizadores.current = [
+      window.setInterval(
+        () => setIndice((actual) => (actual + 1) % MENSAJES.length),
+        500,
+      ),
+      window.setTimeout(
+        () => setSaliendo(true),
+        Math.max(DURACION_BIENVENIDA_MS - 500, 0),
+      ),
+      window.setTimeout(() => setVisible(false), DURACION_BIENVENIDA_MS),
+    ];
+  }, [limpiarTemporizadores]);
 
   useEffect(() => {
-    if (enDocs) return;
+    rutaRef.current = pathname;
+  }, [pathname]);
 
-    let yaVisto = false;
+  useEffect(() => {
+    if (esDocs(rutaRef.current)) return;
+
+    let ultimoRegistro = 0;
+    const registrarActividad = (): void => {
+      const ahora = Date.now();
+      if (ahora - ultimoRegistro < 5000) return;
+      ultimoRegistro = ahora;
+      try {
+        window.sessionStorage.setItem(CLAVE_ACTIVIDAD_BIENVENIDA, String(ahora));
+      } catch {
+        // Navegación privada estricta: el splash sigue funcionando en memoria.
+      }
+    };
+
+    const alIniciarSesion = (): void => {
+      try {
+        window.sessionStorage.setItem(CLAVE_SESION_BIENVENIDA, '1');
+        window.sessionStorage.setItem(CLAVE_ACTIVIDAD_BIENVENIDA, String(Date.now()));
+      } catch {
+        // Sin sessionStorage no hay rastro entre recargas, pero se muestra igual.
+      }
+      mostrar();
+    };
+
+    const alFinalizarSesion = (): void => {
+      try {
+        window.sessionStorage.removeItem(CLAVE_SESION_BIENVENIDA);
+      } catch {
+        // Nada que limpiar.
+      }
+    };
+
+    window.addEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+    window.addEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
+    window.addEventListener('pointerdown', registrarActividad, { passive: true });
+    window.addEventListener('keydown', registrarActividad);
+
+    // Recarga de una sesión activa tras un rato sin usar el sistema.
     try {
-      yaVisto = window.sessionStorage.getItem(CLAVE_SESION) === '1';
-      if (!yaVisto) window.sessionStorage.setItem(CLAVE_SESION, '1');
+      if (!esAcceso(rutaRef.current) && window.sessionStorage.getItem(CLAVE_SESION_BIENVENIDA) === '1') {
+        const ultima = Number(
+          window.sessionStorage.getItem(CLAVE_ACTIVIDAD_BIENVENIDA) ?? Date.now(),
+        );
+        if (Date.now() - ultima >= INACTIVIDAD_BIENVENIDA_MS) {
+          window.sessionStorage.setItem(CLAVE_ACTIVIDAD_BIENVENIDA, String(Date.now()));
+          temporizadores.current.push(window.setTimeout(mostrar, 0));
+        } else {
+          registrarActividad();
+        }
+      }
     } catch {
-      // Navegación privada estricta: se muestra igual y no se persiste.
+      // sessionStorage no disponible: no hay recarga tras inactividad.
     }
 
-    if (yaVisto) return;
-
-    // Diferir un tick evita el setState sincrónico en el effect y mantiene el
-    // primer paint oculto: una sesión ya vista nunca ve el splash parpadear.
-    const mostrar = window.setTimeout(() => setVisible(true), 0);
-    const intervaloMensajes = window.setInterval(
-      () => setIndice((actual) => (actual + 1) % MENSAJES.length),
-      500,
-    );
-    const temporizadorSalida = window.setTimeout(
-      () => setSaliendo(true),
-      Math.max(DURACION_BIENVENIDA_MS - 500, 0),
-    );
-    const temporizadorFin = window.setTimeout(
-      () => setVisible(false),
-      DURACION_BIENVENIDA_MS,
-    );
-
     return () => {
-      window.clearTimeout(mostrar);
-      window.clearInterval(intervaloMensajes);
-      window.clearTimeout(temporizadorSalida);
-      window.clearTimeout(temporizadorFin);
+      window.removeEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+      window.removeEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
+      window.removeEventListener('pointerdown', registrarActividad);
+      window.removeEventListener('keydown', registrarActividad);
+      limpiarTemporizadores();
     };
-  }, [enDocs]);
+  }, [limpiarTemporizadores, mostrar]);
 
   if (!visible || enDocs) return null;
 
