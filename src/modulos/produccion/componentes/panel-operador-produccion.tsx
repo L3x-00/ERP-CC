@@ -437,11 +437,17 @@ export function PanelOperadorProduccion({
   }
 
   /** Muestra el fallo del cierre en el diálogo modal y en el aviso del panel. */
-  function fallarCierre(texto: string, accion?: DatosErrorCierre['accion']): void {
+  function fallarCierre(
+    texto: string,
+    accion?: DatosErrorCierre['accion'],
+    titulo?: string,
+    etiquetaCerrar?: string,
+  ): void {
     setMensaje({ texto, tipo: 'error' });
     setErrorCierre({
-      titulo: 'No se pudo cerrar la sesión',
+      titulo: titulo ?? 'No se pudo cerrar la sesión',
       mensaje: texto,
+      ...(etiquetaCerrar ? { etiquetaCerrar } : {}),
       ...(accion ? { accion } : {}),
     });
   }
@@ -486,7 +492,12 @@ export function PanelOperadorProduccion({
     const usadaConsumoPiezas = piezasUsadasEfectivas(usada, piezas, esProcesoPosterior);
     const nombreProcesoPrevio = metaSeleccionada?.procesoPrevioNombre ?? 'el proceso anterior';
     if (incluirConsumo && motivoConsumo.trim().length < 3) {
-      fallarCierre('Indica el motivo del consumo de material (mínimo 3 caracteres).');
+      fallarCierre(
+        'Escribe por qué consumiste ese material. Necesitamos al menos 3 caracteres.',
+        undefined,
+        'Falta el motivo del consumo',
+        'Volver a revisar',
+      );
       return;
     }
     if (incluirConsumoPiezas) {
@@ -501,22 +512,27 @@ export function PanelOperadorProduccion({
       if (fallo) {
         fallarCierre(
           fallo.mensaje,
-          fallo.sugerirUnoAUno
+          fallo.sugerirUsarProducidas
             ? {
-                etiqueta: `Usar ${formatearNumero(piezas, 0)} piezas (1:1)`,
+                etiqueta: `Usar ${formatearNumero(piezas, 0)} piezas de ${nombreProcesoPrevio}`,
                 alElegir: () => {
                   setCantidadUsada(String(piezas));
                   setMensaje(null);
                 },
               }
             : undefined,
+          fallo.titulo,
+          'Volver a revisar',
         );
         return;
       }
       const totalPiezas = usadaConsumoPiezas + merma;
       if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
         fallarCierre(
-          `Indica el motivo del consumo de ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio} (mínimo 3 caracteres).`,
+          `Escribe por qué consumiste ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio}. Necesitamos al menos 3 caracteres.`,
+          undefined,
+          'Falta el motivo del consumo',
+          'Volver a revisar',
         );
         return;
       }

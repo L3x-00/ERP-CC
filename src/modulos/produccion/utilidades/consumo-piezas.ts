@@ -40,12 +40,14 @@ export interface DatosConsumoPiezasCierre {
 }
 
 export interface FalloConsumoPiezas {
+  /** Título concreto del aviso: dice qué revisar, no que algo falló. */
+  titulo: string;
   mensaje: string;
   /**
-   * true cuando el fallo se corrige consumiendo 1:1 lo producido; la UI puede
-   * ofrecer esa corrección con un botón en lugar de dejar al operador adivinar.
+   * true cuando el fallo se corrige tomando lo producido como consumo; la UI
+   * ofrece ese botón en lugar de dejar al operador adivinar el número.
    */
-  sugerirUnoAUno: boolean;
+  sugerirUsarProducidas: boolean;
 }
 
 function numero(valor: number): string {
@@ -65,22 +67,26 @@ export function validarConsumoPiezasCierre(
   const { usada, merma, producidas, disponibles, procesoPrevio, procesoActual } = datos;
   const total = usada + merma;
 
+  const titulo = 'Revisa el consumo de piezas';
   if (!Number.isInteger(usada) || !Number.isInteger(merma) || usada < 0 || merma < 0) {
     return {
+      titulo,
       mensaje: `Las piezas usadas de ${procesoPrevio} y la merma deben ser números enteros: capturaste ${numero(usada)} y ${numero(merma)}.`,
-      sugerirUnoAUno: false,
+      sugerirUsarProducidas: false,
     };
   }
   if (total > disponibles) {
     return {
-      mensaje: `No puedes consumir ${numero(total)} piezas de ${procesoPrevio}: solo hay ${numero(disponibles)} disponibles. Declaraste ${numero(producidas)} producidas y ${numero(merma)} de merma; ajusta «Usado» o «Merma».`,
-      sugerirUnoAUno: false,
+      titulo,
+      mensaje: `Solo hay ${numero(disponibles)} piezas terminadas por ${procesoPrevio}. Bajaste ${numero(total)} entre usadas y mermas; ajusta Usado o Merma para continuar.`,
+      sugerirUsarProducidas: false,
     };
   }
   if (usada < producidas) {
     return {
-      mensaje: `Declaraste ${numero(producidas)} piezas producidas en ${procesoActual}, pero «Usado» de ${procesoPrevio} tiene ${numero(usada)}. Lo consumido no puede ser menor a lo producido: deja «Usado» en 0 para consumir 1:1 o captura al menos ${numero(producidas)}.`,
-      sugerirUnoAUno: true,
+      titulo,
+      mensaje: `Declaraste ${numero(producidas)} piezas terminadas en ${procesoActual}, pero el campo Usado de ${procesoPrevio} tiene ${numero(usada)}. Para cerrar, deja Usado en 0 y el sistema tomará las ${numero(producidas)} piezas, o escribe ${numero(producidas)} o más.`,
+      sugerirUsarProducidas: true,
     };
   }
   return null;
@@ -91,5 +97,5 @@ export function mensajeMotivoConsumoPiezas(
   procesoPrevio: string,
   total: number,
 ): string {
-  return `Indica el motivo del consumo de ${numero(total)} piezas de ${procesoPrevio} (mínimo 3 caracteres).`;
+  return `Escribe por qué consumiste ${numero(total)} piezas de ${procesoPrevio}. Necesitamos al menos 3 caracteres.`;
 }

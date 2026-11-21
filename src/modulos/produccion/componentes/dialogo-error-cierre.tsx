@@ -11,7 +11,9 @@ export interface AccionErrorCierre {
 export interface DatosErrorCierre {
   titulo?: string;
   mensaje: string;
-  /** Corrección sugerida (por ejemplo, consumir 1:1 lo producido). */
+  /** Etiqueta de la salida sin corrección, acorde al error concreto. */
+  etiquetaCerrar?: string;
+  /** Corrección sugerida (por ejemplo, tomar lo producido como consumo). */
   accion?: AccionErrorCierre;
   /** Varias salidas posibles (por ejemplo, registrar consumo o dejarlo para el cierre). */
   acciones?: AccionErrorCierre[];
@@ -83,7 +85,7 @@ export function DialogoErrorCierre({
             onClick={onCerrar}
             data-testid="error-cierre-entendido"
           >
-            Entendido
+            {error?.etiquetaCerrar ?? 'Entendido'}
           </Button>
         </DialogFooter>
       </DialogContent>
