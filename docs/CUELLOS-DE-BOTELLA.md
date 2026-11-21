@@ -468,3 +468,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | Al crear una propuesta desde un RFQ listo, el aviso rojo solo reclamaba «costear el ruteo» y no mencionaba el precio unitario, aunque los ítems nacían con precio 0 | `validacion-propuesta.ts` no incluía `precioUnitario` en su entrada ni en sus comprobaciones; la RPC `crear_propuesta` copia los ítems con `precio_unitario = 0`, que la pantalla muestra como si ya estuviera capturado. La ficha y las acciones de validación comparten esa función, así que ambas ignoraban el precio | `calcularFaltantesValidacion` incluye `itemsSinPrecio` (ítems activos con precio ≤ 0) y emite su mensaje antes que ruteo y costeo. El campo de precio lleva borde rojo suave y aviso breve solo en los ítems que lo necesitan, y el atajo «Ir a Ítems» aparece también por precio. Sin migración: cero sigue siendo el marcador en base, ahora interpretado como «sin capturar». Pruebas: `propuestas-validacion-contenido.test.ts`, `propuestas-items-revision-ui.test.ts`, `propuestas-faltantes-servicio.test.ts` y E2E `propuestas-flujo.spec.ts` |
+
+## 52. Parpadeo del precio al guardar un ítem de propuesta (P2)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Al guardar el precio unitario de un ítem, el campo mostraba el valor anterior por un instante y luego saltaba al valor guardado | `guardar()` en `editor-items-propuesta.tsx` eliminaba el borrador local apenas respondía la acción, antes de refrescar la consulta. El input volvía al `item` viejo de los props y saltaba al nuevo cuando llegaba el refetch | El borrador se conserva durante el guardado y solo se libera después de `invalidateQueries`, cuando la caché (`{ exito, datos: { items } }`) ya trae el ítem con los valores guardados. Si la acción falla, la captura sigue visible. Sin migración. Prueba: `tests/unitarias/propuestas-items-revision-ui.test.ts` |
