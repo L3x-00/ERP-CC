@@ -632,7 +632,7 @@ export function OperacionPlaneacion({
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <p className="text-sm font-semibold text-texto-primario">
-                {solicitudProgramacion.operadorNombre} solicita programar esta operación
+                {`El operador ${solicitudProgramacion.operadorNombre} ha reclamado esta orden; programa la operación para que pueda trabajar`}
               </p>
               <p className="text-xs text-texto-secundario">
                 {partidaSolicitud?.etiqueta ?? 'Partida de la solicitud'}
