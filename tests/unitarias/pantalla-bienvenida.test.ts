@@ -6,6 +6,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import {
   CLAVE_ACTIVIDAD_BIENVENIDA,
   CLAVE_SESION_BIENVENIDA,
+  EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
   INACTIVIDAD_BIENVENIDA_MS,
 } from '@/compartido/constantes/bienvenida';
@@ -35,29 +36,30 @@ afterEach(() => {
 });
 
 describe('PantallaBienvenida', () => {
-  it('no aparece en la página de acceso antes de iniciar sesión', () => {
+  it('no aparece en la página de acceso antes de iniciar validación', () => {
     render(createElement(PantallaBienvenida));
 
     act(() => vi.advanceTimersByTime(5000));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 
-  it('aparece 2 segundos al iniciar sesión', () => {
+  it('se mantiene mientras valida, aunque supere los 2 segundos', () => {
     render(createElement(PantallaBienvenida));
 
     act(() => window.dispatchEvent(new Event(EVENTO_INICIO_SESION)));
     expect(screen.getByTestId('pantalla-bienvenida')).toBeTruthy();
 
-    act(() => vi.advanceTimersByTime(1999));
+    act(() => vi.advanceTimersByTime(10_000));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
 
-    act(() => vi.advanceTimersByTime(1));
+    act(() => window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION)));
+    act(() => vi.advanceTimersByTime(500));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
 
     expect(window.sessionStorage.getItem(CLAVE_SESION_BIENVENIDA)).toBe('1');
   });
 
-  it('la navegación no lo oculta antes de cumplir los 2 segundos', () => {
+  it('la navegación no lo oculta antes de que termine la validación', () => {
     const { rerender } = render(createElement(PantallaBienvenida));
 
     act(() => window.dispatchEvent(new Event(EVENTO_INICIO_SESION)));
@@ -65,14 +67,15 @@ describe('PantallaBienvenida', () => {
     navegacion.ruta = '/dashboard';
     rerender(createElement(PantallaBienvenida));
 
-    act(() => vi.advanceTimersByTime(1400));
+    act(() => vi.advanceTimersByTime(3000));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
 
-    act(() => vi.advanceTimersByTime(100));
+    act(() => window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION)));
+    act(() => vi.advanceTimersByTime(500));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 
-  it('vuelve a aparecer al recargar una sesión activa tras inactividad', () => {
+  it('dura 2 segundos al recargar una sesión activa tras inactividad', () => {
     navegacion.ruta = '/dashboard';
     window.sessionStorage.setItem(CLAVE_SESION_BIENVENIDA, '1');
     window.sessionStorage.setItem(
@@ -84,6 +87,12 @@ describe('PantallaBienvenida', () => {
     act(() => vi.advanceTimersByTime(0));
 
     expect(screen.getByTestId('pantalla-bienvenida')).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(1999));
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 
   it('no aparece al recargar si la sesión está activa y hubo actividad reciente', () => {

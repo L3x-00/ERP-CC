@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { DURACION_BIENVENIDA_MS, EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
+import {
+  ahoraMs,
+  esperarDuracionMinima,
+  EVENTO_FIN_VALIDACION,
+  EVENTO_INICIO_SESION,
+} from '@/compartido/constantes/bienvenida';
 import { cn } from '@/compartido/utilidades/cn';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
 import { PIN_LONGITUD } from '@/nucleo/autenticacion/constantes';
@@ -88,35 +93,40 @@ export function TecladoPin() {
     enviandoRef.current = true;
     setValidando(true);
     setError(null);
+    const inicio = ahoraMs();
 
+    // El splash cubre el teclado mientras se valida; se cierra cuando la
+    // validación termina, nunca antes de los 2 segundos mínimos.
+    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+
+    let exito = false;
+    let mensaje = 'Error de conexión. Intenta de nuevo.';
     try {
       const respuesta = await validarPinAccion({ pin: valor });
-
-      if (respuesta.exito) {
-        setResultado('permitido');
-        // El check verde se ve primero; luego entra el mismo splash que en el
-        // acceso administrativo y la navegación espera a que termine.
-        cierreRef.current = window.setTimeout(() => {
-          cierreRef.current = null;
-          setResultado(null);
-          setPin('');
-          setError(null);
-          window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
-          navegacionRef.current = window.setTimeout(() => {
-            navegacionRef.current = null;
-            setValidando(false);
-            enviandoRef.current = false;
-            router.push('/produccion-piso');
-          }, DURACION_BIENVENIDA_MS);
-        }, DURACION_ACCESO_PERMITIDO_MS);
-        return;
-      }
-
-      setError(respuesta.error);
+      exito = respuesta.exito;
+      if (!respuesta.exito) mensaje = respuesta.error;
     } catch {
-      setError('Error de conexión. Intenta de nuevo.');
+      // Se conserva el mensaje de conexión por defecto.
     }
 
+    await esperarDuracionMinima(inicio);
+    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
+
+    if (exito) {
+      setResultado('permitido');
+      navegacionRef.current = window.setTimeout(() => {
+        navegacionRef.current = null;
+        setResultado(null);
+        setPin('');
+        setError(null);
+        setValidando(false);
+        enviandoRef.current = false;
+        router.push('/produccion-piso');
+      }, DURACION_ACCESO_PERMITIDO_MS);
+      return;
+    }
+
+    setError(mensaje);
     setResultado('denegado');
     cierreRef.current = window.setTimeout(() => {
       cierreRef.current = null;

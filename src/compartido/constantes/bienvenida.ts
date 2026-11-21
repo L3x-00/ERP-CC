@@ -1,14 +1,28 @@
 /** Señales y tiempos compartidos por el splash de bienvenida y los accesos. */
 import { TIMEOUT_SESION_OPERADOR_MINUTOS } from '@/nucleo/autenticacion/constantes';
 
-/** El splash permanece visible 2 segundos, sin importar lo que tarde el servidor. */
+/** Duración mínima del splash; se extiende si la validación tarda más. */
 export const DURACION_BIENVENIDA_MS = 2000;
 
-/** Se dispara cuando el login (admin u operador) termina correctamente. */
+/** Se dispara en cuanto empieza la validación de credenciales o del PIN. */
 export const EVENTO_INICIO_SESION = 'orca:inicio-sesion';
+
+/** Se dispara cuando la validación termina (acierto o fallo) y ya se puede ocultar. */
+export const EVENTO_FIN_VALIDACION = 'orca:fin-validacion';
 
 /** Se dispara al cerrar sesión para no reutilizar el rastro de actividad. */
 export const EVENTO_FIN_SESION = 'orca:fin-sesion';
+
+/** Marca de tiempo de inicio, aislada del cuerpo de los componentes. */
+export function ahoraMs(): number {
+  return Date.now();
+}
+
+/** Espera a que el splash haya estado visible al menos 2 segundos. */
+export function esperarDuracionMinima(inicio: number): Promise<void> {
+  const restante = Math.max(0, DURACION_BIENVENIDA_MS - (Date.now() - inicio));
+  return new Promise((resolver) => window.setTimeout(resolver, restante));
+}
 
 export const CLAVE_SESION_BIENVENIDA = 'orca-bienvenida-sesion-v1';
 export const CLAVE_ACTIVIDAD_BIENVENIDA = 'orca-bienvenida-actividad-v1';

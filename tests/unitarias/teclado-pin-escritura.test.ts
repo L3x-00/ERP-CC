@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import { EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
+import {
+  EVENTO_FIN_VALIDACION,
+  EVENTO_INICIO_SESION,
+} from '@/compartido/constantes/bienvenida';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
 import { TecladoPin } from '@/modulos/autenticacion/componentes/teclado-pin';
 
@@ -63,30 +66,35 @@ describe('TecladoPin', () => {
     fireEvent.change(campo, { target: { value: '123456' } });
 
     await waitFor(() => expect(validarPinMock).toHaveBeenCalledWith({ pin: '123456' }));
-    expect(await screen.findByText('Acceso permitido')).toBeTruthy();
+    expect(await screen.findByText('Acceso permitido', {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByTestId('resultado-pin').getAttribute('data-resultado')).toBe('permitido');
     expect(screen.queryByText('Acceso denegado')).toBeNull();
   });
 
-  it('dispara el splash al entrar y espera a que termine antes de navegar', async () => {
+  it('mantiene el splash desde que empieza a validar hasta que termina', async () => {
     validarPinMock.mockResolvedValue({ exito: true, datos: {} } as never);
-    const alIniciarSesion = vi.fn();
-    window.addEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+    const alIniciar = vi.fn();
+    const alTerminar = vi.fn();
+    window.addEventListener(EVENTO_INICIO_SESION, alIniciar);
+    window.addEventListener(EVENTO_FIN_VALIDACION, alTerminar);
 
     try {
       render(createElement(TecladoPin));
       const campo = screen.getByLabelText('PIN de operador, 6 dígitos') as HTMLInputElement;
       fireEvent.change(campo, { target: { value: '123456' } });
 
-      await waitFor(() => expect(alIniciarSesion).toHaveBeenCalledTimes(1), { timeout: 3000 });
+      await waitFor(() => expect(alIniciar).toHaveBeenCalledTimes(1), { timeout: 3000 });
+      expect(alTerminar).not.toHaveBeenCalled();
       expect(pushMock).not.toHaveBeenCalled();
 
+      await waitFor(() => expect(alTerminar).toHaveBeenCalledTimes(1), { timeout: 5000 });
       await waitFor(
         () => expect(pushMock).toHaveBeenCalledWith('/produccion-piso'),
         { timeout: 5000 },
       );
     } finally {
-      window.removeEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+      window.removeEventListener(EVENTO_INICIO_SESION, alIniciar);
+      window.removeEventListener(EVENTO_FIN_VALIDACION, alTerminar);
     }
   });
 
@@ -97,7 +105,7 @@ describe('TecladoPin', () => {
     fireEvent.change(campo, { target: { value: '654321' } });
 
     await waitFor(() => expect(validarPinMock).toHaveBeenCalledWith({ pin: '654321' }));
-    expect(await screen.findByText('Acceso denegado')).toBeTruthy();
+    expect(await screen.findByText('Acceso denegado', {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.getByTestId('resultado-pin').getAttribute('data-resultado')).toBe('denegado');
 
     await waitFor(
@@ -105,7 +113,7 @@ describe('TecladoPin', () => {
         expect(screen.queryByText('Acceso denegado')).toBeNull();
         expect(campo.value).toBe('');
       },
-      { timeout: 3000 },
+      { timeout: 5000 },
     );
     expect(pushMock).not.toHaveBeenCalled();
   });
