@@ -671,12 +671,12 @@ describe('operación de Planeación en cliente', () => {
 
     const resumen = screen.getByTestId('resumen-carga-semanal');
     expect(resumen.textContent).toContain('CNC-01 · CNC principal');
-    expect(resumen.textContent).toContain('4/8 h');
+    expect(resumen.textContent).toContain('4.0/8 h');
     expect(resumen.textContent).toContain('Libre');
     expect(screen.getByTestId('libre-CNC-01').textContent).toBe('4 h');
 
     const insignia = within(resumen).getByTestId('insignia-saturacion-saturado');
-    expect(insignia.getAttribute('aria-label')).toBe('Saturado: 8/8 h');
+    expect(insignia.getAttribute('aria-label')).toBe('Saturado: 8.0/8 h');
 
     const fechaInicial = screen.getByLabelText('Fecha inicial');
     expect(resumen.compareDocumentPosition(fechaInicial) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
@@ -703,6 +703,26 @@ describe('operación de Planeación en cliente', () => {
     const reales = screen.getByTestId('reales-CNC-01-2026-09-20');
     expect(reales.textContent).toContain('2.5 h trabajadas');
     expect(screen.getByTestId('resumen-carga-semanal').textContent).not.toContain('0/0 h');
+  });
+
+  it('muestra el tiempo trabajado dentro del chip y sin línea aparte', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const trabajado = {
+      ...DATOS.cargas[0],
+      fechaProgramada: '2026-09-18',
+      horasCapacidad: 8,
+      horasProgramadas: 0,
+      horasReales: 4.34,
+    };
+    renderizarOperacion(cliente, PARTIDAS_POR_DEFECTO, {
+      datosIniciales: { ...DATOS, cargas: [...DATOS.cargas, trabajado] },
+    });
+
+    const chip = screen.getByTestId('reales-CNC-01-2026-09-18');
+    expect(chip.textContent).toContain('4.34/8 h');
+    expect(chip.textContent).not.toContain('trabajadas');
+    expect(screen.getByTestId('resumen-carga-semanal').textContent)
+      .not.toContain('4.34 h trabajadas');
   });
 
   it('mientras la capacidad carga no declara «Sin capacidad configurada» (C9.1)', () => {

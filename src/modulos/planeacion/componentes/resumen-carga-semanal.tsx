@@ -11,6 +11,7 @@ import type {
 import {
   construirMatrizCargaSemanal,
   formatearHoras,
+  formatearHorasChip,
 } from '@/modulos/planeacion/utilidades/carga-semanal';
 import {
   etiquetaDia,
@@ -55,7 +56,7 @@ export function ResumenCargaSemanal({
   onAbrirRecurso,
   cargando = false,
   titulo = 'Carga semanal',
-  descripcion = 'Horas pendientes/capacidad por equipo. Libre es la capacidad que queda después de lo pendiente y lo ya trabajado.',
+  descripcion = 'Horas ocupadas (pendientes + trabajadas)/capacidad por equipo. Libre es la capacidad que queda después de lo pendiente y lo ya trabajado.',
 }: PropsResumenCargaSemanal) {
   const idTitulo = useId();
   const matriz = construirMatrizCargaSemanal(cargas, recursos, rango, filtroRecursoId);
@@ -182,21 +183,14 @@ export function ResumenCargaSemanal({
                                 {formatearHoras(celda.horasReales)} h trabajadas
                               </span>
                             ) : (
-                              <span className="flex flex-col items-start gap-0.5">
+                              <span data-testid={`reales-${fila.codigo}-${fecha}`}>
                                 <InsigniaSaturacion
                                   variante="celda"
                                   nivel={celda.nivel}
-                                  horasProgramadas={celda.horasProgramadas}
+                                  horasProgramadas={celda.horasOcupadas}
                                   horasCapacidad={celda.horasCapacidad}
+                                  textoHoras={`${formatearHorasChip(celda.horasOcupadas)}/${formatearHoras(celda.horasCapacidad)} h`}
                                 />
-                                {celda.horasReales > 0 ? (
-                                  <span
-                                    className="font-mono text-[10px] text-texto-tenue"
-                                    data-testid={`reales-${fila.codigo}-${fecha}`}
-                                  >
-                                    {formatearHoras(celda.horasReales)} h trabajadas
-                                  </span>
-                                ) : null}
                               </span>
                             )
                           ) : (

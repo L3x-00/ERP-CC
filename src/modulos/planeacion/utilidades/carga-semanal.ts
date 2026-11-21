@@ -34,10 +34,18 @@ export function formatearHoras(valor: number): string {
   return String(Math.round(valor * 100) / 100);
 }
 
+/** Numerador del chip: al menos un decimal para que `0` se lea como `0.0`. */
+export function formatearHorasChip(valor: number): string {
+  const texto = formatearHoras(valor);
+  return texto.includes('.') ? texto : `${texto}.0`;
+}
+
 export interface CeldaCargaSemanal {
   fecha: string;
   horasCapacidad: number;
   horasProgramadas: number;
+  /** Pendiente más tiempo ya trabajado: lo que el chip muestra sobre la capacidad. */
+  horasOcupadas: number;
   /**
    * Suma por turno de `max(0, capacidad − pendientes − reales)`; la sobrecarga
    * no resta. Las horas ya trabajadas consumieron la jornada aunque el pendiente
@@ -141,15 +149,17 @@ export function construirMatrizCargaSemanal(
         horasProgramadas += carga.horasProgramadas;
         horasReales += carga.horasReales;
         horasLibres += Math.max(0, carga.horasCapacidad - carga.horasProgramadas - carga.horasReales);
+        const ocupadasDelTurno = carga.horasProgramadas + carga.horasReales;
         nivel = nivelSemaforoMasGrave(
           nivel,
-          nivelSemaforo(clasificarSaturacion(carga.horasCapacidad, carga.horasProgramadas)),
+          nivelSemaforo(clasificarSaturacion(carga.horasCapacidad, ocupadasDelTurno)),
         );
       }
       return {
         fecha,
         horasCapacidad: redondearHoras(horasCapacidad),
         horasProgramadas: redondearHoras(horasProgramadas),
+        horasOcupadas: redondearHoras(horasProgramadas + horasReales),
         horasLibres: redondearHoras(horasLibres),
         horasReales: redondearHoras(horasReales),
         nivel,

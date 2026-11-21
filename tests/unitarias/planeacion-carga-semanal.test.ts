@@ -3,6 +3,7 @@ import type { CargaCapacidadDiaria, RecursoPlaneacion } from '@/modulos/planeaci
 import {
   construirMatrizCargaSemanal,
   formatearHoras,
+  formatearHorasChip,
 } from '@/modulos/planeacion/utilidades/carga-semanal';
 
 const RECURSO_A: RecursoPlaneacion = {
@@ -205,6 +206,30 @@ describe('matriz de carga semanal (C9.1)', () => {
       horasProgramadas: 0,
       horasReales: 3,
     });
+  });
+
+  it('el chip usa pendiente más trabajado y aplica los umbrales 50/90', () => {
+    const matriz = construirMatrizCargaSemanal(
+      [
+        carga(RECURSO_A.id, '2026-09-21', 'jornada', 8, 0, 3.5),
+        carga(RECURSO_A.id, '2026-09-22', 'jornada', 8, 0, 7.2),
+        carga(RECURSO_A.id, '2026-09-23', 'jornada', 8, 0, 18.88),
+        carga(RECURSO_A.id, '2026-09-24', 'jornada', 8, 2, 1),
+      ],
+      [RECURSO_A],
+      RANGO_SEMANA,
+    );
+
+    expect(matriz?.filas[0].celdas[0]).toMatchObject({ horasOcupadas: 3.5, nivel: 'disponible' });
+    expect(matriz?.filas[0].celdas[1]).toMatchObject({ horasOcupadas: 7.2, nivel: 'saturado' });
+    expect(matriz?.filas[0].celdas[2]).toMatchObject({ horasOcupadas: 18.88, nivel: 'sobrecargado' });
+    expect(matriz?.filas[0].celdas[3]).toMatchObject({ horasOcupadas: 3, nivel: 'disponible' });
+  });
+
+  it('formatea el ocupado del chip con al menos un decimal', () => {
+    expect(formatearHorasChip(0)).toBe('0.0');
+    expect(formatearHorasChip(4.34)).toBe('4.34');
+    expect(formatearHorasChip(18.88)).toBe('18.88');
   });
 
   it('muestra la carga del sábado dentro de su jornada de 4 h', () => {
