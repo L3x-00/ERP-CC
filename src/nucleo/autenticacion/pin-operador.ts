@@ -10,7 +10,7 @@ import {
 /**
  * Genera el hash bcrypt de un PIN de operador.
  *
- * @param pin PIN en texto plano (4 a 6 dígitos).
+ * @param pin PIN en texto plano (6 dígitos exactos).
  * @returns Hash bcrypt listo para guardar en `usuarios.pin_operador`.
  */
 export async function hashearPin(pin: string): Promise<string> {
@@ -45,7 +45,7 @@ export type ResultadoBusquedaPin =
  * configurado. Usa el cliente admin (sin RLS) porque en el login de piso
  * aún no existe sesión Supabase. Solo debe llamarse desde el servidor.
  *
- * @param pin PIN en texto plano (4 a 6 dígitos).
+ * @param pin PIN en texto plano (6 dígitos exactos).
  * @returns Resultado discriminado; `unico` solo si el PIN identifica a un
  * único operador activo.
  */

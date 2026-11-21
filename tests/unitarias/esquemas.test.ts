@@ -44,8 +44,8 @@ describe('esquemaIniciarSesion', () => {
 });
 
 describe('esquemaValidarPin', () => {
-  it('PIN de 3 dígitos falla', () => {
-    expect(esquemaValidarPin.safeParse({ pin: '123' }).success).toBe(false);
+  it.each(['123', '1234', '12345'])('PIN de %s dígitos falla (se exigen 6)', (pin) => {
+    expect(esquemaValidarPin.safeParse({ pin }).success).toBe(false);
   });
 
   it('PIN de 7 dígitos falla', () => {
@@ -53,25 +53,16 @@ describe('esquemaValidarPin', () => {
   });
 
   it('PIN con letras falla', () => {
-    expect(esquemaValidarPin.safeParse({ pin: 'abcd' }).success).toBe(false);
-    expect(esquemaValidarPin.safeParse({ pin: '12a4' }).success).toBe(false);
+    expect(esquemaValidarPin.safeParse({ pin: 'abcdef' }).success).toBe(false);
+    expect(esquemaValidarPin.safeParse({ pin: '12a456' }).success).toBe(false);
   });
 
-  it("PIN '1234' (mínimo) pasa", () => {
-    const resultado = esquemaValidarPin.safeParse({ pin: '1234' });
+  it("PIN '000042' de exactamente 6 dígitos pasa y conserva ceros iniciales", () => {
+    const resultado = esquemaValidarPin.safeParse({ pin: '000042' });
 
     expect(resultado.success).toBe(true);
     if (resultado.success) {
-      expect(resultado.data.pin).toBe('1234');
-    }
-  });
-
-  it("PIN '123456' (máximo) pasa", () => {
-    const resultado = esquemaValidarPin.safeParse({ pin: '123456' });
-
-    expect(resultado.success).toBe(true);
-    if (resultado.success) {
-      expect(resultado.data.pin).toBe('123456');
+      expect(resultado.data.pin).toBe('000042');
     }
   });
 });

@@ -34,7 +34,7 @@ SELECT lives_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1702'::uuid,
-    'Operador Uno', '0042', true)
+    'Operador Uno', '000042', true)
 $$, 'Admin activo da de alta operador con PIN de ceros iniciales');
 SELECT is((SELECT rol FROM public.usuarios
   WHERE id = '00000000-0000-4000-8000-0000000a1702'), 'operador',
@@ -45,15 +45,15 @@ SELECT is((SELECT activo FROM public.usuarios
 SELECT ok((SELECT pin_operador LIKE '$2a$%' FROM public.usuarios
   WHERE id = '00000000-0000-4000-8000-0000000a1702'),
   'Solo se persiste bcrypt, nunca el PIN plano');
-SELECT ok((SELECT extensions.crypt('0042', pin_operador) = pin_operador
+SELECT ok((SELECT extensions.crypt('000042', pin_operador) = pin_operador
   FROM public.usuarios WHERE id = '00000000-0000-4000-8000-0000000a1702'),
-  'El PIN con cero inicial autentica contra el hash');
+  'El PIN de 6 dígitos con cero inicial autentica contra el hash');
 
 SELECT throws_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1703'::uuid,
-    'Operador Dos', '0042', true)
+    'Operador Dos', '000042', true)
 $$, '23505', 'pin_duplicado', 'Se rechaza PIN ya usado');
 SELECT is((SELECT rol FROM public.usuarios
   WHERE id = '00000000-0000-4000-8000-0000000a1703'), 'vendedor',
@@ -62,14 +62,14 @@ SELECT throws_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1704'::uuid,
     '00000000-0000-4000-8000-0000000a1703'::uuid,
-    'Operador Dos', '7788', true)
+    'Operador Dos', '007788', true)
 $$, '42501', 'usuario_sin_permiso', 'Gerente no administra operadores');
 SELECT throws_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1702'::uuid,
-    'Operador Uno', '42', true)
-$$, '23514', 'pin_formato_invalido', 'PIN corto se rechaza');
+    'Operador Uno', '00042', true)
+$$, '23514', 'pin_formato_invalido', 'PIN de 5 dígitos se rechaza');
 
 CREATE TEMP TABLE a17_hash_original AS
   SELECT pin_operador FROM public.usuarios
@@ -96,22 +96,22 @@ SELECT lives_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1702'::uuid,
-    'Operador Uno', '9977', true)
+    'Operador Uno', '009977', true)
 $$, 'Reactivación con PIN nuevo conserva el ID');
 SELECT ok((SELECT pin_cambiado_en IS NOT NULL AND
-    extensions.crypt('9977', pin_operador) = pin_operador
+    extensions.crypt('009977', pin_operador) = pin_operador
   FROM public.usuarios WHERE id = '00000000-0000-4000-8000-0000000a1702'),
   'Reactivación gira hash y marca sesiones anteriores como obsoletas');
 
--- Hash bcryptjs $2b$ preexistente: muestra de prueba para PIN 1234.
+-- Hash bcryptjs $2b$ preexistente: muestra de prueba para PIN 123456.
 UPDATE public.usuarios SET rol = 'operador', activo = true,
-  pin_operador = '$2b$10$SBYr4cNyOxxgxq/7uOvLq.edUX9sWhYDc/GN6tKWr4YTdGsgxAWza'
+  pin_operador = '$2b$10$0u8lNFv7L/lsWnpxSNJwFOB2xGE3JjT1PpRze9/x/44VnxrH1KTGG'
 WHERE id = '00000000-0000-4000-8000-0000000a1703';
 SELECT throws_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1702'::uuid,
-    'Operador Uno', '1234', true)
+    'Operador Uno', '123456', true)
 $$, '23505', 'pin_duplicado', 'Detecta duplicado frente a bcryptjs histórico $2b$');
 UPDATE public.usuarios SET activo = false
 WHERE id = '00000000-0000-4000-8000-0000000a1701';
@@ -119,7 +119,7 @@ SELECT throws_ok($$
   SELECT public.guardar_operador_admin(
     '00000000-0000-4000-8000-0000000a1701'::uuid,
     '00000000-0000-4000-8000-0000000a1702'::uuid,
-    'Operador Uno', '8899', true)
+    'Operador Uno', '008899', true)
 $$, '42501', 'usuario_sin_permiso', 'Admin inactivo no administra PIN');
 SELECT is((SELECT count(*)::integer FROM public.usuarios
   WHERE id = '00000000-0000-4000-8000-0000000a1702'), 1,

@@ -213,13 +213,13 @@ describe('PestanaOperadores — alta y retiro en modal (UI-04)', () => {
     fireEvent.click(screen.getByTestId('nuevo-operador-config'));
     await screen.findByTestId('dialogo-operador-config');
     fireEvent.change(screen.getByTestId('operador-config-nombre'), { target: { value: 'Nuevo Piso' } });
-    fireEvent.change(screen.getByTestId('operador-config-pin'), { target: { value: '1234' } });
+    fireEvent.change(screen.getByTestId('operador-config-pin'), { target: { value: '123456' } });
     fireEvent.click(screen.getByTestId('guardar-operador-config'));
 
     await waitFor(() =>
       expect(guardarOperadorMock).toHaveBeenCalledWith({
         nombre: 'Nuevo Piso',
-        pin: '1234',
+        pin: '123456',
         activo: true,
       }),
     );

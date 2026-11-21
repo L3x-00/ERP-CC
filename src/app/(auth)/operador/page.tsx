@@ -36,17 +36,9 @@ export default async function PaginaOperador() {
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Acceso de operador</h1>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-texto-secundario">
-              Identifícate con tu PIN para entrar a tu espacio de trabajo y registrar la producción del día.
+              Identifícate con tu PIN de 6 dígitos para entrar a tu espacio de trabajo y registrar la
+              producción del día.
             </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-texto-secundario">
-                PIN de 4 a 6 dígitos
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-texto-secundario">
-                Teclado táctil o físico
-              </span>
-            </div>
           </div>
 
           {esAdmin ? (

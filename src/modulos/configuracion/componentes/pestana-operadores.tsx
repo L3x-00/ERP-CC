@@ -256,8 +256,8 @@ export function PestanaOperadores({
                   type="password"
                   inputMode="numeric"
                   autoComplete="new-password"
-                  pattern="[0-9]{4,6}"
-                  minLength={4}
+                  pattern="[0-9]{6}"
+                  minLength={6}
                   maxLength={6}
                   required={pinObligatorio}
                   value={pin}
@@ -265,7 +265,7 @@ export function PestanaOperadores({
                   aria-label={pinObligatorio ? 'PIN nuevo' : 'PIN nuevo (opcional)'}
                   data-testid="operador-config-pin"
                 />
-                <p className="text-xs text-texto-secundario">Usa de 4 a 6 dígitos.</p>
+                <p className="text-xs text-texto-secundario">El PIN debe tener exactamente 6 dígitos.</p>
               </div>
 
               {error ? (

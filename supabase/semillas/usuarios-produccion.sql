@@ -36,7 +36,7 @@ WHERE email = 'operador@tudominio.com';
 
 -- -----------------------------------------------------------------------------
 -- 2) PIN de operadores de piso (bcrypt compatible con bcryptjs de la app).
---    Cambiar 'CAMBIA-ESTE-PIN' por un PIN numérico de 4 a 6 dígitos.
+--    Cambiar 'CAMBIA-ESTE-PIN' por un PIN numérico de exactamente 6 dígitos.
 --    Cada operador debe tener un PIN único: la app falla cerrado si dos
 --    operadores activos comparten PIN.
 -- -----------------------------------------------------------------------------

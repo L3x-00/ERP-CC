@@ -162,7 +162,7 @@ export const esquemaAreasOperador = z
 export const esquemaGuardarOperador = z.object({
   id: z.uuid('Operador inválido').optional(),
   nombre: z.string().trim().min(3, 'El nombre debe tener al menos 3 caracteres').max(120),
-  pin: z.string().regex(/^[0-9]{4,6}$/, 'El PIN debe tener de 4 a 6 dígitos').nullable(),
+  pin: z.string().regex(/^[0-9]{6}$/, 'El PIN debe tener exactamente 6 dígitos').nullable(),
   activo: z.boolean(),
 }).strict().superRefine((datos, contexto) => {
   if (!datos.id && !datos.pin) {

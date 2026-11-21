@@ -11,11 +11,14 @@ export const MAXIMO_SESION_OPERADOR_MINUTOS = 8 * 60;
 /** Horas de vigencia de sesión admin/ventas/gerente. */
 export const TIMEOUT_SESION_ADMIN_HORAS = 24;
 
-/** Longitud mínima del PIN de operador. */
-export const PIN_LONGITUD_MINIMA = 4;
+/** Longitud exacta del PIN de operador: seis dígitos. */
+export const PIN_LONGITUD = 6;
 
-/** Longitud máxima del PIN de operador. */
-export const PIN_LONGITUD_MAXIMA = 6;
+/** Longitud mínima del PIN de operador (igual a la exacta). */
+export const PIN_LONGITUD_MINIMA = PIN_LONGITUD;
+
+/** Longitud máxima del PIN de operador (igual a la exacta). */
+export const PIN_LONGITUD_MAXIMA = PIN_LONGITUD;
 
 /** Intentos máximos de login antes de bloqueo temporal. */
 export const INTENTOS_LOGIN_MAXIMOS = 5;
