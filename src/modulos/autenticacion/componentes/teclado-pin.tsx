@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { DURACION_BIENVENIDA_MS, EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
 import { cn } from '@/compartido/utilidades/cn';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
 import { PIN_LONGITUD } from '@/nucleo/autenticacion/constantes';
@@ -34,6 +35,7 @@ export function TecladoPin() {
   const enviandoRef = useRef(false);
   const retardoRef = useRef<number | null>(null);
   const cierreRef = useRef<number | null>(null);
+  const navegacionRef = useRef<number | null>(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [validando, setValidando] = useState(false);
@@ -51,6 +53,7 @@ export function TecladoPin() {
       cancelAnimationFrame(marco);
       if (retardoRef.current !== null) window.clearTimeout(retardoRef.current);
       if (cierreRef.current !== null) window.clearTimeout(cierreRef.current);
+      if (navegacionRef.current !== null) window.clearTimeout(navegacionRef.current);
     };
   }, []);
 
@@ -91,17 +94,20 @@ export function TecladoPin() {
 
       if (respuesta.exito) {
         setResultado('permitido');
+        // El check verde se ve primero; luego entra el mismo splash que en el
+        // acceso administrativo y la navegación espera a que termine.
         cierreRef.current = window.setTimeout(() => {
           cierreRef.current = null;
-          // La navegación ya trae el estado fresco del servidor; refresh() aquí
-          // corría contra la ruta anterior y podía dejar la vista en la puerta.
-          // Se libera el bloqueo para poder reintentar si la ruta falla.
           setResultado(null);
           setPin('');
           setError(null);
-          setValidando(false);
-          enviandoRef.current = false;
-          router.push('/produccion-piso');
+          window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+          navegacionRef.current = window.setTimeout(() => {
+            navegacionRef.current = null;
+            setValidando(false);
+            enviandoRef.current = false;
+            router.push('/produccion-piso');
+          }, DURACION_BIENVENIDA_MS);
         }, DURACION_ACCESO_PERMITIDO_MS);
         return;
       }

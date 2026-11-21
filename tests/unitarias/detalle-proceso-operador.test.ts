@@ -7,6 +7,7 @@ import {
   fechaLocalNegocio,
   sumarDiasFecha,
 } from '@/compartido/utilidades/fecha-negocio';
+import { ahoraHoraInputNegocio } from '@/modulos/produccion/utilidades/horas-extra';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
@@ -1390,17 +1391,20 @@ describe('DetalleProcesoOperador', () => {
       presentacion: 'integrado',
     }));
 
+    // Hora en el pasado (zona del taller): un valor fijo como 11:00 cae en el
+    // futuro según la hora a la que corra la suite y el cierre se rechaza.
+    const horaFin = ahoraHoraInputNegocio(new Date(Date.now() - 5 * 60_000));
     fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
     fireEvent.change(screen.getByTestId('piezas-cierre'), { target: { value: '1' } });
     fireEvent.change(screen.getByTestId('hora-fin-cierre'), {
-      target: { value: '11:00' },
+      target: { value: horaFin },
     });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
     expect(cerrar).toHaveBeenCalledWith(
       proceso,
-      expect.objectContaining({ horaFin: expect.stringMatching(/T11:00$/) }),
+      expect.objectContaining({ horaFin: expect.stringMatching(new RegExp(`T${horaFin}$`)) }),
     );
   });
 
