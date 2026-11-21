@@ -22,7 +22,10 @@ import type {
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
-import { CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_MENSAJE_FALTANTE,
+} from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
 import { FormularioAltaItemPropuesta } from './formulario-alta-item-propuesta';
 
@@ -212,6 +215,7 @@ export function EditorItemsPropuesta({
               const requiereRevisionItem = ruteo.some(
                 (fila) => fila.itemId === item.id && fila.requiereRevision,
               );
+              const sinPrecio = faltantes?.itemsSinPrecio.includes(item.codigo) === true;
               const letraOrigen = letraPorRevision.get(item.revisionOrigenId) ?? null;
               return (
                 <tr
@@ -255,7 +259,17 @@ export function EditorItemsPropuesta({
                       onChange={(evento) => actualizar(item, { precioUnitario: evento.target.value })}
                       disabled={!esBorrador || !permisos.editarPrecio}
                       aria-label={`Precio ${item.codigo}`}
+                      aria-invalid={sinPrecio}
+                      className={sinPrecio ? CLASE_CAMPO_FALTANTE : undefined}
                     />
+                    {sinPrecio && (
+                      <p
+                        data-testid={`faltante-precio-${item.codigo}`}
+                        className={CLASE_MENSAJE_FALTANTE}
+                      >
+                        Captura el precio unitario para poder validar.
+                      </p>
+                    )}
                   </td>
                   <td className="px-2 py-2 tabular-nums">
                     {formatearMoneda(valor.esDescuento ? -importe : importe, totales.moneda)}

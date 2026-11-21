@@ -463,7 +463,7 @@ export function PanelAccionesPropuesta({
           <div className="flex flex-wrap gap-2">
             {onIrA && (
               <>
-                {faltantes?.sinItemsActivos && (
+                {(faltantes?.sinItemsActivos || (faltantes?.itemsSinPrecio.length ?? 0) > 0) && (
                   <Button variante="contorno" tamano="sm" onClick={() => onIrA('items')}>
                     Ir a Ítems
                   </Button>

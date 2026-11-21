@@ -602,6 +602,7 @@ describe('EditorItemsPropuesta — material y espesor del RFQ (obs. cliente 2026
 describe('EditorItemsPropuesta — ítem obligatorio para validar (obs. cliente 2026-10-13)', () => {
   const SIN_ITEMS = {
     sinItemsActivos: true,
+    itemsSinPrecio: [],
     itemsSinRuteo: [],
     itemsSinCostear: [],
     operacionesConTarifaRespaldo: [],
@@ -619,6 +620,23 @@ describe('EditorItemsPropuesta — ítem obligatorio para validar (obs. cliente 
     expect(vacio.getAttribute('data-faltante')).toBe('si');
     expect(vacio.className).toContain('border-peligro');
     expect(screen.getByTestId('faltante-items').textContent).toMatch(/al menos un ítem activo/i);
+  });
+
+  it('marca con borde rojo solo el precio de los ítems que faltan', () => {
+    renderizarEditor({
+      faltantes: {
+        ...SIN_ITEMS,
+        sinItemsActivos: false,
+        itemsSinPrecio: ['IT01'],
+        contenido: ['ítem IT01: precio unitario'],
+        mensajes: ['ítem IT01: precio unitario'],
+      },
+    });
+
+    const precio = screen.getByLabelText('Precio IT01');
+    expect(precio.className).toContain('border-peligro');
+    expect(screen.getByTestId('faltante-precio-IT01').textContent).toContain('precio unitario');
+    expect(screen.getByLabelText('Precio IT05').className).not.toContain('border-peligro');
   });
 
   it('sin el faltante no hay marca roja ni aviso', () => {

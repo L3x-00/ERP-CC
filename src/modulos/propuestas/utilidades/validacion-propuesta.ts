@@ -10,7 +10,7 @@ export type EntradaFaltantesValidacion = {
   revision: Pick<RevisionPropuesta, 'id' | 'letra' | 'requiereRevisionRuteo' | 'requiereRevisionCosteo'>;
   revisiones: readonly Pick<RevisionPropuesta, 'id' | 'letra'>[];
   /** Ítems de TODAS las revisiones de la propuesta (el linaje se resuelve por código). */
-  items: readonly Pick<PropuestaItem, 'id' | 'revisionId' | 'codigo' | 'activo'>[];
+  items: readonly Pick<PropuestaItem, 'id' | 'revisionId' | 'codigo' | 'activo' | 'precioUnitario'>[];
   ruteo: readonly {
     itemId: string;
     costeadoEn: string | null;
@@ -25,6 +25,8 @@ export type EntradaFaltantesValidacion = {
 
 export type FaltantesValidacionPropuesta = {
   sinItemsActivos: boolean;
+  /** Códigos ITxx activos con precio unitario en cero (aún no capturado). */
+  itemsSinPrecio: string[];
   /** Códigos ITxx activos sin ninguna fila de ruteo. */
   itemsSinRuteo: string[];
   /** Códigos ITxx activos con ruteo que aún no se costea (tarifa congelada). */
@@ -91,6 +93,10 @@ export function calcularFaltantesValidacion(
     .filter((item) => item.revisionId === entrada.revision.id && item.activo)
     .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
+  // P1: la propuesta nace con precio 0; cero significa «aún no capturado».
+  const itemsSinPrecio = itemsActivos
+    .filter((item) => !Number.isFinite(item.precioUnitario) || item.precioUnitario <= 0)
+    .map((item) => item.codigo);
   const itemsSinRuteo: string[] = [];
   const itemsSinCostear: string[] = [];
   const operacionesConTarifaRespaldo: string[] = [];
@@ -113,6 +119,7 @@ export function calcularFaltantesValidacion(
 
   const contenido: string[] = [];
   if (sinItemsActivos) contenido.push('al menos un ítem activo');
+  for (const codigo of itemsSinPrecio) contenido.push(`ítem ${codigo}: precio unitario`);
   for (const codigo of itemsSinRuteo) contenido.push(`ítem ${codigo}: ruteo por proceso`);
   for (const codigo of itemsSinCostear) contenido.push(`ítem ${codigo}: costear el ruteo`);
   if (sinArchivos) contenido.push('al menos un archivo');
@@ -130,6 +137,7 @@ export function calcularFaltantesValidacion(
 
   return {
     sinItemsActivos,
+    itemsSinPrecio,
     itemsSinRuteo,
     itemsSinCostear,
     operacionesConTarifaRespaldo,
