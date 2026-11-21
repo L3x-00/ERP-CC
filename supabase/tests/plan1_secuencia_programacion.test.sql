@@ -26,8 +26,6 @@ INSERT INTO p1 (clave, valor)
 SELECT 'meta_' || secuencia, id::text FROM public.metas_proceso_partida
 WHERE partida_id = '00000000-0000-4000-8000-0000000c3a03';
 
-SET LOCAL ROLE service_role;
-
 SELECT is(
   public.obtener_piezas_disponibles_proceso((SELECT valor::uuid FROM p1 WHERE clave = 'meta_1'))->>'secuencia',
   '1',
