@@ -46,11 +46,11 @@ INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion,
   fecha_inicio, fecha_fin, horas_brutas, horas_netas, piezas_producidas, recurso_liberado
 ) VALUES
-  ('00000000-0000-4000-8000-0000000d0161', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '4 hours', now() - interval '1 hour', 2, 2, 1, true),
-  -- Dos sesiones sobre la misma programación se suman (2 + 3 = 5).
-  ('00000000-0000-4000-8000-0000000d0162', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '1 hour', now(), 3, 3, 1, false),
+  ('00000000-0000-4000-8000-0000000d0161', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', (((date_trunc('week', current_date)::date + 13)::timestamp + interval '9 hours') AT TIME ZONE 'America/Tijuana'), (((date_trunc('week', current_date)::date + 13)::timestamp + interval '11 hours') AT TIME ZONE 'America/Tijuana'), 2, 2, 1, true),
+  -- Dos sesiones sobre la misma programación se suman (2 + 3 = 5), ambas en domingo.
+  ('00000000-0000-4000-8000-0000000d0162', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', (((date_trunc('week', current_date)::date + 13)::timestamp + interval '15 hours') AT TIME ZONE 'America/Tijuana'), (((date_trunc('week', current_date)::date + 13)::timestamp + interval '18 hours') AT TIME ZONE 'America/Tijuana'), 3, 3, 1, false),
   -- 100 h fuera del rango: no deben filtrarse a la fila del domingo.
-  ('00000000-0000-4000-8000-0000000d0163', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0132', '00000000-0000-4000-8000-0000000d0152', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '4 hours', now() - interval '1 hour', 100, 100, 1, false);
+  ('00000000-0000-4000-8000-0000000d0163', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0132', '00000000-0000-4000-8000-0000000d0152', '00000000-0000-4000-8000-0000000d0101', 'finalizada', (((current_date + 20)::timestamp + interval '9 hours') AT TIME ZONE 'America/Tijuana'), (((current_date + 20)::timestamp + interval '11 hours') AT TIME ZONE 'America/Tijuana'), 2, 2, 1, false);
 
 SET LOCAL ROLE service_role;
 
