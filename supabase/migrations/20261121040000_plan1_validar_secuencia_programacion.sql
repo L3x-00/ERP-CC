@@ -20,7 +20,11 @@ DECLARE
   v_proceso text;
   v_previas numeric;
 BEGIN
+  -- Solo programaciones hechas desde Planeación llevan prioridad > 0; las
+  -- filas internas que crea Producción al preparar una sesión no se validan
+  -- aquí (esa validación ya existe al iniciar).
   IF NEW.meta_proceso_id IS NULL
+     OR coalesce(NEW.orden_prioridad, 0) <= 0
      OR NEW.estado_planeacion IN ('completada', 'cancelada') THEN
     RETURN NEW;
   END IF;

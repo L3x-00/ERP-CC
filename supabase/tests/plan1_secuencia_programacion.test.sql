@@ -36,11 +36,11 @@ WHERE partida_id = '00000000-0000-4000-8000-0000000c3a03';
 SELECT throws_ok(
   $$ INSERT INTO public.programacion_areas (
        id, orden_id, partida_id, recurso_id, secuencia, estado_planeacion,
-       fecha_programada, turno, horas_estimadas, meta_proceso_id
+       fecha_programada, turno, horas_estimadas, orden_prioridad, meta_proceso_id
      ) VALUES (
        '00000000-0000-4000-8000-0000000c3a05', '00000000-0000-4000-8000-0000000c3a02',
        '00000000-0000-4000-8000-0000000c3a03', '00000000-0000-4000-8000-0000000c3a04',
-       2, 'programada', date_trunc('week', current_date)::date + 1, 'matutino', 0.25,
+       2, 'programada', date_trunc('week', current_date)::date + 1, 'matutino', 0.25, 3,
        (SELECT valor::uuid FROM p1 WHERE clave = 'meta_2')
      ) $$,
   '23514', 'proceso_previo_sin_piezas',
@@ -55,11 +55,11 @@ SET cantidad_producida = 5 WHERE id = '00000000-0000-4000-8000-0000000c3a03';
 
 INSERT INTO public.programacion_areas (
   id, orden_id, partida_id, recurso_id, secuencia, estado_planeacion,
-  fecha_programada, turno, horas_estimadas, meta_proceso_id
+  fecha_programada, turno, horas_estimadas, orden_prioridad, meta_proceso_id
 ) VALUES (
   '00000000-0000-4000-8000-0000000c3a06', '00000000-0000-4000-8000-0000000c3a02',
   '00000000-0000-4000-8000-0000000c3a03', '00000000-0000-4000-8000-0000000c3a04',
-  2, 'programada', date_trunc('week', current_date)::date + 1, 'matutino', 0.25,
+  2, 'programada', date_trunc('week', current_date)::date + 1, 'matutino', 0.25, 3,
   (SELECT valor::uuid FROM p1 WHERE clave = 'meta_2')
 );
 
