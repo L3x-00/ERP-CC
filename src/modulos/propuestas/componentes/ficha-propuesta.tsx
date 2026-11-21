@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
+import { Button } from '@/compartido/componentes/ui/button';
 import { usarCatalogosPropuesta, usarPropuesta } from '@/modulos/propuestas/hooks/usar-propuesta';
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
 import {
@@ -50,6 +51,7 @@ export function FichaPropuesta({
 }) {
   const [pestana, setPestana] = useState<Pestana>('resumen');
   const [revisionActivaId, setRevisionActivaId] = useState<string | null>(null);
+  const [altaItemAbierta, setAltaItemAbierta] = useState(false);
   const consulta = usarPropuesta(propuestaId);
   const catalogos = usarCatalogosPropuesta();
 
@@ -216,23 +218,39 @@ export function FichaPropuesta({
         />
       )}
 
-      <div className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.map((opcion) => (
-          <button
-            key={opcion.clave}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-borde">
+        <div className="flex flex-wrap gap-1" role="tablist">
+          {PESTANAS.map((opcion) => (
+            <button
+              key={opcion.clave}
+              type="button"
+              role="tab"
+              aria-selected={pestana === opcion.clave}
+              onClick={() => setPestana(opcion.clave)}
+              className={
+                pestana === opcion.clave
+                  ? 'border-b-2 border-acento px-3 py-2 text-sm font-semibold text-acento'
+                  : 'border-b-2 border-transparent px-3 py-2 text-sm text-texto-secundario hover:text-texto-primario'
+              }
+            >
+              {opcion.etiqueta}
+            </button>
+          ))}
+        </div>
+        {pestana === 'items'
+          && revisionActiva?.estado === 'DRAFT'
+          && permisosRevision.editarArticulo
+          && !esHistorial ? (
+          <Button
             type="button"
-            role="tab"
-            aria-selected={pestana === opcion.clave}
-            onClick={() => setPestana(opcion.clave)}
-            className={
-              pestana === opcion.clave
-                ? 'border-b-2 border-acento px-3 py-2 text-sm font-semibold text-acento'
-                : 'border-b-2 border-transparent px-3 py-2 text-sm text-texto-secundario hover:text-texto-primario'
-            }
+            variante="contorno"
+            tamano="sm"
+            onClick={() => setAltaItemAbierta(true)}
+            data-testid="nuevo-item-barra"
           >
-            {opcion.etiqueta}
-          </button>
-        ))}
+            Nuevo ítem
+          </Button>
+        ) : null}
       </div>
 
       {revisionActiva && (
@@ -255,6 +273,8 @@ export function FichaPropuesta({
               errorCatalogos={errorCatalogos}
               permisos={permisosRevision}
               faltantes={faltantesValidacion}
+              altaAbierta={altaItemAbierta}
+              onAltaAbiertaCambio={setAltaItemAbierta}
               utilidadObjetivoPorcentaje={detalle.utilidadObjetivoPorcentaje}
             />
           )}

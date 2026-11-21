@@ -146,13 +146,29 @@ describe('PanelAccionesPropuesta — qué falta para validar (obs. cliente 2026-
     });
 
     const aviso = screen.getByTestId('faltantes-validacion');
-    expect(aviso.className).toContain('border-peligro');
-    expect(aviso.textContent).toContain('al menos un ítem activo');
-    expect(aviso.textContent).toContain('al menos un archivo');
+    expect(aviso.className).toContain('border-advertencia');
+    expect(aviso.textContent).toContain('Faltan 2 datos para validar');
+    expect(aviso.textContent).not.toContain('Todavía no puedes validar');
+    expect(aviso.querySelector('ul')).toBeNull();
 
     const validar = screen.getByRole('button', { name: 'Validar' }) as HTMLButtonElement;
     expect(validar.disabled).toBe(true);
     expect(validar.getAttribute('title')).toBe('Completa lo marcado en rojo antes de validar');
+  });
+
+  it('el atajo lleva a la primera sección pendiente y «Validar» sigue bloqueado', () => {
+    const onIrA = vi.fn();
+    montarPanel({
+      faltantes: faltantes({
+        itemsSinPrecio: ['IT01'],
+        contenido: ['ítem IT01: precio unitario'],
+      }),
+      onIrA,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ir a lo que falta' }));
+    expect(onIrA).toHaveBeenCalledWith('items');
+    expect((screen.getByRole('button', { name: 'Validar' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('con la propuesta completa no hay aviso y «Validar» queda disponible', () => {
@@ -164,7 +180,7 @@ describe('PanelAccionesPropuesta — qué falta para validar (obs. cliente 2026-
     );
   });
 
-  it('las confirmaciones «Requiere revisión» también aparecen en la lista', () => {
+  it('las confirmaciones «Requiere revisión» también cuentan y llevan a Ruteo/Costeo', () => {
     montarPanel({
       onIrA: vi.fn(),
       revision: revision({ requiereRevisionCosteo: true }),
@@ -172,7 +188,7 @@ describe('PanelAccionesPropuesta — qué falta para validar (obs. cliente 2026-
     });
 
     expect(screen.getByTestId('faltantes-validacion').textContent).toContain(
-      'guardar los costos para confirmarlos',
+      'Falta 1 dato para validar',
     );
     expect(screen.getByRole('button', { name: 'Ir a Ruteo/Costeo' })).toBeDefined();
   });

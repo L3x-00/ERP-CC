@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
@@ -20,7 +19,6 @@ import type {
   RevisionPropuesta,
   RuteoItemPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
-import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import {
   CLASE_CAMPO_FALTANTE,
@@ -55,6 +53,8 @@ export function EditorItemsPropuesta({
   errorCatalogos = null,
   permisos,
   faltantes = null,
+  altaAbierta,
+  onAltaAbiertaCambio,
   utilidadObjetivoPorcentaje,
 }: {
   revision: RevisionPropuesta;
@@ -67,6 +67,9 @@ export function EditorItemsPropuesta({
   permisos: PermisosPropuesta;
   /** Lo que impide validar (solo en borrador); marca la ausencia de ítems en rojo. */
   faltantes?: FaltantesValidacionPropuesta | null;
+  /** P3: el alta se abre desde la barra de pestañas de la ficha. */
+  altaAbierta?: boolean;
+  onAltaAbiertaCambio?: (abierto: boolean) => void;
   /** Utilidad objetivo vigente (% sobre costo) de Configuración. */
   utilidadObjetivoPorcentaje: number;
 }) {
@@ -366,6 +369,8 @@ export function EditorItemsPropuesta({
           catalogos={catalogos}
           errorCatalogos={errorCatalogos}
           puedeEditarPrecio={permisos.editarPrecio}
+          abierto={altaAbierta}
+          onAbrirCambio={onAltaAbiertaCambio}
         />
       )}
 
@@ -381,13 +386,6 @@ export function EditorItemsPropuesta({
         </p>
       )}
 
-      <p className="text-xs text-texto-secundario">
-        Estado de la revisión:{' '}
-        <BadgeEstado
-          estado={revision.estado}
-          etiqueta={ETIQUETA_ESTADO_PROPIESTA[revision.estado]}
-        />
-      </p>
     </section>
   );
 }

@@ -436,8 +436,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       // El ítem nuevo no tiene ruteo y la propuesta no tiene archivos: no se valida.
       await expect(ficha.getByRole('button', { name: 'Validar', exact: true }).first()).toBeDisabled();
       const faltantes = ficha.getByTestId('faltantes-validacion');
-      await expect(faltantes).toContainText('ítem IT03: ruteo por proceso');
-      await expect(faltantes).toContainText('al menos un archivo');
+      await expect(faltantes).toContainText(/Faltan \d+ datos/u);
+      await expect(faltantes.getByRole('button', { name: 'Ir a lo que falta' })).toBeVisible();
       await capturar(page, 'propuesta-faltantes-validar');
 
       // Los atajos llevan a la pestaña que corresponde.
@@ -564,8 +564,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       const botonValidar = ficha.getByRole('button', { name: 'Validar', exact: true }).first();
       await expect(botonValidar).toBeDisabled();
       const faltantes = ficha.getByTestId('faltantes-validacion');
-      await expect(faltantes).toContainText('al menos un archivo');
-      await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
+      await expect(faltantes).toContainText(/Faltan \d+ datos/u);
+      await expect(page.getByTestId('faltante-costeo-IT01')).toBeVisible();
 
       // Cada ruteo se confirma por ítem antes de habilitar el costeo: así queda
       // claro qué se guardó y no se mezclan dos operaciones persistentes.
