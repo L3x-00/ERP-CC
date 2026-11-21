@@ -139,9 +139,15 @@ export function FormularioAltaItemPropuesta({
   }
 
   if (!abierto) {
-    // Con estado controlado el botón está en la barra de pestañas; aquí solo
-    // se muestra el formulario cuando el padre decide abrirlo.
-    if (abiertoControlado !== undefined) return null;
+    // Con estado controlado el botón está en la barra de pestañas, pero el
+    // aviso de alta debe seguir viéndose aunque el formulario ya se cerró.
+    if (abiertoControlado !== undefined) {
+      return exitoAlta !== null ? (
+        <p role="status" className="text-sm text-exito-texto">
+          {exitoAlta}
+        </p>
+      ) : null;
+    }
     return (
       <div className="flex flex-wrap items-center gap-3" data-testid="alta-item-propuesta-cerrado">
         <Button
