@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import {
   activarModoPreparacionAccion,
+  asignarResponsablePlaneacionAccion,
   liberarPreparacionPlaneacionAccion,
   obtenerCalendarioPlaneacionAccion,
   programarOperacionMultidiaAccion,
@@ -91,6 +92,8 @@ export interface PropsOperacionPlaneacion {
   /** Ficha de una orden concluida: comentarios y permisos de entrega. */
   usuarioActualId?: string;
   esAdmin?: boolean;
+  /** PLAN-1: operadores activos para elegir responsable de la partida. */
+  operadores?: readonly { id: string; nombre: string }[];
   /** C22: solicitud de programación abierta desde la campana del operador. */
   solicitudProgramacion?: SolicitudProgramacionOperador | null;
 }
@@ -132,6 +135,7 @@ export function OperacionPlaneacion({
   compatibilidad,
   usuarioActualId,
   esAdmin = false,
+  operadores = [],
   solicitudProgramacion = null,
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
@@ -328,6 +332,26 @@ export function OperacionPlaneacion({
                 estadoPlaneacion: resultado.datos!.estadoPlaneacion,
               }
             : anterior));
+        }
+        // PLAN-1: el responsable se asigna con la RPC existente, solo si el
+        // usuario eligió uno (null = quien sea reclame).
+        if (datos.responsableId !== undefined) {
+          const partidaResponsable = datos.tipo === 'crear'
+            ? datos.partidaId
+            : programacionSeleccionada?.partidaId;
+          if (!partidaResponsable) {
+            return { exito: false, error: 'No se pudo identificar la partida para asignar el responsable' };
+          }
+          const asignacion = await asignarResponsablePlaneacionAccion({
+            partidaId: partidaResponsable,
+            operadorId: datos.responsableId ?? null,
+          });
+          if (!asignacion.exito) {
+            return {
+              exito: false,
+              error: `La operación quedó programada, pero no se pudo asignar el responsable: ${asignacion.error}`,
+            };
+          }
         }
         await actualizarCalendario();
         // Al reprogramar se conserva el panel abierto: así el usuario ve el
@@ -716,6 +740,7 @@ export function OperacionPlaneacion({
               cargas={cargasPanel}
               partidasTotal={partidasTotal}
               compatibilidad={compatibilidad}
+              operadores={operadores}
               verificandoCapacidad={verificandoCapacidad}
               onEnviar={enviarAsignacion}
               onActivarPreparacion={

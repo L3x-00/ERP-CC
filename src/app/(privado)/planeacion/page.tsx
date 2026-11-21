@@ -10,7 +10,10 @@ import {
   ESTADOS_ACTIVOS_PROGRAMACION,
   obtenerBolsaPlaneacionServicio,
 } from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
-import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/servicios/planeacion-servicio';
+import {
+  obtenerDatosCalendarioPlaneacionServicio,
+  obtenerOperadoresPlaneacionServicio,
+} from '@/modulos/planeacion/servicios/planeacion-servicio';
 import type { OperacionProgramablePartida } from '@/modulos/planeacion/tipos/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -124,6 +127,7 @@ export default async function PaginaPlaneacion({
   } catch (error) {
     console.error('[PLANEACION] No se pudieron pausar las sesiones vencidas:', error);
   }
+  const operadores = await obtenerOperadoresPlaneacionServicio(admin);
   const parametros = searchParams ? await searchParams : {};
   const reclamoId = typeof parametros.reclamoId === 'string' ? parametros.reclamoId : null;
   const solicitudProgramacion = reclamoId
@@ -425,6 +429,7 @@ export default async function PaginaPlaneacion({
         compatibilidad={compatibilidad}
         usuarioActualId={usuario.id}
         esAdmin={usuario.rol === 'admin'}
+        operadores={operadores}
         solicitudProgramacion={solicitudProgramacion}
       />
     </div>

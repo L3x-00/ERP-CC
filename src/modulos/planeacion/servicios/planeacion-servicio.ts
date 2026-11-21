@@ -40,6 +40,7 @@ export type CodigoErrorPlaneacion =
   | 'sin_permiso_planeacion'
   | 'motivo_reprogramacion_requerido'
   | 'meta_proceso_no_corresponde'
+  | 'proceso_previo_sin_piezas'
   | 'transicion_preparacion_no_permitida'
   | 'programacion_continuacion_no_operable'
   | 'rango_fechas_invalido'
@@ -128,6 +129,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'sin_permiso_planeacion',
     'motivo_reprogramacion_requerido',
     'meta_proceso_no_corresponde',
+    'proceso_previo_sin_piezas',
     'transicion_preparacion_no_permitida',
     'programacion_continuacion_no_operable',
     'rango_fechas_invalido',
@@ -477,6 +479,23 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
 }
 
 /** Código estable del error de Planeación; `desconocido` si no es de dominio. */
+/** PLAN-1: operadores activos para el selector de responsable de la partida. */
+export async function obtenerOperadoresPlaneacionServicio(
+  admin: SupabaseClient<Database>,
+): Promise<{ id: string; nombre: string }[]> {
+  const { data, error } = await admin
+    .from('usuarios')
+    .select('id, nombre_completo')
+    .eq('rol', 'operador')
+    .eq('activo', true)
+    .order('nombre_completo');
+  if (error) throw new Error(`No se pudieron cargar los operadores: ${error.message}`);
+  return (data ?? []).map((fila) => ({
+    id: String(fila.id),
+    nombre: String(fila.nombre_completo ?? 'Operador'),
+  }));
+}
+
 export function codigoErrorPlaneacion(error: unknown): CodigoErrorPlaneacion {
   return error instanceof ErrorPlaneacion ? error.codigo : 'desconocido';
 }
@@ -522,6 +541,8 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'La partida ya tiene una programación equivalente';
     case 'meta_proceso_no_corresponde':
       return 'La operación elegida no pertenece a la partida';
+    case 'proceso_previo_sin_piezas':
+      return 'No hay piezas terminadas por el proceso anterior. Programa y produce primero esa operación o espera a que libere piezas; así esta no se bloqueará al iniciar';
     case 'programacion_continuacion_no_operable':
       return 'Ese día es una continuación de la operación. Inicia la preparación desde su primer día';
     default:
