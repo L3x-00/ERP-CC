@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -20,13 +20,13 @@ import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/mater
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
+import { fechaHoraLocalTallerAIso } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador, EstadoSesionTrabajo } from '@/modulos/produccion/tipos/indice';
 import { ETIQUETAS_COLUMNA, etiquetaMotivoPausa } from '@/modulos/produccion/tipos/indice';
 import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
-  ahoraHoraInput,
   ahoraHoraInputNegocio,
   fechaHoraNegocioDesdeHora,
   horaFinEsFutura,
@@ -234,17 +234,21 @@ export function DetalleProcesoOperador({
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
-  // C27: hora real de conclusión. Se prellena en el DOM con el reloj del
-  // dispositivo; solo viaja al servidor si el operador la corrige, para que un
-  // cierre normal siga tomando la hora del servidor. Escribir en el input (y no
-  // en el estado) evita un render en cascada y mantiene la hidratación.
+  // C27: hora real de conclusión en hora del taller (America/Tijuana), no del
+  // dispositivo. Solo viaja al servidor si el operador la corrige, para que un
+  // cierre normal siga tomando la hora del servidor. Se precarga con un callback
+  // ref porque en la ficha el input vive dentro de un Portal y en el primer
+  // render del efecto todavía no está en el DOM.
   const horaFinRef = useRef<HTMLInputElement | null>(null);
   const horaFinEditada = useRef(false);
-  useEffect(() => {
-    const campo = horaFinRef.current;
-    if (!campo) return;
+  const sesionHoraFinPrellenada = useRef<string | null>(null);
+  const asignarHoraFin = useCallback((campo: HTMLInputElement | null) => {
+    horaFinRef.current = campo;
+    const idSesion = proceso?.sesionActiva?.id ?? null;
+    if (!campo || idSesion === null || sesionHoraFinPrellenada.current === idSesion) return;
     campo.value = ahoraHoraInputNegocio();
     horaFinEditada.current = false;
+    sesionHoraFinPrellenada.current = idSesion;
   }, [proceso?.sesionActiva?.id]);
   // C20/C21: corrección de la pausa (piezas, horas y notas). Se prefija con la
   // pausa corregible más reciente (nunca la sesión activa) para no restar
@@ -856,7 +860,7 @@ export function DetalleProcesoOperador({
   function horaEstimadaLocal(): string {
     const inicio = new Date(proceso!.sesionActiva!.fechaInicio);
     const estimada = new Date(inicio.getTime() + proceso!.horasEstimadas * 3_600_000);
-    return ahoraHoraInput(estimada);
+    return ahoraHoraInputNegocio(estimada);
   }
 
   /** C31/A12: abre el paso obligatorio cuando el tiempo real supera el estimado. */
@@ -884,12 +888,15 @@ export function DetalleProcesoOperador({
         setErrorDemora('Indica la hora real en que terminaste.');
         return;
       }
-      const fin = new Date(fechaHoraNegocioDesdeHora(
-        horaRealDemora,
-        fechaLocalNegocio(new Date(proceso!.sesionActiva!.fechaInicio)),
+      // Misma interpretación que el cierre y la RPC: hora mural de Tijuana,
+      // nunca la zona del dispositivo, con la tolerancia de dos minutos.
+      const fechaNegocio = fechaLocalNegocio(new Date(proceso!.sesionActiva!.fechaInicio));
+      const fin = new Date(fechaHoraLocalTallerAIso(
+        `${fechaNegocio}T${horaRealDemora}`,
       )).getTime();
       const inicio = new Date(proceso!.sesionActiva!.fechaInicio).getTime();
-      if (!Number.isFinite(fin) || fin <= inicio || fin > ahoraAviso.getTime() + 120_000) {
+      if (!Number.isFinite(fin) || fin <= inicio
+        || horaFinEsFutura(horaRealDemora, fechaNegocio)) {
         setErrorDemora('La hora real debe estar entre el inicio de la sesión y ahora.');
         return;
       }
@@ -2247,7 +2254,7 @@ export function DetalleProcesoOperador({
                   <label className={`${CLASE_ETIQUETA} sm:col-span-2`}>
                     Hora real de conclusión
                     <Input
-                      ref={horaFinRef}
+                      ref={asignarHoraFin}
                       id="hora-fin-cierre"
                       type="time"
                       defaultValue=""

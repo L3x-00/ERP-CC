@@ -117,7 +117,10 @@ import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicit
 import { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
 import { registrarConsumoPiezasAccion } from '@/modulos/produccion/acciones/registrar-consumo-piezas';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const proceso = {
   id: 'proceso-1',
@@ -1409,6 +1412,71 @@ describe('DetalleProcesoOperador', () => {
   });
 
 });
+
+  it('CRIT-1: precarga la hora de Tijuana aunque el campo nazca dentro de un Portal', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-21T18:38:00.000Z'));
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-11-21',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'dialogo',
+    }));
+
+    // Sin abrir el accordion: el valor debe estar precargado desde el primer render.
+    expect((screen.getByTestId('hora-fin-cierre') as HTMLInputElement).value).toBe('10:38');
+    vi.useRealTimers();
+  });
+
+  it('CRIT-1: la opción por defecto de demora usa hora de Tijuana y no se marca adelantada', async () => {
+    const cerrar = vi.fn().mockResolvedValue({ exito: true, datos: { id: 'sesion-1', actualizadoEn: new Date().toISOString() } });
+    const conDemora = {
+      ...proceso,
+      horasEstimadas: 0.25,
+      sesionActiva: {
+        ...proceso.sesionActiva,
+        fechaInicio: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+      },
+    } as typeof proceso;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conDemora,
+      hoy: '2026-11-21',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
+    fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '2' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo de producción' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    expect(screen.getByTestId('dialogo-motivo-demora')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('confirmar-demora'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    expect(screen.queryByText(/adelantada/u)).toBeNull();
+  });
 
   it('pide el motivo cuando la sesión supera el estimado y cierra con la opción elegida', async () => {
     const cerrar = vi.fn().mockResolvedValue({ exito: true, datos: { id: 'sesion-1', actualizadoEn: '2026-10-28T12:00:00.000Z' } });
