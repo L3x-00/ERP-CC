@@ -12,6 +12,8 @@ export interface PropsInsigniaSaturacion {
   nivel: NivelSemaforo;
   horasProgramadas?: number | null;
   horasCapacidad?: number | null;
+  /** Texto de horas ya compuesto (p. ej. `4.34/8 h`) cuando el formato difiere del estándar. */
+  textoHoras?: string;
   /**
    * `completa` (tarjeta): icono, texto y horas. `celda` (matriz semanal): icono
    * y horas, con el nivel siempre disponible para lectores de pantalla en
@@ -68,13 +70,15 @@ export function InsigniaSaturacion({
   nivel,
   horasProgramadas,
   horasCapacidad,
+  textoHoras,
   variante = 'completa',
   className,
 }: PropsInsigniaSaturacion) {
-  const hayHoras = horasProgramadas != null && horasCapacidad != null;
-  const horas = hayHoras
-    ? `${formatearHoras(horasProgramadas)}/${formatearHoras(horasCapacidad)} h`
-    : null;
+  const hayHoras = textoHoras !== undefined
+    || (horasProgramadas != null && horasCapacidad != null);
+  const horas = textoHoras ?? (hayHoras
+    ? `${formatearHoras(horasProgramadas!)}/${formatearHoras(horasCapacidad!)} h`
+    : null);
   const etiqueta = horas ? `${ETIQUETA_SEMAFORO[nivel]}: ${horas}` : ETIQUETA_SEMAFORO[nivel];
 
   return (

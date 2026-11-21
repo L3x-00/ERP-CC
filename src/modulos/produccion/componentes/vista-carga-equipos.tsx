@@ -201,8 +201,8 @@ export function VistaCargaEquipos({
           onAbrirRecurso={setRecursoAbiertoId}
           titulo={modo === 'dia' ? 'Carga del día' : 'Carga semanal'}
           descripcion={modo === 'dia'
-            ? `Horas pendientes/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre es lo que queda después de lo pendiente y lo ya trabajado.`
-            : 'Horas pendientes/capacidad por equipo. Libre es lo que queda después de lo pendiente y lo ya trabajado en la semana.'}
+            ? `Horas ocupadas (pendientes + trabajadas)/capacidad de cada equipo el ${etiquetaDiaLargo(diaSeleccionado)}. Libre es lo que queda después de lo pendiente y lo ya trabajado.`
+            : 'Horas ocupadas (pendientes + trabajadas)/capacidad por equipo. Libre es lo que queda después de lo pendiente y lo ya trabajado en la semana.'}
         />
       )}
 
