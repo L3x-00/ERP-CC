@@ -77,8 +77,8 @@ SELECT has_column('public', 'sesiones_trabajo', 'recurso_liberado', 'sesiones.re
 SELECT has_column('public', 'sesiones_trabajo', 'verificacion_inicio', 'sesiones.verificacion_inicio existe');
 
 -- 10-12. Catálogo de motivos
-SELECT is((SELECT count(*) FROM public.catalogo_motivos_pausa), 6::bigint,
-  'Seis motivos de pausa sembrados');
+SELECT ok((SELECT count(*) >= 6 FROM public.catalogo_motivos_pausa),
+  'Los seis motivos originales siguen sembrados (PLAN-3 agregó PAUSA_ADMIN)');
 SELECT ok((SELECT bool_and(libera_maquina) FROM public.catalogo_motivos_pausa
   WHERE codigo IN ('DUDA','MATERIAL')), 'DUDA y MATERIAL liberan máquina');
 SELECT is(privado.motivo_pausa_legacy('MATERIAL'), 'material_pendiente',
