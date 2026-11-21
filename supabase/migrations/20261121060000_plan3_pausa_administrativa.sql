@@ -71,9 +71,9 @@ BEGIN
       AND s.estado_sesion = 'pausada'
       AND s.motivo_pausa_codigo = 'PAUSA_ADMIN'
       AND s.id = (
-        SELECT id FROM public.sesiones_trabajo
-        WHERE programacion_id = p_programacion_id
-        ORDER BY creado_en DESC, id DESC LIMIT 1
+        SELECT s2.id FROM public.sesiones_trabajo AS s2
+        WHERE s2.programacion_id = p_programacion_id
+        ORDER BY s2.creado_en DESC, s2.id DESC LIMIT 1
       )
   ) THEN
     RAISE EXCEPTION 'pausa_administrativa_pendiente' USING ERRCODE = 'check_violation';
@@ -117,9 +117,9 @@ BEGIN
   SET motivo_pausa_codigo = NULL,
       notas = concat_ws(' · ', nullif(btrim(s.notas), ''), 'Pausa administrativa aprobada')
   WHERE s.id = (
-    SELECT id FROM public.sesiones_trabajo
-    WHERE programacion_id = p_programacion_id AND estado_sesion = 'pausada'
-    ORDER BY creado_en DESC, id DESC LIMIT 1
+    SELECT s2.id FROM public.sesiones_trabajo AS s2
+    WHERE s2.programacion_id = p_programacion_id AND s2.estado_sesion = 'pausada'
+    ORDER BY s2.creado_en DESC, s2.id DESC LIMIT 1
   )
   AND s.motivo_pausa_codigo = 'PAUSA_ADMIN';
   RETURN FOUND;
