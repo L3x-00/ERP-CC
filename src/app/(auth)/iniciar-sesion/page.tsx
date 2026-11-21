@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { LogotipoEmpresa } from '@/compartido/componentes/diseno/logotipo-empresa';
+import { BotonTema } from '@/compartido/componentes/navegacion/boton-tema';
 import { DESCRIPCION_EMPRESA, NOMBRE_EMPRESA } from '@/compartido/constantes/marca';
 import { FormularioIniciarSesion } from '@/modulos/autenticacion/componentes/formulario-iniciar-sesion';
 
@@ -12,9 +13,10 @@ import { FormularioIniciarSesion } from '@/modulos/autenticacion/componentes/for
 export default function PaginaIniciarSesion() {
   return (
     <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-fondo p-4 sm:p-6">
+      <BotonTema className="absolute right-4 top-4 z-20" />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-32 top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-[#109748]/10 blur-3xl"
+        className="pointer-events-none absolute -left-32 top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-exito/10 blur-3xl"
       />
       <div
         aria-hidden="true"
@@ -22,38 +24,38 @@ export default function PaginaIniciarSesion() {
       />
 
       <section className="animar-aparecer relative grid w-full max-w-5xl overflow-hidden rounded-3xl border border-borde bg-superficie shadow-elevada lg:grid-cols-[1.05fr_0.95fr]">
-        <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#0b1220] p-10 text-white lg:flex">
+        <aside className="relative hidden flex-col justify-between overflow-hidden bg-superficie-2 p-10 text-texto-primario lg:flex dark:bg-[#0b1220] dark:text-white">
           <div
             aria-hidden="true"
             className="absolute inset-0 opacity-70"
             style={{
               backgroundImage:
-                'radial-gradient(70% 60% at 20% 10%, rgba(16,151,72,0.32), transparent 65%), linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                'radial-gradient(70% 60% at 20% 10%, var(--splash-brillo), transparent 65%), linear-gradient(to right, var(--splash-linea) 1px, transparent 1px), linear-gradient(to bottom, var(--splash-linea) 1px, transparent 1px)',
               backgroundSize: 'auto, 48px 48px, 48px 48px',
             }}
           />
 
           <div className="relative">
             <LogotipoEmpresa tamano="lg" />
-            <p className="mt-10 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#7ee2a8]">
+            <p className="mt-10 text-[11px] font-semibold uppercase tracking-[0.3em] text-exito-texto">
               Orca MFG ERP
             </p>
             <h2 className="mt-3 max-w-sm text-3xl font-bold leading-tight tracking-tight">
               Toda tu operación de manufactura, en un solo lugar.
             </h2>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/60">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-texto-secundario dark:text-white/60">
               Cotizaciones, órdenes, producción, entregas y finanzas conectadas en tiempo real.
             </p>
           </div>
 
-          <ul className="relative mt-12 space-y-3 text-sm text-white/70">
+          <ul className="relative mt-12 space-y-3 text-sm text-texto-secundario dark:text-white/70">
             {[
               'Trazabilidad completa de cada orden',
               'Indicadores de taller y capacidad',
               'Documentos con la identidad de tu empresa',
             ].map((beneficio) => (
               <li key={beneficio} className="flex items-center gap-3">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#109748]/20 text-[#7ee2a8]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-exito-suave text-exito-texto">
                   <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 10.5 8 14.5 16 6" />
                   </svg>
@@ -63,7 +65,7 @@ export default function PaginaIniciarSesion() {
             ))}
           </ul>
 
-          <p className="relative mt-12 text-xs text-white/35">
+          <p className="relative mt-12 text-xs text-texto-tenue dark:text-white/35">
             © {new Date().getFullYear()} {NOMBRE_EMPRESA}
           </p>
         </aside>

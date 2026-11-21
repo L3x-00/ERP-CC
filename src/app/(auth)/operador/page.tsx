@@ -1,13 +1,14 @@
 import Link from 'next/link';
 
 import { LogotipoEmpresa } from '@/compartido/componentes/diseno/logotipo-empresa';
+import { BotonTema } from '@/compartido/componentes/navegacion/boton-tema';
 import { TecladoPin } from '@/modulos/autenticacion/componentes/teclado-pin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 /**
  * Página de acceso de operadores de piso mediante PIN numérico.
- * Fondo oscuro fijo (independiente del tema del sistema), pensado para uso
- * en planta de producción. La validación del PIN ocurre en `TecladoPin` vía
+ * Sigue el tema claro/oscuro del sistema y ofrece el alternador en la puerta
+ * de acceso. La validación del PIN ocurre en `TecladoPin` vía
  * la Server Action `validarPinAccion`. Si hay una sesión de administrador,
  * se ofrece el atajo al piso en solo lectura: ese rol no usa PIN.
  */
@@ -16,22 +17,23 @@ export default async function PaginaOperador() {
   const esAdmin = usuario?.rol === 'admin' && usuario.activo;
 
   return (
-    <main className="dark relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-[#0b1220] p-3 text-texto-primario sm:p-6">
+    <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-fondo p-3 text-texto-primario sm:p-6">
+      <BotonTema className="absolute right-4 top-4 z-20" />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           backgroundImage:
-            'radial-gradient(60% 50% at 78% 18%, rgba(16,151,72,0.22), transparent 65%), radial-gradient(50% 50% at 8% 90%, rgba(59,130,246,0.16), transparent 60%), linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)',
+            'radial-gradient(60% 50% at 78% 18%, var(--splash-brillo), transparent 65%), radial-gradient(50% 50% at 8% 90%, var(--acento-anillo), transparent 60%), linear-gradient(to right, var(--splash-linea) 1px, transparent 1px), linear-gradient(to bottom, var(--splash-linea) 1px, transparent 1px)',
           backgroundSize: 'auto, auto, 44px 44px, 44px 44px',
         }}
       />
 
-      <div className="animar-aparecer relative grid w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)] backdrop-blur-sm md:grid-cols-[1fr_auto]">
-        <aside className="relative flex flex-col justify-between gap-8 border-b border-white/10 p-6 md:border-b-0 md:border-r md:p-9">
+      <div className="animar-aparecer relative grid w-full max-w-4xl overflow-hidden rounded-3xl border border-borde bg-superficie/85 shadow-elevada backdrop-blur-sm md:grid-cols-[1fr_auto] dark:border-white/10 dark:bg-white/[0.035]">
+        <aside className="relative flex flex-col justify-between gap-8 border-b border-borde p-6 md:border-b-0 md:border-r md:p-9 dark:border-white/10">
           <div>
             <LogotipoEmpresa tamano="lg" />
-            <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.26em] text-[#7ee2a8]">
+            <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.26em] text-exito-texto">
               Terminal de piso
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Acceso de operador</h1>

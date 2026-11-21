@@ -134,6 +134,12 @@
   --danger: var(--peligro);
   --danger-soft: var(--peligro-suave);
   --info-soft: var(--info-suave);
+
+  /* Splash y fondos de acceso: acompañan el tema claro/oscuro. */
+  --splash-inicio: #f8f9fa;
+  --splash-fin: #eaf0f6;
+  --splash-brillo: rgba(16, 151, 72, 0.14);
+  --splash-linea: rgba(30, 41, 59, 0.055);
 }
 
 /* -----------------------------------------------------------------------------
@@ -142,6 +148,10 @@
 .dark {
   /* Controles nativos (fechas, selects, scrollbars) acompañan el tema. */
   color-scheme: dark;
+  --splash-inicio: #070d18;
+  --splash-fin: #0b1424;
+  --splash-brillo: rgba(16, 151, 72, 0.24);
+  --splash-linea: rgba(255, 255, 255, 0.045);
   --fondo: #0f172a;
   --superficie: #1e293b;
   --superficie-2: #334155;

@@ -177,7 +177,7 @@ export function TecladoPin() {
   // sin desplazamiento, así que los botones y el PIN se compactan sin perder el
   // tamaño táctil mínimo (44 px).
   const claseBotonDigito =
-    'h-14 rounded-xl border border-white/10 bg-white/[0.07] text-2xl font-semibold text-texto-primario transition-all duration-150 ease-suave hover:bg-white/[0.12] active:scale-[0.97] active:bg-white/[0.16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:opacity-40';
+    'h-14 rounded-xl border border-borde bg-superficie text-2xl font-semibold text-texto-primario transition-all duration-150 ease-suave hover:bg-superficie-2 active:scale-[0.97] active:bg-acento-suave focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:opacity-40';
 
   return (
     <div
@@ -208,7 +208,7 @@ export function TecladoPin() {
                   key={casilla}
                   className={cn(
                     'flex h-12 w-10 items-center justify-center rounded-xl border text-xl font-semibold transition-all duration-300 ease-suave',
-                    'border-white/15 bg-white/[0.06] text-texto-primario',
+                    'border-borde bg-superficie text-texto-primario',
                     lleno && 'border-acento/60 bg-acento-suave/50 text-acento-texto',
                     activo && !resultado && 'ring-2 ring-acento/40',
                     accesoPermitido && 'border-exito/70 bg-exito/20 text-exito-texto shadow-[0_0_18px_-4px_rgba(34,197,94,0.7)]',
@@ -273,7 +273,7 @@ export function TecladoPin() {
             type="button"
             disabled={validando || resultado !== null || pin.length === 0}
             onClick={borrarDigito}
-            className="h-14 rounded-xl border border-white/10 bg-white/[0.03] text-sm font-semibold uppercase tracking-wide text-texto-secundario transition-all duration-150 ease-suave hover:bg-white/[0.08] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:opacity-40"
+            className="h-14 rounded-xl border border-borde bg-superficie-2 text-sm font-semibold uppercase tracking-wide text-texto-secundario transition-all duration-150 ease-suave hover:bg-borde active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento disabled:opacity-40"
             aria-label="Borrar último dígito"
           >
             Borrar
@@ -310,8 +310,8 @@ export function TecladoPin() {
             className={cn(
               'animar-resultado-pin pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-2xl border px-4 text-center backdrop-blur-[3px]',
               accesoPermitido
-                ? 'border-exito/50 bg-[#0b1220]/85 shadow-[0_0_40px_-12px_rgba(34,197,94,0.8)]'
-                : 'border-peligro/50 bg-[#0b1220]/85 shadow-[0_0_40px_-12px_rgba(239,68,68,0.8)]',
+                ? 'border-exito/50 bg-superficie/95 shadow-[0_0_40px_-12px_rgba(34,197,94,0.55)] dark:bg-[#0b1220]/85'
+                : 'border-peligro/50 bg-superficie/95 shadow-[0_0_40px_-12px_rgba(239,68,68,0.55)] dark:bg-[#0b1220]/85',
             )}
           >
             <div className={cn('flex flex-col items-center gap-2', accesoDenegado && 'animar-sacudida-pin')}>
