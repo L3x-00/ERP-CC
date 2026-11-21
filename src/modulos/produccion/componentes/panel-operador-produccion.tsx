@@ -28,7 +28,12 @@ import {
   ayudaLimitePiezas,
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/limites-piezas';
-import { ahoraHoraInput, fechaHoraNegocioDesdeHora } from '@/modulos/produccion/utilidades/horas-extra';
+import {
+  ahoraHoraInputNegocio,
+  fechaHoraNegocioDesdeHora,
+  horaFinEsFutura,
+} from '@/modulos/produccion/utilidades/horas-extra';
+import { describirErrorProduccion } from '@/modulos/produccion/utilidades/mensajes-error-produccion';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 import { CampoEntero } from './campo-entero';
@@ -187,7 +192,7 @@ export function PanelOperadorProduccion({
     sesionHoraFinPrellenada.current = idSesion;
     horaFinEditada.current = false;
     const campo = horaFinRef.current;
-    if (campo) campo.value = ahoraHoraInput();
+    if (campo) campo.value = ahoraHoraInputNegocio();
   }, [sesionActiva?.id]);
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
@@ -473,6 +478,28 @@ export function PanelOperadorProduccion({
     const valorHoraFin = horaFinRef.current?.value ?? '';
     if (horaFinEditada.current && !/^\d{2}:\d{2}$/u.test(valorHoraFin)) {
       fallarCierre('Indica la hora real de conclusión.');
+      return;
+    }
+    const fechaNegocioHora = sesionActivaRegistro?.fechaInicio
+      ? fechaLocalNegocio(new Date(sesionActivaRegistro.fechaInicio))
+      : null;
+    if (horaFinEditada.current && fechaNegocioHora
+      && horaFinEsFutura(valorHoraFin, fechaNegocioHora)) {
+      const guiaHora = describirErrorProduccion('fecha_fin_futura');
+      fallarCierre(
+        guiaHora.mensaje,
+        {
+          etiqueta: guiaHora.accion,
+          alElegir: () => {
+            setMensaje(null);
+            window.requestAnimationFrame(() => {
+              document.querySelector<HTMLElement>(`[data-testid="${guiaHora.campo}"]`)?.focus();
+            });
+          },
+        },
+        guiaHora.accion,
+        'Volver a revisar',
+      );
       return;
     }
     const usada = Number(cantidadUsada);

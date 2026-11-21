@@ -27,7 +27,9 @@ import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
   ahoraHoraInput,
+  ahoraHoraInputNegocio,
   fechaHoraNegocioDesdeHora,
+  horaFinEsFutura,
   ayudaLimitePiezas,
   etiquetaEstadoOrden,
   etiquetaEstadoPlaneacion,
@@ -241,7 +243,7 @@ export function DetalleProcesoOperador({
   useEffect(() => {
     const campo = horaFinRef.current;
     if (!campo) return;
-    campo.value = ahoraHoraInput();
+    campo.value = ahoraHoraInputNegocio();
     horaFinEditada.current = false;
   }, [proceso?.sesionActiva?.id]);
   // C20/C21: corrección de la pausa (piezas, horas y notas). Se prefija con la
@@ -254,16 +256,19 @@ export function DetalleProcesoOperador({
       && !sesion.sesionInvalida
       && !sesion.recursoLiberado,
   );
+  // C31/A20: una pausa declarada no abre el formulario por el simple hecho de
+  // existir. Solo se abre cuando falta avance, o cuando la operación completa
+  // todavía necesita asentar consumo de material (C30). Corregir una pausa ya
+  // declarada es una acción explícita del operador.
+  const avanceConConsumoPendiente = proceso !== null
+    && typeof proceso.piezasDisponibles !== 'number'
+    && materiales.length > 0
+    && !consumos.some((consumo) => consumo.partidaId === proceso.partidaId)
+    && proceso.procesoCompleto === true;
   const sesionesParaAvance = sesionesPausadasValidas
     .filter((sesion) => sesion.pendienteActualizacionAvance
       || sesion.piezasProducidas === 0
-      // Con sesión activa la pausa anterior quedó como historial, pero el
-      // operador todavía debe poder corregirla (C21).
-      || Boolean(proceso?.sesionActiva)
-      // Varias pausas declaradas significan varios bloques que se pueden
-      // corregir; el formulario permite elegir el correcto.
-      || sesionesPausadasValidas.length > 1
-      || proceso?.procesoCompleto === true)
+      || avanceConConsumoPendiente)
     // La pausa más reciente es la que el operador acaba de vivir.
     .sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio)
       || b.id.localeCompare(a.id));
@@ -285,6 +290,9 @@ export function DetalleProcesoOperador({
   const [avanceMotivoConsumo, setAvanceMotivoConsumo] = useState('');
   // El formulario de avance se cierra en cuanto el servidor confirma el guardado.
   const [avanceGuardado, setAvanceGuardado] = useState(false);
+  // A20: corregir una pausa declarada es intencional; no reabre el formulario
+  // automáticamente al volver a entrar en la ficha.
+  const [corregirAvanceManual, setCorregirAvanceManual] = useState(false);
   // C30: la operación quedó completa pero la sesión sigue pausada porque falta
   // asentar el consumo de materia prima. El formulario se repliega a un único
   // bloque con el consumo, sin repetir piezas ni horas.
@@ -665,6 +673,7 @@ export function DetalleProcesoOperador({
     const faltaConsumo = estadoFinal === 'pausada' && operacionCompleta;
     setConsumoPendienteAvance(faltaConsumo);
     setAvanceGuardado(!faltaConsumo);
+    setCorregirAvanceManual(false);
     if (faltaConsumo) {
       if (avanceMaterialId === '' && materiales[0]) setAvanceMaterialId(materiales[0].id);
       return;
@@ -921,6 +930,30 @@ export function DetalleProcesoOperador({
     const valorHoraFin = horaFinRef.current?.value ?? '';
     if (horaFinEditada.current && !/^\d{2}:\d{2}$/u.test(valorHoraFin)) {
       fallarCierre({ exito: false, error: 'Indica la hora real de conclusión.' });
+      return;
+    }
+    // A20: se comprueba antes de la RPC con la misma tolerancia del servidor.
+    if (horaFinEditada.current
+      && horaFinEsFutura(
+        valorHoraFin,
+        fechaLocalNegocio(new Date(proceso.sesionActiva.fechaInicio)),
+      )) {
+      const guiaHora = describirErrorProduccion('fecha_fin_futura');
+      fallarCierre({
+        exito: false,
+        titulo: guiaHora.accion,
+        error: guiaHora.mensaje,
+        etiquetaCerrar: 'Volver a revisar',
+        accion: {
+          etiqueta: guiaHora.accion,
+          alElegir: () => {
+            setMensaje(null);
+            window.requestAnimationFrame(() => {
+              document.querySelector<HTMLElement>(`[data-testid="${guiaHora.campo}"]`)?.focus();
+            });
+          },
+        },
+      });
       return;
     }
     const usada = Number(cantidadUsada);
@@ -1199,6 +1232,7 @@ export function DetalleProcesoOperador({
         setErrorCierre({
           titulo: guia.accion,
           mensaje: resultado.error,
+          etiquetaCerrar: 'Volver a revisar',
           acciones: [{
             etiqueta: guia.accion,
             alElegir: () => {
@@ -2868,14 +2902,27 @@ export function DetalleProcesoOperador({
 
             {sesionesPausadasValidas.length > 0
               && sesionesParaAvance.length === 0
-              && !proceso.procesoCompleto
               && !soloDetalle ? (
-              <p
-                className="rounded-lg border border-borde bg-superficie-2 p-3 text-sm text-texto-secundario"
-                data-testid="aviso-pausa-declarada"
-              >
-                El avance de esta pausa ya está declarado. Puedes continuar la sesión o cerrar la pausa sin producir; no hace falta volver a declararlo.
-              </p>
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-borde bg-superficie-2 p-3">
+                <p
+                  className="text-sm text-texto-secundario"
+                  data-testid="aviso-pausa-declarada"
+                >
+                  {proceso.procesoCompleto
+                    ? 'El avance de esta pausa ya está declarado y la operación está completa. Corrígelo solo si el dato es incorrecto.'
+                    : 'El avance de esta pausa ya está declarado. Puedes continuar la sesión o cerrar la pausa sin producir; no hace falta volver a declararlo.'}
+                </p>
+                <Button
+                  type="button"
+                  variante="contorno"
+                  tamano="sm"
+                  disabled={procesando}
+                  onClick={() => setCorregirAvanceManual(true)}
+                  data-testid="corregir-avance-pausa"
+                >
+                  Corregir avance de esta pausa
+                </Button>
+              </div>
             ) : null}
 
             {proceso.procesoCompleto && haySesionPausada && !consumoPendienteAvance ? (
@@ -2923,7 +2970,8 @@ export function DetalleProcesoOperador({
                   {procesando ? 'Cerrando…' : 'Registrar consumo y cerrar pausa'}
                 </Button>
               </form>
-            ) : !avanceGuardado && sesionesParaAvance.length > 0 && !soloDetalle ? (
+            ) : !soloDetalle && !avanceGuardado
+              && (sesionesParaAvance.length > 0 || corregirAvanceManual) ? (
               <form
                 noValidate
                 className="grid gap-3 rounded-lg border border-advertencia/50 bg-superficie p-3"
@@ -2970,7 +3018,7 @@ export function DetalleProcesoOperador({
                     }}
                     data-testid="avance-sesion"
                   >
-                    {[...sesionesParaAvance]
+                    {[...(sesionesParaAvance.length > 0 ? sesionesParaAvance : sesionesPausadasValidas)]
                       .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
                       .map((sesion) => (
                         <option key={sesion.id} value={sesion.id}>
