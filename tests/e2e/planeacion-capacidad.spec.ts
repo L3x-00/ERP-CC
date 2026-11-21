@@ -416,7 +416,9 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const datos = contexto;
     const semana = semanaLocalRelativa(new Date());
-    const fechaHoy = fechaLocalIso(new Date());
+    // El sábado la jornada es de 4 h y 6 h no caben: se programa el lunes de
+    // la semana relativa, que siempre tiene la jornada completa de 8 h.
+    const fechaProgramacion = semana.inicio;
 
     await page.goto('/iniciar-sesion');
     await page.getByLabel('Correo electrónico').fill(datos.correo);
@@ -453,7 +455,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       .getByLabel('Partida', { exact: true }).selectOption(datos.partidaId);
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Recurso').selectOption(datos.recursoId);
-    await page.getByLabel('Fecha programada').fill(fechaHoy);
+    await page.getByLabel('Fecha programada').fill(fechaProgramacion);
     await page.getByLabel('Horas estimadas').fill('6');
     await page.getByTestId('guardar-asignacion-planeacion').click();
     await expect
@@ -498,10 +500,10 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
   }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const datos = contexto;
-    const fechaHoy = fechaLocalIso(new Date());
     const semana = semanaLocalRelativa(new Date());
+    const fechaProgramacion = semana.inicio;
 
-    // Base determinista: 6 h programadas hoy en matutino y jornada de 8 h. La
+    // Base determinista: 6 h programadas el lunes en matutino y jornada de 8 h. La
     // prueba anterior pudo dejar horas programadas u otra capacidad; se
     // reemplazan para que 4 h nuevas excedan la jornada por 2 h.
     const { error: errorLimpieza } = await datos.admin
@@ -519,7 +521,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       partida_id: datos.partidaId,
       recurso_id: datos.recursoId,
       secuencia: 1,
-      fecha_programada: fechaHoy,
+      fecha_programada: fechaProgramacion,
       turno: 'matutino',
       horas_estimadas: 6,
       orden_prioridad: 1,
@@ -543,7 +545,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       .getByLabel('Partida', { exact: true }).selectOption(datos.partidaSecundariaId);
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Recurso').selectOption(datos.recursoId);
-    await page.getByLabel('Fecha programada').fill(fechaHoy);
+    await page.getByLabel('Fecha programada').fill(fechaProgramacion);
     await page.getByLabel('Horas estimadas').fill('4');
 
     const aviso = page.getByTestId('aviso-capacidad-insuficiente');
