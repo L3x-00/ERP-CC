@@ -98,6 +98,22 @@ describe('TecladoPin', () => {
     }
   });
 
+  it('no muestra el splash cuando el PIN es incorrecto', async () => {
+    const alIniciar = vi.fn();
+    window.addEventListener(EVENTO_INICIO_SESION, alIniciar);
+
+    try {
+      render(createElement(TecladoPin));
+      const campo = screen.getByLabelText('PIN de operador, 6 dígitos') as HTMLInputElement;
+      fireEvent.change(campo, { target: { value: '654321' } });
+
+      expect(await screen.findByText('Acceso denegado', {}, { timeout: 5000 })).toBeTruthy();
+      expect(alIniciar).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(EVENTO_INICIO_SESION, alIniciar);
+    }
+  });
+
   it('muestra acceso denegado con animación y limpia el PIN', async () => {
     render(createElement(TecladoPin));
     const campo = screen.getByLabelText('PIN de operador, 6 dígitos') as HTMLInputElement;

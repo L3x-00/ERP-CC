@@ -7,7 +7,6 @@ import {
   ahoraMs,
   esperarDuracionMinima,
   EVENTO_ACCESO_PERMITIDO,
-  EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
 } from '@/compartido/constantes/bienvenida';
 import { cn } from '@/compartido/utilidades/cn';
@@ -91,11 +90,7 @@ export function TecladoPin() {
 
     limpiarTemporizadorRetardo();
     limpiarTemporizadorCierre();
-    const inicio = ahoraMs();
-
-    // Se anuncia el splash antes de cualquier setState para que el teclado no
-    // llegue a pintarse en estado «validando» sin la cubierta.
-    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+    // El splash se muestra únicamente cuando el PIN es correcto.
     enviandoRef.current = true;
     setValidando(true);
     setError(null);
@@ -110,9 +105,11 @@ export function TecladoPin() {
       // Se conserva el mensaje de conexión por defecto.
     }
 
-    await esperarDuracionMinima(inicio);
-
     if (exito) {
+      const inicio = ahoraMs();
+      window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+      await esperarDuracionMinima(inicio);
+
       // El check vive dentro del splash; este no se retira hasta que la ruta
       // /produccion-piso ya esté montada, sin mostrar el teclado intermedio.
       setResultado('permitido');
@@ -129,7 +126,6 @@ export function TecladoPin() {
       return;
     }
 
-    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
     setError(mensaje);
     setResultado('denegado');
     cierreRef.current = window.setTimeout(() => {
