@@ -150,6 +150,48 @@
   animation: progreso-bienvenida 2s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/* Validación del PIN de operador: entrada suave y sacudida breve si se deniega. */
+@keyframes resultado-pin-entrar {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes resultado-pin-sacudir {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-7px);
+  }
+  30% {
+    transform: translateX(6px);
+  }
+  45% {
+    transform: translateX(-4px);
+  }
+  60% {
+    transform: translateX(3px);
+  }
+  80% {
+    transform: translateX(-1.5px);
+  }
+}
+
+.animar-resultado-pin {
+  animation: resultado-pin-entrar 340ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.animar-sacudida-pin {
+  animation: resultado-pin-sacudir 460ms ease-in-out both;
+}
+
 /* Movimiento reducido: se conserva el cambio de estado, sin animación. */
 @media (prefers-reduced-motion: reduce) {
   *,

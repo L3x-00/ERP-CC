@@ -24,7 +24,7 @@ const ADMIN = {
   nombreCompleto: 'Admin', email: 'admin@orca.local', permisos: [],
   creadoEn: '2026-09-23T00:00:00Z', actualizadoEn: '2026-09-23T00:00:00Z',
 };
-const ENTRADA = { nombre: 'Operador Uno', pin: '0042', activo: true };
+const ENTRADA = { nombre: 'Operador Uno', pin: '000042', activo: true };
 const SALIDA = { id: '20000000-0000-4000-8000-000000000002', nombre: 'Operador Uno', activo: true, pinConfigurado: true };
 
 beforeEach(() => {
@@ -51,7 +51,8 @@ describe('CFG-05 administración de operadores', () => {
     for (const entrada of [
       { ...ENTRADA, pin: 42 },
       { ...ENTRADA, pin: '42' },
-      { ...ENTRADA, pin: '0042', rol: 'admin' },
+      { ...ENTRADA, pin: '0042' },
+      { ...ENTRADA, pin: '000042', rol: 'admin' },
     ]) {
       expect((await guardarOperadorAccion(entrada)).exito).toBe(false);
     }
@@ -64,14 +65,14 @@ describe('CFG-05 administración de operadores', () => {
     expect(mocks.guardar).toHaveBeenCalledWith(ADMIN.id, ENTRADA);
     const registro = mocks.log.mock.calls[0];
     expect(registro[1]).toBe('crear_operador');
-    expect(JSON.stringify(registro)).not.toContain('0042');
+    expect(JSON.stringify(registro)).not.toContain('000042');
   });
 
   it('presenta el duplicado sin exponer el PIN ni el hash', async () => {
     mocks.guardar.mockRejectedValue(new Error('pin_duplicado'));
     const resultado = await guardarOperadorAccion(ENTRADA);
     expect(resultado).toEqual({ exito: false, error: 'Ese PIN ya pertenece a otro operador activo' });
-    expect(JSON.stringify(mocks.log.mock.calls)).not.toContain('0042');
+    expect(JSON.stringify(mocks.log.mock.calls)).not.toContain('000042');
   });
 
   it('distingue retiro y reactivación en la bitácora sin incluir PIN', async () => {
@@ -79,10 +80,10 @@ describe('CFG-05 administración de operadores', () => {
       operador: { ...SALIDA, activo: false }, activoAnterior: true,
     }).mockResolvedValueOnce({ operador: SALIDA, activoAnterior: false });
     await guardarOperadorAccion({ id: SALIDA.id, nombre: SALIDA.nombre, pin: null, activo: false });
-    await guardarOperadorAccion({ id: SALIDA.id, nombre: SALIDA.nombre, pin: '0042', activo: true });
+    await guardarOperadorAccion({ id: SALIDA.id, nombre: SALIDA.nombre, pin: '000042', activo: true });
     expect(mocks.log.mock.calls.map((llamada) => llamada[1])).toEqual([
       'retirar_operador', 'reactivar_operador',
     ]);
-    expect(JSON.stringify(mocks.log.mock.calls)).not.toContain('0042');
+    expect(JSON.stringify(mocks.log.mock.calls)).not.toContain('000042');
   });
 });

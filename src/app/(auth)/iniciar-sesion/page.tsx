@@ -100,7 +100,7 @@ export default function PaginaIniciarSesion() {
             >
               <span className="flex flex-col">
                 <span className="font-semibold text-texto-primario">Acceso de operador de piso</span>
-                <span className="text-xs text-texto-secundario">Ingresa con tu PIN de 4 a 6 dígitos</span>
+                <span className="text-xs text-texto-secundario">Ingresa con tu PIN de 6 dígitos</span>
               </span>
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-acento-suave text-acento-texto transition-transform duration-200 group-hover:translate-x-0.5">
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
