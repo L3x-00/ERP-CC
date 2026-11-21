@@ -213,14 +213,14 @@ export function PantallaBienvenida() {
       )}
       style={{
         backgroundImage:
-          'radial-gradient(60% 52% at 50% 38%, rgba(16,151,72,0.24), transparent 70%), linear-gradient(180deg, #070d18 0%, #0b1424 58%, #070d18 100%)',
+          'radial-gradient(60% 52% at 50% 38%, var(--splash-brillo), transparent 70%), linear-gradient(180deg, var(--splash-inicio) 0%, var(--splash-fin) 58%, var(--splash-inicio) 100%)',
       }}
     >
       <div
         className="absolute inset-0 opacity-60"
         style={{
           backgroundImage:
-            'linear-gradient(to right, rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.045) 1px, transparent 1px)',
+            'linear-gradient(to right, var(--splash-linea) 1px, transparent 1px), linear-gradient(to bottom, var(--splash-linea) 1px, transparent 1px)',
           backgroundSize: '46px 46px',
           maskImage: 'radial-gradient(circle at 50% 45%, black, transparent 72%)',
           WebkitMaskImage: 'radial-gradient(circle at 50% 45%, black, transparent 72%)',
@@ -229,7 +229,7 @@ export function PantallaBienvenida() {
 
       <div className="relative flex flex-col items-center px-6 text-center">
         <div className="relative">
-          <span className="absolute inset-0 rounded-[28px] bg-[#109748]/25 blur-2xl motion-safe:animate-pulse" />
+          <span className="absolute inset-0 rounded-[28px] bg-exito/25 blur-2xl motion-safe:animate-pulse" />
           <span className="relative flex h-24 w-24 items-center justify-center rounded-[26px] bg-white/95 p-3 shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)] ring-1 ring-white/30">
             <Image
               src={LOGO_EMPRESA_RUTA}
@@ -242,13 +242,13 @@ export function PantallaBienvenida() {
           </span>
         </div>
 
-        <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.32em] text-white/50">
+        <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.32em] text-texto-secundario">
           Orca MFG ERP
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-texto-primario sm:text-3xl">
           {NOMBRE_EMPRESA}
         </h1>
-        <p className="mt-1.5 max-w-sm text-sm text-white/55">{DESCRIPCION_EMPRESA}</p>
+        <p className="mt-1.5 max-w-sm text-sm text-texto-secundario">{DESCRIPCION_EMPRESA}</p>
 
         {accesoPermitido ? (
           <div
@@ -275,13 +275,13 @@ export function PantallaBienvenida() {
           <>
             <p
               key={indice}
-              className="animar-aparecer mt-8 min-h-6 text-sm font-medium text-[#7ee2a8]"
+              className="animar-aparecer mt-8 min-h-6 text-sm font-medium text-exito-texto"
             >
               {MENSAJES[indice]}
             </p>
 
-            <span className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-white/10">
-              <span className="animar-progreso block h-full rounded-full bg-[#109748]" />
+            <span className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-borde">
+              <span className="animar-progreso block h-full rounded-full bg-exito" />
             </span>
           </>
         )}
