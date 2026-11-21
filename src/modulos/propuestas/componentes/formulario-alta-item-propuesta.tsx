@@ -42,18 +42,28 @@ export function FormularioAltaItemPropuesta({
   catalogos,
   errorCatalogos,
   puedeEditarPrecio,
+  abierto: abiertoControlado,
+  onAbrirCambio,
 }: {
   revision: RevisionPropuesta;
   catalogos: CatalogosPropuesta | null;
   errorCatalogos: string | null;
   puedeEditarPrecio: boolean;
+  /** P3: el disparador vive en la barra de pestañas de la ficha. */
+  abierto?: boolean;
+  onAbrirCambio?: (abierto: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const [alta, setAlta] = useState<BorradorAlta>(ALTA_VACIA);
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [exitoAlta, setExitoAlta] = useState<string | null>(null);
   const [enviandoAlta, setEnviandoAlta] = useState(false);
-  const [abierto, setAbierto] = useState(false);
+  const [abiertoLocal, setAbiertoLocal] = useState(false);
+  const abierto = abiertoControlado ?? abiertoLocal;
+  function setAbierto(valor: boolean): void {
+    if (onAbrirCambio) onAbrirCambio(valor);
+    else setAbiertoLocal(valor);
+  }
   // El `disabled` no bloquea dos submits por teclado antes del siguiente render.
   const altaEnVueloRef = useRef(false);
 
@@ -129,6 +139,15 @@ export function FormularioAltaItemPropuesta({
   }
 
   if (!abierto) {
+    // Con estado controlado el botón está en la barra de pestañas, pero el
+    // aviso de alta debe seguir viéndose aunque el formulario ya se cerró.
+    if (abiertoControlado !== undefined) {
+      return exitoAlta !== null ? (
+        <p role="status" className="text-sm text-exito-texto">
+          {exitoAlta}
+        </p>
+      ) : null;
+    }
     return (
       <div className="flex flex-wrap items-center gap-3" data-testid="alta-item-propuesta-cerrado">
         <Button

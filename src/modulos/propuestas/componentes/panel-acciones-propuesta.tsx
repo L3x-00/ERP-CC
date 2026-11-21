@@ -93,6 +93,14 @@ export function PanelAccionesPropuesta({
   const referenciaFechasRfq = textoReferenciaFechasRfq(detalle.fechasRfq);
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
+  const primeraSeccionPendiente: 'items' | 'ruteo' | 'archivos' =
+    faltantes?.sinItemsActivos || (faltantes?.itemsSinPrecio.length ?? 0) > 0
+      ? 'items'
+      : (faltantes?.itemsSinRuteo.length ?? 0)
+          + (faltantes?.itemsSinCostear.length ?? 0)
+          + (faltantes?.confirmaciones.length ?? 0) > 0
+        ? 'ruteo'
+        : 'archivos';
   const advertenciasTarifa = faltantes?.advertencias ?? [];
 
   // Aclaración cliente 2026-11-09: cada motivo de bloqueo dice dónde se
@@ -447,24 +455,26 @@ export function PanelAccionesPropuesta({
       {incompleta && (
         <div
           data-testid="faltantes-validacion"
-          className="flex flex-col gap-2 rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto"
         >
-          <p className="text-sm font-medium text-peligro-texto">
-            Todavía no puedes validar: falta lo siguiente
-          </p>
-          <p className="text-xs text-peligro-texto">
-            No se perdió nada de tu trabajo. Completa estos puntos y «Validar» se habilitará solo.
-          </p>
-          <ul className="list-disc pl-5 text-sm text-peligro-texto">
-            {mensajesFaltantes.map((mensajeFaltante) => (
-              <li key={mensajeFaltante}>{mensajeFaltante}</li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
+          <span className="font-semibold">
+            {mensajesFaltantes.length === 1
+              ? 'Falta 1 dato para validar'
+              : `Faltan ${mensajesFaltantes.length} datos para validar`}
+          </span>
+          <span>Completa lo marcado en cada sección; «Validar» se habilitará solo.</span>
+          <div className="flex flex-wrap items-center gap-1">
             {onIrA && (
               <>
+                <Button
+                  variante="contorno"
+                  tamano="sm"
+                  onClick={() => onIrA(primeraSeccionPendiente)}
+                >
+                  Ir a lo que falta
+                </Button>
                 {(faltantes?.sinItemsActivos || (faltantes?.itemsSinPrecio.length ?? 0) > 0) && (
-                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('items')}>
+                  <Button variante="fantasma" tamano="sm" onClick={() => onIrA('items')}>
                     Ir a Ítems
                   </Button>
                 )}
@@ -472,12 +482,12 @@ export function PanelAccionesPropuesta({
                   (faltantes?.itemsSinCostear.length ?? 0) +
                   (faltantes?.confirmaciones.length ?? 0) >
                   0 && (
-                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('ruteo')}>
+                  <Button variante="fantasma" tamano="sm" onClick={() => onIrA('ruteo')}>
                     Ir a Ruteo/Costeo
                   </Button>
                 )}
                 {faltantes?.sinArchivos && (
-                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('archivos')}>
+                  <Button variante="fantasma" tamano="sm" onClick={() => onIrA('archivos')}>
                     Ir a Archivos
                   </Button>
                 )}

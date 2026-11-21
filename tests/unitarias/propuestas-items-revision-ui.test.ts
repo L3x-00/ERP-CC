@@ -184,6 +184,15 @@ afterEach(() => {
   cleanup();
 });
 
+describe('P3 — vista de íitems sin información redundante', () => {
+  it('no repite el estado de la revisión al final de la tabla', () => {
+    renderizarEditor();
+
+    expect(screen.queryByText(/Estado de la revisión/u)).toBeNull();
+    expect(screen.getByTestId('editor-items-propuesta')).toBeTruthy();
+  });
+});
+
 describe('P2 — guardado del precio sin parpadeo', () => {
   it('mantiene el precio capturado después de guardar, sin volver al valor anterior', async () => {
     editarMock.mockResolvedValue({ exito: true, datos: { id: ITEM_HEREDADO_ID } });
