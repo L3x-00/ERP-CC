@@ -184,6 +184,22 @@ afterEach(() => {
   cleanup();
 });
 
+describe('P2 — guardado del precio sin parpadeo', () => {
+  it('mantiene el precio capturado después de guardar, sin volver al valor anterior', async () => {
+    editarMock.mockResolvedValue({ exito: true, datos: { id: ITEM_HEREDADO_ID } });
+    renderizarEditor();
+
+    const precio = screen.getByLabelText('Precio IT01');
+    fireEvent.change(precio, { target: { value: '250' } });
+    const fila = screen.getByTestId(`item-propuesta-${ITEM_HEREDADO_ID}`);
+    fireEvent.click(within(fila).getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('guardado'));
+    expect((screen.getByLabelText('Precio IT01') as HTMLInputElement).value).toBe('250');
+    expect(editarMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('EditorItemsPropuesta — alta visible en cualquier revisión DRAFT', () => {
   it('ofrece el alta en una revisión B en borrador con permiso de artículo', () => {
     renderizarEditor();

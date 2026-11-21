@@ -164,13 +164,25 @@ export function EditorItemsPropuesta({
       setMensaje(respuesta.error);
       return;
     }
-    setBorradores((actual) => {
-      const copia = { ...actual };
-      delete copia[item.id];
-      return copia;
-    });
-    // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
+    // P2: se refresca primero y solo se suelta el borrador cuando la caché ya
+    // trae el valor guardado. Así el campo no cae al valor anterior ni parpadea.
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+    const frescos = queryClient.getQueryData(claveDetallePropuesta(revision.propuestaId)) as
+      | { exito?: boolean; datos?: { items?: PropuestaItem[] } }
+      | undefined;
+    const guardado = frescos?.datos?.items?.find((candidato) => candidato.id === item.id);
+    if (guardado
+      && guardado.descripcion === valor.descripcion
+      && Number(guardado.cantidad) === Number(valor.cantidad)
+      && guardado.precioUnitario === Number(valor.precioUnitario)
+      && guardado.esDescuento === valor.esDescuento
+      && guardado.activo === valor.activo) {
+      setBorradores((actual) => {
+        const copia = { ...actual };
+        delete copia[item.id];
+        return copia;
+      });
+    }
     setMensaje(`Ítem ${item.codigo} guardado.`);
   }
 
