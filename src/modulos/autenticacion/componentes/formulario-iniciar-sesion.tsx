@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { DURACION_BIENVENIDA_MS, EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
@@ -15,6 +16,7 @@ import { iniciarSesionAccion } from '@/modulos/autenticacion/acciones/iniciar-se
  */
 export function FormularioIniciarSesion() {
   const router = useRouter();
+  const cierreRef = useRef<number | null>(null);
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,10 @@ export function FormularioIniciarSesion() {
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
-    return () => cancelAnimationFrame(marco);
+    return () => {
+      cancelAnimationFrame(marco);
+      if (cierreRef.current !== null) window.clearTimeout(cierreRef.current);
+    };
   }, []);
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -36,8 +41,14 @@ export function FormularioIniciarSesion() {
       const respuesta = await iniciarSesionAccion({ email, contrasena });
 
       if (respuesta.exito) {
-        router.push('/dashboard');
-        router.refresh();
+        // El splash vive en el layout raíz; se muestra solo ahora, nunca en el
+        // primer render de la página de acceso.
+        window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+        cierreRef.current = window.setTimeout(() => {
+          cierreRef.current = null;
+          router.push('/dashboard');
+          router.refresh();
+        }, DURACION_BIENVENIDA_MS);
         return;
       }
 
