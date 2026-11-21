@@ -37,7 +37,11 @@ import {
   type VerificacionInicio,
   type VistaEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
-import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
+import {
+  horasLegibles,
+  tiempoAcumuladoLegible,
+} from '@/modulos/produccion/utilidades/formato-operador';
+import { resumirJornadaDiaria } from '@/modulos/produccion/utilidades/mi-panel-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
 import {
@@ -203,6 +207,15 @@ export function EspacioOperador({
   }, [procesos, busqueda, soloUrgentes, areaFiltro]);
 
   const grupos = useMemo(() => agruparProcesosPorArea(filtrados, areas), [filtrados, areas]);
+
+  // A18: el mismo criterio que Mi panel: solo sesiones cerradas dentro del día
+  // de negocio. La vista de administrador no pertenece a un operador concreto.
+  const horasTrabajadasHoy = useMemo(
+    () => operadorId === null
+      ? null
+      : resumirJornadaDiaria(procesos, operadorId, hoy).horasConsolidadas,
+    [procesos, operadorId, hoy],
+  );
 
   const areasMacro = useMemo(() => {
     const mapa = new Map<string, string>();
@@ -453,9 +466,19 @@ export function EspacioOperador({
       <header className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variante="info">
-              Hoy {horasLegibles(resumen.horasReclamadasHoy)} / {horasJornadaDia(hoy)} h
-            </Badge>
+            {horasTrabajadasHoy !== null ? (
+              <span data-testid="horas-trabajadas-hoy">
+                <Badge variante="exito">
+                  Trabajado hoy: {tiempoAcumuladoLegible(horasTrabajadasHoy)}
+                </Badge>
+              </span>
+            ) : null}
+            <span data-testid="horas-reservadas-hoy">
+              <Badge variante="info">
+                Reservado hoy: {tiempoAcumuladoLegible(resumen.horasReclamadasHoy)} de{' '}
+                {tiempoAcumuladoLegible(horasJornadaDia(hoy))}
+              </Badge>
+            </span>
 
             {resumen.urgentes > 0 ? (
               <Badge variante="peligro">

@@ -36,6 +36,7 @@ import type {
   VerificacionInicio,
 } from '@/modulos/produccion/tipos/indice';
 import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/consumo-material-operador';
+import { tiempoAcumuladoLegible } from '@/modulos/produccion/utilidades/formato-operador';
 
 import {
   agruparMisProcesosPorOrden,
@@ -66,10 +67,6 @@ interface PropsPaginaMiPanelOperador {
 
 type FiltroEstado = 'todos' | EstadoMiProceso;
 type Aviso = { tipo: 'ok' | 'error'; texto: string };
-
-function formatearHoras(horas: number): string {
-  return `${horas.toLocaleString('es-PE', { maximumFractionDigits: 2 })} h`;
-}
 
 /** Ficha personal: comparte las Server Actions que utiliza EspacioOperador. */
 export function PaginaMiPanelOperador({
@@ -342,11 +339,11 @@ export function PaginaMiPanelOperador({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-base font-semibold text-texto-primario">Mi jornada de hoy</h3>
-            <p className="text-xs text-texto-secundario">{hoy} · Horas netas cerradas</p>
+            <p className="text-xs text-texto-secundario">{hoy} · trabajo cerrado del día</p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-texto-primario">
             {horasJornadaHoy > 0
-              ? `${formatearHoras(jornada.horasConsolidadas)} / ${formatearHoras(horasJornadaHoy)}`
+              ? `${tiempoAcumuladoLegible(jornada.horasConsolidadas)} / ${tiempoAcumuladoLegible(horasJornadaHoy)}`
               : 'Cerrado'}
           </p>
         </div>
@@ -362,14 +359,14 @@ export function PaginaMiPanelOperador({
           <p className="text-sm text-texto-secundario">La empresa no labora hoy.</p>
         )}
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <div><dt className="text-texto-secundario">Horas confirmadas</dt>
-            <dd className="font-semibold tabular-nums text-texto-primario">{formatearHoras(jornada.horasConsolidadas)}</dd>
+          <div><dt className="text-texto-secundario">Trabajado hoy</dt>
+            <dd className="font-semibold tabular-nums text-texto-primario">{tiempoAcumuladoLegible(jornada.horasConsolidadas)}</dd>
           </div>
-          <div><dt className="text-texto-secundario">Horas reservadas hoy</dt>
-            <dd className="font-semibold tabular-nums text-texto-primario">{formatearHoras(horasReclamadasHoy)}</dd>
+          <div><dt className="text-texto-secundario">Reservado hoy (planeación)</dt>
+            <dd className="font-semibold tabular-nums text-texto-primario">{tiempoAcumuladoLegible(horasReclamadasHoy)}</dd>
           </div>
-          <div><dt className="text-texto-secundario">Capacidad sin reservar</dt>
-            <dd className="font-semibold tabular-nums text-texto-primario">{formatearHoras(horasLibresReserva)}</dd>
+          <div><dt className="text-texto-secundario">Libre para reservar</dt>
+            <dd className="font-semibold tabular-nums text-texto-primario">{tiempoAcumuladoLegible(horasLibresReserva)}</dd>
           </div>
         </dl>
         {jornada.sesionesActivas > 0 ? (
@@ -387,21 +384,6 @@ export function PaginaMiPanelOperador({
           No incluye órdenes archivadas. La reserva es planificación, no tiempo trabajado.
         </p>
       </section>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="flex items-baseline justify-between gap-3 rounded-lg border border-borde bg-superficie px-4 py-3">
-          <p className="text-sm text-texto-secundario">Horas trabajadas registradas</p>
-          <p className="text-2xl font-semibold tabular-nums text-texto-primario">
-            {formatearHoras(resumen.horasTrabajadas)}
-          </p>
-        </div>
-        <div className="flex items-baseline justify-between gap-3 rounded-lg border border-borde bg-superficie px-4 py-3">
-          <p className="text-sm text-texto-secundario">Horas reservadas en reclamos</p>
-          <p className="text-2xl font-semibold tabular-nums text-texto-primario">
-            {formatearHoras(resumen.horasReservadas)}
-          </p>
-        </div>
-      </div>
 
       {aviso ? (
         <p
