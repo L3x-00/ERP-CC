@@ -201,7 +201,7 @@ test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', ()
 
     const resumen = page.getByTestId('resumen-carga-semanal');
     const filaResumen = resumen.locator('tr', { hasText: datos.codigo });
-    await expect(filaResumen).toContainText('0/8 h');
+    await expect(filaResumen).toContainText('0.0/8 h');
     await expect(filaResumen).not.toContainText('Sin capacidad configurada');
     // Lunes a viernes 8 h + sábado 4 h = 44 h libres en la semana.
     await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('44 h');
@@ -472,8 +472,8 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     // El locator se acota a la fila del recurso E2E: la base local conserva
     // equipos de otras corridas con la misma carga.
     const filaSemana = resumen.locator('tr', { hasText: datos.codigo });
-    await expect(filaSemana).toContainText('6/8 h');
-    await expect(filaSemana.locator('[aria-label="Cerca del límite: 6/8 h"]')).toBeVisible();
+    await expect(filaSemana).toContainText('6.0/8 h');
+    await expect(filaSemana.locator('[aria-label="Cerca del límite: 6.0/8 h"]')).toBeVisible();
 
     // Si la jornada baja a 4 h, el mismo día se declara Sobrecargado con horas.
     // C24: la capacidad sale de equipos × jornada del recurso, no de
@@ -489,9 +489,9 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await aplicarRangoRelativo(page, semana);
     const resumenTrasRecarga = page.getByTestId('resumen-carga-semanal');
     const filaTrasRecarga = resumenTrasRecarga.locator('tr', { hasText: datos.codigo });
-    await expect(filaTrasRecarga).toContainText('6/4 h');
+    await expect(filaTrasRecarga).toContainText('6.0/4 h');
     await expect(
-      filaTrasRecarga.locator('[aria-label="Sobrecargado: 6/4 h"]'),
+      filaTrasRecarga.locator('[aria-label="Sobrecargado: 6.0/4 h"]'),
     ).toBeVisible();
   });
 
@@ -549,7 +549,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await page.getByLabel('Horas estimadas').fill('4');
 
     const aviso = page.getByTestId('aviso-capacidad-insuficiente');
-    await expect(aviso).toContainText('Excede la capacidad por 2 h (10/8 h)');
+    await expect(aviso).toContainText('Excede la capacidad por 2 h (10.0/8 h)');
     await expect(aviso.getByTestId('insignia-saturacion-sobrecargado')).toBeVisible();
   });
 });
