@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import {
-  EVENTO_FIN_VALIDACION,
+  EVENTO_ACCESO_PERMITIDO,
   EVENTO_INICIO_SESION,
 } from '@/compartido/constantes/bienvenida';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
@@ -74,9 +74,9 @@ describe('TecladoPin', () => {
   it('mantiene el splash desde que empieza a validar hasta que termina', async () => {
     validarPinMock.mockResolvedValue({ exito: true, datos: {} } as never);
     const alIniciar = vi.fn();
-    const alTerminar = vi.fn();
+    const alAcceso = vi.fn();
     window.addEventListener(EVENTO_INICIO_SESION, alIniciar);
-    window.addEventListener(EVENTO_FIN_VALIDACION, alTerminar);
+    window.addEventListener(EVENTO_ACCESO_PERMITIDO, alAcceso);
 
     try {
       render(createElement(TecladoPin));
@@ -84,17 +84,17 @@ describe('TecladoPin', () => {
       fireEvent.change(campo, { target: { value: '123456' } });
 
       await waitFor(() => expect(alIniciar).toHaveBeenCalledTimes(1), { timeout: 3000 });
-      expect(alTerminar).not.toHaveBeenCalled();
+      expect(alAcceso).not.toHaveBeenCalled();
       expect(pushMock).not.toHaveBeenCalled();
 
-      await waitFor(() => expect(alTerminar).toHaveBeenCalledTimes(1), { timeout: 5000 });
+      await waitFor(() => expect(alAcceso).toHaveBeenCalledTimes(1), { timeout: 5000 });
       await waitFor(
         () => expect(pushMock).toHaveBeenCalledWith('/produccion-piso'),
         { timeout: 5000 },
       );
     } finally {
       window.removeEventListener(EVENTO_INICIO_SESION, alIniciar);
-      window.removeEventListener(EVENTO_FIN_VALIDACION, alTerminar);
+      window.removeEventListener(EVENTO_ACCESO_PERMITIDO, alAcceso);
     }
   });
 

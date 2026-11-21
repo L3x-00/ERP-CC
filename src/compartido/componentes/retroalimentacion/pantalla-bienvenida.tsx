@@ -8,6 +8,7 @@ import {
   CLAVE_ACTIVIDAD_BIENVENIDA,
   CLAVE_SESION_BIENVENIDA,
   DURACION_BIENVENIDA_MS,
+  EVENTO_ACCESO_PERMITIDO,
   EVENTO_FIN_SESION,
   EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
@@ -52,6 +53,7 @@ export function PantallaBienvenida() {
   const [visible, setVisible] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [indice, setIndice] = useState(0);
+  const [accesoPermitido, setAccesoPermitido] = useState(false);
   const temporizadores = useRef<number[]>([]);
   const esperandoFinRef = useRef(false);
 
@@ -81,6 +83,7 @@ export function PantallaBienvenida() {
     esperandoFinRef.current = esperarFin;
     setIndice(0);
     setSaliendo(false);
+    setAccesoPermitido(false);
     setVisible(true);
     const nuevos: number[] = [
       window.setInterval(
@@ -148,6 +151,13 @@ export function PantallaBienvenida() {
       ocultar();
     };
 
+    const alAccesoPermitido = (): void => {
+      if (!esperandoFinRef.current) return;
+      // El check se muestra aquí dentro del splash: nunca se descubre el
+      // formulario con el mensaje de éxito antes de navegar.
+      setAccesoPermitido(true);
+    };
+
     const alFinalizarSesion = (): void => {
       try {
         window.sessionStorage.removeItem(CLAVE_SESION_BIENVENIDA);
@@ -158,6 +168,7 @@ export function PantallaBienvenida() {
 
     window.addEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
     window.addEventListener(EVENTO_FIN_VALIDACION, alFinValidacion);
+    window.addEventListener(EVENTO_ACCESO_PERMITIDO, alAccesoPermitido);
     window.addEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
     window.addEventListener('pointerdown', registrarActividad, { passive: true });
     window.addEventListener('keydown', registrarActividad);
@@ -182,6 +193,7 @@ export function PantallaBienvenida() {
     return () => {
       window.removeEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
       window.removeEventListener(EVENTO_FIN_VALIDACION, alFinValidacion);
+      window.removeEventListener(EVENTO_ACCESO_PERMITIDO, alAccesoPermitido);
       window.removeEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
       window.removeEventListener('pointerdown', registrarActividad);
       window.removeEventListener('keydown', registrarActividad);
@@ -238,16 +250,41 @@ export function PantallaBienvenida() {
         </h1>
         <p className="mt-1.5 max-w-sm text-sm text-white/55">{DESCRIPCION_EMPRESA}</p>
 
-        <p
-          key={indice}
-          className="animar-aparecer mt-8 min-h-6 text-sm font-medium text-[#7ee2a8]"
-        >
-          {MENSAJES[indice]}
-        </p>
+        {accesoPermitido ? (
+          <div
+            className="animar-resultado-pin mt-8 flex flex-col items-center gap-2"
+            data-testid="splash-acceso-permitido"
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-exito bg-exito/20 text-exito-texto">
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-8 w-8"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
+              </svg>
+            </span>
+            <p className="text-base font-bold text-exito-texto">Acceso permitido</p>
+          </div>
+        ) : (
+          <>
+            <p
+              key={indice}
+              className="animar-aparecer mt-8 min-h-6 text-sm font-medium text-[#7ee2a8]"
+            >
+              {MENSAJES[indice]}
+            </p>
 
-        <span className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-white/10">
-          <span className="animar-progreso block h-full rounded-full bg-[#109748]" />
-        </span>
+            <span className="mt-4 h-1 w-44 overflow-hidden rounded-full bg-white/10">
+              <span className="animar-progreso block h-full rounded-full bg-[#109748]" />
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

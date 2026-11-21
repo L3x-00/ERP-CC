@@ -6,6 +6,7 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import {
   CLAVE_ACTIVIDAD_BIENVENIDA,
   CLAVE_SESION_BIENVENIDA,
+  EVENTO_ACCESO_PERMITIDO,
   EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
   INACTIVIDAD_BIENVENIDA_MS,
@@ -57,6 +58,26 @@ describe('PantallaBienvenida', () => {
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
 
     expect(window.sessionStorage.getItem(CLAVE_SESION_BIENVENIDA)).toBe('1');
+  });
+
+  it('muestra el check de acceso dentro del splash hasta que cambia la ruta', () => {
+    const { rerender } = render(createElement(PantallaBienvenida));
+
+    act(() => window.dispatchEvent(new Event(EVENTO_INICIO_SESION)));
+    act(() => vi.advanceTimersByTime(25_000));
+    expect(screen.queryByTestId('splash-acceso-permitido')).toBeNull();
+
+    act(() => window.dispatchEvent(new Event(EVENTO_ACCESO_PERMITIDO)));
+    expect(screen.getByTestId('splash-acceso-permitido')).toBeTruthy();
+    expect(screen.getByText('Acceso permitido')).toBeTruthy();
+
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
+
+    navegacion.ruta = '/dashboard';
+    rerender(createElement(PantallaBienvenida));
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 
   it('se oculta cuando la ruta ya cambió, sin mostrar el formulario validando', () => {
