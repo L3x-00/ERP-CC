@@ -5593,6 +5593,10 @@ export type Database = {
         }
         Returns: Json
       }
+      aprobar_pausa_administrativa: {
+        Args: { p_actor_id: string; p_programacion_id: string }
+        Returns: boolean
+      }
       actualizar_avance_sesion_pausada: {
         Args: {
           p_actor_id: string

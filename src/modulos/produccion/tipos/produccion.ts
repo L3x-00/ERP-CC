@@ -20,6 +20,7 @@ export const MOTIVOS_PAUSA_CATALOGO = [
   'FALLA',
   'COMIDA',
   'FIN_JORNADA',
+  'PAUSA_ADMIN',
   'OTRA',
 ] as const;
 

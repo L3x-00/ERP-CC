@@ -185,6 +185,16 @@ function pausaCorregible(
 }
 
 /** C10: ficha completa de la operación con las acciones que permite su estado. */
+function nombreMotivoPausa(
+  codigo: string | null | undefined,
+  motivos: readonly { codigo: string; nombre: string }[],
+): string | null {
+  if (!codigo) return null;
+  return motivos.find((motivo) => motivo.codigo === codigo)?.nombre
+    ?? etiquetaMotivoPausa(codigo)
+    ?? codigo;
+}
+
 export function DetalleProcesoOperador({
   proceso,
   hoy,
@@ -1824,7 +1834,7 @@ export function DetalleProcesoOperador({
                       </p>
                       {sesion.motivoPausa ? (
                         <p className="text-xs text-advertencia-texto">
-                          Motivo: {etiquetaMotivoPausa(sesion.motivoPausa) ?? sesion.motivoPausa}
+                          Motivo: {nombreMotivoPausa(sesion.motivoPausa, motivosPausa)}
                         </p>
                       ) : null}
                       {sesion.notas ? (
@@ -2070,7 +2080,7 @@ export function DetalleProcesoOperador({
           >
             <p className="font-semibold text-advertencia-texto">
               Sesión pausada:{' '}
-              {etiquetaMotivoPausa(sesionPausada.motivoPausa) ?? 'sin motivo registrado'}
+              {nombreMotivoPausa(sesionPausada.motivoPausa, motivosPausa) ?? 'sin motivo registrado'}
             </p>
             <p className="text-xs text-texto-secundario">
               {sesionPausada.operadorNombre}

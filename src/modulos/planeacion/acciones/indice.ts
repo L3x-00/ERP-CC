@@ -1,4 +1,8 @@
 export { activarModoPreparacionAccion } from '@/modulos/planeacion/acciones/activar-modo-preparacion';
+export {
+  aprobarPausaAdministrativaAccion,
+  pausarOperacionAdministrativaAccion,
+} from '@/modulos/planeacion/acciones/pausa-administrativa';
 export { asignarResponsablePlaneacionAccion } from '@/modulos/planeacion/acciones/asignar-responsable-planeacion';
 export { liberarPreparacionPlaneacionAccion } from '@/modulos/planeacion/acciones/liberar-preparacion-planeacion';
 export { obtenerCalendarioPlaneacionAccion } from '@/modulos/planeacion/acciones/obtener-calendario-planeacion';
