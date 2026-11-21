@@ -40,6 +40,7 @@ export type CodigoErrorPlaneacion =
   | 'sin_permiso_planeacion'
   | 'motivo_reprogramacion_requerido'
   | 'meta_proceso_no_corresponde'
+  | 'proceso_previo_sin_piezas'
   | 'transicion_preparacion_no_permitida'
   | 'programacion_continuacion_no_operable'
   | 'rango_fechas_invalido'
@@ -128,6 +129,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'sin_permiso_planeacion',
     'motivo_reprogramacion_requerido',
     'meta_proceso_no_corresponde',
+    'proceso_previo_sin_piezas',
     'transicion_preparacion_no_permitida',
     'programacion_continuacion_no_operable',
     'rango_fechas_invalido',
@@ -164,11 +166,31 @@ function programacionActualizadaDesdeRpc(fila: {
   };
 }
 
+/** PLAN-1: bloquea programar una operación posterior sin piezas del previo. */
+async function validarPiezasPreviasPlaneacion(
+  admin: SupabaseClient<Database>,
+  metaProcesoId: string | null | undefined,
+): Promise<void> {
+  if (!metaProcesoId) return;
+  const { data, error } = await admin.rpc('obtener_piezas_disponibles_proceso', {
+    p_meta_proceso_id: metaProcesoId,
+  });
+  if (error) return; // La RPC de programación sigue siendo la autoridad final.
+  const info = (data ?? {}) as { secuencia?: number; nombre?: string | null; disponibles?: number | null };
+  if ((Number(info.secuencia) || 1) <= 1) return;
+  if (!Number.isFinite(info.disponibles ?? null) || Number(info.disponibles) > 0) return;
+  throw new ErrorPlaneacion(
+    'proceso_previo_sin_piezas',
+    `No hay piezas terminadas por ${info.nombre ?? 'el proceso anterior'}. Programa y produce primero esa operación o espera a que libere piezas; así esta no se bloqueará al iniciar`,
+  );
+}
+
 /** Programa una partida mediante la RPC que bloquea capacidad dentro de PostgreSQL. */
 export async function programarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
   entrada: ProgramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
+  await validarPiezasPreviasPlaneacion(admin, entrada.metaProcesoId);
   const { data, error } = await admin.rpc('programar_partida_recurso_auditada', {
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
@@ -195,6 +217,7 @@ export async function programarOperacionMultidiaServicio(
   admin: SupabaseClient<Database>,
   entrada: ProgramarMultidiaEntrada,
 ): Promise<ProgramacionActualizada> {
+  await validarPiezasPreviasPlaneacion(admin, entrada.metaProcesoId);
   const { data, error } = await admin.rpc('programar_operacion_multidia_auditada', {
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
@@ -216,6 +239,12 @@ export async function reprogramarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
   entrada: ReprogramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
+  const { data: programacion } = await admin
+    .from('programacion_areas')
+    .select('meta_proceso_id')
+    .eq('id', entrada.programacionId)
+    .maybeSingle();
+  await validarPiezasPreviasPlaneacion(admin, programacion?.meta_proceso_id);
   const { data, error } = await admin.rpc('reprogramar_partida_recurso_auditada', {
     p_programacion_id: entrada.programacionId,
     p_recurso_id: entrada.recursoId,
@@ -477,6 +506,23 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
 }
 
 /** Código estable del error de Planeación; `desconocido` si no es de dominio. */
+/** PLAN-1: operadores activos para el selector de responsable de la partida. */
+export async function obtenerOperadoresPlaneacionServicio(
+  admin: SupabaseClient<Database>,
+): Promise<{ id: string; nombre: string }[]> {
+  const { data, error } = await admin
+    .from('usuarios')
+    .select('id, nombre_completo')
+    .eq('rol', 'operador')
+    .eq('activo', true)
+    .order('nombre_completo');
+  if (error) throw new Error(`No se pudieron cargar los operadores: ${error.message}`);
+  return (data ?? []).map((fila) => ({
+    id: String(fila.id),
+    nombre: String(fila.nombre_completo ?? 'Operador'),
+  }));
+}
+
 export function codigoErrorPlaneacion(error: unknown): CodigoErrorPlaneacion {
   return error instanceof ErrorPlaneacion ? error.codigo : 'desconocido';
 }
@@ -522,6 +568,8 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'La partida ya tiene una programación equivalente';
     case 'meta_proceso_no_corresponde':
       return 'La operación elegida no pertenece a la partida';
+    case 'proceso_previo_sin_piezas':
+      return 'No hay piezas terminadas por el proceso anterior. Programa y produce primero esa operación o espera a que libere piezas; así esta no se bloqueará al iniciar';
     case 'programacion_continuacion_no_operable':
       return 'Ese día es una continuación de la operación. Inicia la preparación desde su primer día';
     default:

@@ -67,6 +67,8 @@ type DatosComunesAsignacion = {
   turno: TurnoPlaneacion;
   horasEstimadas: number;
   ordenPrioridad: number;
+  /** PLAN-1: null = quien sea reclame; no viaja si el usuario no eligió. */
+  responsableId?: string | null;
 };
 
 /** Datos discriminados: crear requiere una partida; reprogramar no permite alterarla. */
@@ -147,6 +149,8 @@ export interface PropsPanelAsignacionPlaneacion {
   partidasTotal?: number;
   /** C9.2/P10+P-04: grupos de equipo para la compatibilidad del recurso (tolerante). */
   compatibilidad?: CompatibilidadRecursosPlaneacion;
+  /** PLAN-1: operadores activos para elegir responsable de la partida. */
+  operadores?: readonly { id: string; nombre: string }[];
   /** C9.2/P09: hay una consulta de capacidad en curso para una fecha fuera del rango. */
   verificandoCapacidad?: boolean;
   onEnviar: (datos: DatosAsignacionPlaneacion) => Promise<ResultadoAsignacionPlaneacion>;
@@ -193,6 +197,7 @@ export function PanelAsignacionPlaneacion({
   cargas = [],
   partidasTotal,
   compatibilidad,
+  operadores = [],
   verificandoCapacidad = false,
   onEnviar,
   onActivarPreparacion,
@@ -211,6 +216,7 @@ export function PanelAsignacionPlaneacion({
   const [recursoId, setRecursoId] = useState(programacion?.recursoId ?? '');
   const [fechaProgramada, setFechaProgramada] = useState(programacion?.fechaProgramada ?? '');
   const [turno, setTurno] = useState<TurnoPlaneacion>(programacion?.turno ?? 'matutino');
+  const [responsableId, setResponsableId] = useState<string | null | undefined>(undefined);
   const [horasEstimadas, setHorasEstimadas] = useState(
     programacion ? String(programacion.horasEstimadas) : '',
   );
@@ -282,6 +288,11 @@ export function PanelAsignacionPlaneacion({
   const hayRecursoCompatible = recursosPorCompatibilidad.some(
     ({ estado }) => estado === 'compatible',
   );
+  // Con grupo conocido solo se ofrecen máquinas del grupo: un CNC router no
+  // debe aparecer como opción para Corte láser o Doblado.
+  const recursosVisibles = textoGrupoRequerido
+    ? recursosPorCompatibilidad.filter(({ estado }) => estado === 'compatible')
+    : recursosPorCompatibilidad;
 
   const desglosePorId = useMemo(
     () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
@@ -795,6 +806,7 @@ export function PanelAsignacionPlaneacion({
             turno,
             horasEstimadas: horas,
             ordenPrioridad: prioridad,
+            responsableId,
             motivo: motivo.trim(),
           }
         : (() => {
@@ -812,6 +824,7 @@ export function PanelAsignacionPlaneacion({
               turno,
               horasEstimadas: horas,
               ordenPrioridad: prioridad,
+              responsableId,
             };
           })();
       if (!datos) {
@@ -911,33 +924,9 @@ export function PanelAsignacionPlaneacion({
 
       {!programacion ? (
         <>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="planeacion-partida">Partida</Label>
-            <Select
-              id="planeacion-partida"
-              value={partidaId}
-              onChange={(evento) => {
-                const nuevaPartidaId = evento.target.value;
-                setPartidaId(nuevaPartidaId);
-                const partidaElegida = partidasProgramables.find(
-                  (partida) => partida.partidaId === nuevaPartidaId,
-                );
-                const operacionInicialId = operacionInicial(partidaElegida);
-                setOperacionId(operacionInicialId);
-                setSecuencia(String(partidaElegida?.secuenciaSugerida ?? 1));
-                aplicarSugerenciasOperacion(
-                  partidaElegida?.operaciones.find(
-                    (operacion) => operacion.metaProcesoId === operacionInicialId,
-                  ),
-                );
-              }}
-            >
-              <option value="">Selecciona una partida</option>
-              {partidasProgramables.map((partida) => (
-                <option key={partida.partidaId} value={partida.partidaId}>{partida.etiqueta}</option>
-              ))}
-            </Select>
-          </div>
+          <p className="text-xs text-texto-secundario" data-testid="partida-planeacion-fija">
+            Partida: {partidasProgramables.find((partida) => partida.partidaId === partidaId)?.etiqueta ?? '—'}
+          </p>
           {partidasTotal !== undefined && partidasTotal > partidasProgramables.length ? (
             <p
               role="status"
@@ -1020,7 +1009,7 @@ export function PanelAsignacionPlaneacion({
             onChange={(evento) => setRecursoId(evento.target.value)}
           >
             <option value="">Selecciona un recurso</option>
-            {recursosPorCompatibilidad.map(({ recurso, grupo, estado }) => (
+            {recursosVisibles.map(({ recurso, grupo, estado }) => (
               <option key={recurso.id} value={recurso.id}>
                 {recurso.codigo} · {recurso.nombre} — {grupo?.nombre ?? 'sin grupo'}
                 {estado === 'incompatible' ? ' (otro grupo)' : ''}
@@ -1147,6 +1136,20 @@ export function PanelAsignacionPlaneacion({
           />
         </div>
 
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="planeacion-responsable">Responsable</Label>
+          <Select
+            id="planeacion-responsable"
+            value={responsableId ?? ''}
+            onChange={(evento) => setResponsableId(evento.target.value === '' ? null : evento.target.value)}
+          >
+            <option value="">Quien sea que reclame</option>
+            {operadores.map((operador) => (
+              <option key={operador.id} value={operador.id}>{operador.nombre}</option>
+            ))}
+          </Select>
+        </div>
+
         <details className="col-span-2">
           <summary className="cursor-pointer text-xs font-medium text-texto-secundario">
             Opciones avanzadas (prioridad)
@@ -1162,6 +1165,33 @@ export function PanelAsignacionPlaneacion({
               value={ordenPrioridad}
               onChange={(evento) => setOrdenPrioridad(evento.target.value)}
             />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="planeacion-partida">Partida</Label>
+            <Select
+              id="planeacion-partida"
+              value={partidaId}
+              onChange={(evento) => {
+                const nuevaPartidaId = evento.target.value;
+                setPartidaId(nuevaPartidaId);
+                const partidaElegida = partidasProgramables.find(
+                  (partida) => partida.partidaId === nuevaPartidaId,
+                );
+                const operacionInicialId = operacionInicial(partidaElegida);
+                setOperacionId(operacionInicialId);
+                setSecuencia(String(partidaElegida?.secuenciaSugerida ?? 1));
+                aplicarSugerenciasOperacion(
+                  partidaElegida?.operaciones.find(
+                    (operacion) => operacion.metaProcesoId === operacionInicialId,
+                  ),
+                );
+              }}
+            >
+              <option value="">Selecciona una partida</option>
+              {partidasProgramables.map((partida) => (
+                <option key={partida.partidaId} value={partida.partidaId}>{partida.etiqueta}</option>
+              ))}
+            </Select>
           </div>
         </details>
       </div>

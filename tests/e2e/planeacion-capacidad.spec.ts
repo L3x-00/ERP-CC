@@ -452,6 +452,8 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     // Programar 6 h hoy en el turno matutino: la celda pasa a 6/8 h.
     await abrirProgramarPartida(page);
     await page.getByTestId('panel-asignacion-planeacion')
+      .getByText('Opciones avanzadas (prioridad)').click();
+    await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Partida', { exact: true }).selectOption(datos.partidaId);
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Recurso').selectOption(datos.recursoId);
@@ -541,6 +543,8 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
 
     // C9.2/P09: 6 h existentes + 4 h nuevas exceden la jornada de 8 h.
     await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByText('Opciones avanzadas (prioridad)').click();
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Partida', { exact: true }).selectOption(datos.partidaSecundariaId);
     await page.getByTestId('panel-asignacion-planeacion')

@@ -307,6 +307,8 @@ test.describe.serial('Planeación colaborativa completa', () => {
       });
     }
     await page.getByTestId('panel-asignacion-planeacion')
+      .getByText('Opciones avanzadas (prioridad)').click();
+    await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
     // C9.0/P-01 B: con ruteo el panel programa por operación y preselecciona la
     // primera pendiente; sin ruteo conservaría la captura manual de secuencia.
@@ -448,6 +450,8 @@ test.describe.serial('Planeación colaborativa completa', () => {
     // OBS-18: programar sin IDs internos, con desglose y resumen previos.
     await abrirProgramarPartida(page);
     await page.getByTestId('panel-asignacion-planeacion')
+      .getByText('Opciones avanzadas (prioridad)').click();
+    await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaSecundariaId);
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Recurso').selectOption(contextoPrueba.recursoId);
@@ -492,6 +496,8 @@ test.describe.serial('Planeación colaborativa completa', () => {
     // OBS-19: el turno se llena, el guardado se bloquea y se propone el
     // siguiente día hábil con hueco, que se confirma con "Usar esta fecha".
     await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByText('Opciones avanzadas (prioridad)').click();
     await page.getByTestId('panel-asignacion-planeacion')
       .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaTerciariaId);
     await page.getByTestId('panel-asignacion-planeacion')

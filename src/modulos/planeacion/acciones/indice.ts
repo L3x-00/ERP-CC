@@ -1,4 +1,5 @@
 export { activarModoPreparacionAccion } from '@/modulos/planeacion/acciones/activar-modo-preparacion';
+export { asignarResponsablePlaneacionAccion } from '@/modulos/planeacion/acciones/asignar-responsable-planeacion';
 export { liberarPreparacionPlaneacionAccion } from '@/modulos/planeacion/acciones/liberar-preparacion-planeacion';
 export { obtenerCalendarioPlaneacionAccion } from '@/modulos/planeacion/acciones/obtener-calendario-planeacion';
 export { obtenerDetalleProgramacionAccion } from '@/modulos/planeacion/acciones/obtener-detalle-programacion';

@@ -964,7 +964,7 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
-  it('lista primero los recursos compatibles y elegir otro grupo impide guardar (C9.2/P10/P-04)', () => {
+  it('solo ofrece recursos compatibles con el grupo de la operación (PLAN-1)', () => {
     const recursoCompatible = { ...DATOS.recursos[0] };
     const recursoOtroGrupo = {
       ...DATOS.recursos[0],
@@ -998,29 +998,13 @@ describe('operación de Planeación en cliente', () => {
 
     const selector = screen.getByLabelText('Recurso') as HTMLSelectElement;
     const opciones = within(selector).getAllByRole('option');
+    expect(opciones).toHaveLength(2);
     expect(opciones[1].textContent).toContain('CNC-01');
     expect(opciones[1].textContent).toContain('Láser');
     expect(opciones[1].textContent).not.toContain('(otro grupo)');
-    expect(opciones[2].textContent).toContain('Doblez');
-    expect(opciones[2].textContent).toContain('(otro grupo)');
-
-    fireEvent.change(selector, { target: { value: recursoOtroGrupo.id } });
-
-    // P-04 (respuesta del cliente): elegir otro grupo impide guardar además del
-    // candado `recurso_incompatible` de la RPC.
-    expect(screen.getByTestId('aviso-compatibilidad-planeacion').textContent).toContain(
-      'Doblez',
-    );
-    expect(screen.getByTestId('aviso-compatibilidad-planeacion').textContent).toContain(
-      'Láser',
-    );
-    expect(
-      (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(opciones.some((opcion) => opcion.textContent?.includes('Doblez'))).toBe(false);
 
     fireEvent.change(selector, { target: { value: recursoCompatible.id } });
-
-    expect(screen.queryByTestId('aviso-compatibilidad-planeacion')).toBeNull();
     expect(
       (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
     ).toBe(false);
@@ -1076,16 +1060,16 @@ describe('operación de Planeación en cliente', () => {
     const selector = screen.getByLabelText('Recurso') as HTMLSelectElement;
     const opcion = (codigo: string) => within(selector).getAllByRole('option')
       .find((option) => option.textContent?.includes(codigo));
-    expect(opcion('CNC-01')?.textContent).not.toContain('(otro grupo)');
-    expect(opcion('DBL-02')?.textContent).toContain('(otro grupo)');
+    expect(opcion('CNC-01')).toBeTruthy();
+    expect(opcion('DBL-02')).toBeUndefined();
     expect(screen.getByTestId('ruteo-equipo-operacion-planeacion').textContent).toContain('Láser');
 
     fireEvent.change(screen.getByLabelText('Operación'), {
       target: { value: 'meta-doblez' },
     });
 
-    expect(opcion('DBL-02')?.textContent).not.toContain('(otro grupo)');
-    expect(opcion('CNC-01')?.textContent).toContain('(otro grupo)');
+    expect(opcion('DBL-02')).toBeTruthy();
+    expect(opcion('CNC-01')).toBeUndefined();
     expect(screen.getByTestId('ruteo-equipo-operacion-planeacion').textContent).toContain('Doblez');
   });
 
@@ -1443,7 +1427,7 @@ describe('operación de Planeación en cliente', () => {
     expect(screen.getByTestId('error-actualizar-datos')).toBeTruthy();
   });
 
-  it('el aviso de máquina incompatible ofrece el flujo para elegir una correcta', () => {
+  it('no ofrece máquinas de otro grupo en el selector (PLAN-1)', () => {
     const recursoCompatible = { ...DATOS.recursos[0] };
     const recursoOtroGrupo = {
       ...DATOS.recursos[0],
@@ -1473,20 +1457,10 @@ describe('operación de Planeación en cliente', () => {
     fireEvent.change(screen.getByLabelText('Partida'), {
       target: { value: partida.partidaId },
     });
-    fireEvent.change(screen.getByLabelText('Recurso'), {
-      target: { value: recursoOtroGrupo.id },
-    });
-    fireEvent.click(screen.getByTestId('ver-solucion-compatibilidad'));
-
-    const modal = screen.getByTestId('dialogo-error-planeacion');
-    expect(modal.textContent).toContain('Esa máquina no puede hacer esta operación');
-    const usar = screen.getByTestId(`error-usar-recurso-${recursoCompatible.id}`);
-    fireEvent.click(usar);
-
-    expect((screen.getByLabelText('Recurso') as HTMLSelectElement).value).toBe(
-      recursoCompatible.id,
-    );
-    expect(screen.queryByTestId('dialogo-error-planeacion')).toBeNull();
+    const selector = screen.getByLabelText('Recurso') as HTMLSelectElement;
+    const opciones = within(selector).getAllByRole('option');
+    expect(opciones).toHaveLength(2);
+    expect(opciones.some((opcion) => opcion.textContent?.includes('Doblez'))).toBe(false);
   });
 
   it('reprograma a la máquina elegida desde el error sin dejar el botón sin efecto', async () => {

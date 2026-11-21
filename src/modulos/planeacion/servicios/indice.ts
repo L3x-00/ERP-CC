@@ -5,6 +5,7 @@ export {
   liberarPreparacionPlaneacionServicio,
   mensajeErrorPlaneacion,
   obtenerDatosCalendarioPlaneacionServicio,
+  obtenerOperadoresPlaneacionServicio,
   obtenerCompromisosCalendarioServicio,
   obtenerCargaCapacidadDiariaServicio,
   obtenerCargaEquiposServicio,

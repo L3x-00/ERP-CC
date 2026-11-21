@@ -5670,10 +5670,10 @@ export type Database = {
             }[]
           }
       asignar_operador_a_partida_op: {
-        Args: { p_operador_id: string; p_partida_id: string }
+        Args: { p_operador_id: string | null; p_partida_id: string }
         Returns: {
           actualizado_en: string
-          operador_asignado_id: string
+          operador_asignado_id: string | null
           partida_id: string
         }[]
       }
@@ -6097,6 +6097,10 @@ export type Database = {
           partida_id: string
           programacion_id: string
         }[]
+      }
+      obtener_piezas_disponibles_proceso: {
+        Args: { p_meta_proceso_id: string }
+        Returns: Json
       }
       obtener_carga_capacidad_diaria: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }

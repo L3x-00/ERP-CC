@@ -44,7 +44,16 @@ function clienteConTablas(tablas: Readonly<Record<string, unknown[]>>): Supabase
 }
 
 const clienteConRpc = (rpc: ReturnType<typeof vi.fn>): SupabaseClient<Database> =>
-  ({ rpc } as unknown as SupabaseClient<Database>);
+  ({
+    rpc,
+    // PLAN-1: la reprogramación consulta la meta de la programación antes de
+    // validar piezas del proceso previo.
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+      }),
+    }),
+  } as unknown as SupabaseClient<Database>);
 
 const PROGRAMACION_ID = '11111111-1111-4111-8111-111111111111';
 const ORDEN_ID = '22222222-2222-4222-8222-222222222222';
