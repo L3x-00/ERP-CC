@@ -538,6 +538,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByLabel('Precio IT01').fill('100');
       await page.getByRole('row', { name: /IT01/ }).getByRole('button', { name: 'Guardar' }).click();
       await expect(page.getByRole('status')).toContainText('IT01');
+      // P1: el precio es obligatorio en todos los ítems activos, no solo en IT01.
+      await page.getByLabel('Precio IT02').fill('80');
+      await page.getByRole('row', { name: /IT02/ }).getByRole('button', { name: 'Guardar' }).click();
+      await expect(page.getByRole('status')).toContainText('IT02');
 
       await page.getByRole('tab', { name: 'Ruteo/Costeo' }).click();
       // Obs. cliente: etiquetas visibles del ruteo y desglose de fabricación.

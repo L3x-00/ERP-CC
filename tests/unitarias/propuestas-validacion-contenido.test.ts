@@ -15,7 +15,7 @@ function entrada(parcial: Partial<EntradaFaltantesValidacion> = {}): EntradaFalt
   return {
     revision: REV_A,
     revisiones: [REV_A],
-    items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: true }],
+    items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', precioUnitario: 100, activo: true }],
     ruteo: [{ itemId: 'i1', costeadoEn: '2026-10-13T10:00:00Z' }],
     archivos: [{ entidad: 'propuesta_revision', entidadId: 'rev-a', vigente: true }],
     ...parcial,
@@ -29,6 +29,24 @@ describe('calcularFaltantesValidacion', () => {
     expect(faltantes.mensajes).toEqual([]);
     expect(faltantes.sinItemsActivos).toBe(false);
     expect(faltantes.sinArchivos).toBe(false);
+  });
+
+  it('el precio unitario en cero se marca antes que el ruteo y el costeo', () => {
+    const faltantes = calcularFaltantesValidacion(entrada({
+      items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: true, precioUnitario: 0 }],
+    }));
+
+    expect(faltantes.itemsSinPrecio).toEqual(['IT01']);
+    expect(faltantes.mensajes[0]).toBe('ítem IT01: precio unitario');
+    expect(faltantes.mensajes.some((mensaje) => mensaje.includes('costear'))).toBe(false);
+  });
+
+  it('un ítem inactivo con precio cero no exige precio', () => {
+    const faltantes = calcularFaltantesValidacion(entrada({
+      items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: false, precioUnitario: 0 }],
+    }));
+
+    expect(faltantes.itemsSinPrecio).toEqual([]);
   });
 
   it('una operación costeada con respaldo solo genera advertencia, no bloquea', () => {
@@ -46,7 +64,7 @@ describe('calcularFaltantesValidacion', () => {
 
   it('sin ítems activos lo marca (un ítem inactivo no cuenta)', () => {
     const faltantes = calcularFaltantesValidacion(
-      entrada({ items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: false }] }),
+      entrada({ items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', precioUnitario: 100, activo: false }] }),
     );
 
     expect(faltantes.sinItemsActivos).toBe(true);
@@ -57,8 +75,8 @@ describe('calcularFaltantesValidacion', () => {
     const faltantes = calcularFaltantesValidacion(
       entrada({
         items: [
-          { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: true },
-          { id: 'i2', revisionId: 'rev-a', codigo: 'IT02', activo: true },
+          { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', precioUnitario: 100, activo: true },
+          { id: 'i2', revisionId: 'rev-a', codigo: 'IT02', precioUnitario: 100, activo: true },
         ],
         ruteo: [{ itemId: 'i1', costeadoEn: '2026-10-13T10:00:00Z' }],
       }),
@@ -87,8 +105,8 @@ describe('calcularFaltantesValidacion', () => {
     const faltantes = calcularFaltantesValidacion(
       entrada({
         items: [
-          { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: true },
-          { id: 'i2', revisionId: 'rev-a', codigo: 'IT02', activo: false },
+          { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', precioUnitario: 100, activo: true },
+          { id: 'i2', revisionId: 'rev-a', codigo: 'IT02', precioUnitario: 100, activo: false },
         ],
       }),
     );
@@ -131,8 +149,8 @@ describe('contarArchivosRevision', () => {
     revision: REV_B,
     revisiones: [REV_A, REV_B],
     items: [
-      { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: true },
-      { id: 'i1b', revisionId: 'rev-b', codigo: 'IT01', activo: true },
+      { id: 'i1', revisionId: 'rev-a', codigo: 'IT01', precioUnitario: 100, activo: true },
+      { id: 'i1b', revisionId: 'rev-b', codigo: 'IT01', precioUnitario: 100, activo: true },
     ],
   });
 

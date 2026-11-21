@@ -46,7 +46,7 @@ function detalle(parcial: Record<string, unknown> = {}) {
     revisiones: [
       { id: REV_ID, letra: 'A', requiereRevisionRuteo: false, requiereRevisionCosteo: false },
     ],
-    items: [{ id: 'i1', revisionId: REV_ID, codigo: 'IT01', activo: true }],
+    items: [{ id: 'i1', revisionId: REV_ID, codigo: 'IT01', activo: true, precioUnitario: 100 }],
     ruteo: [{ itemId: 'i1', costeadoEn: '2026-10-13T10:00:00Z' }],
     ...parcial,
   };

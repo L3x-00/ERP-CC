@@ -506,6 +506,7 @@ describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (
       ruteo: [filaDelRfq],
       faltantes: {
         sinItemsActivos: false,
+        itemsSinPrecio: [],
         itemsSinRuteo: [],
         itemsSinCostear: ['IT01'],
         operacionesConTarifaRespaldo: [],
@@ -602,6 +603,7 @@ describe('costeo interno: solo Material y Otros (obs. cliente 2026-10-13)', () =
 describe('validar: ruteo y costeo por proceso en rojo suave (obs. cliente 2026-10-13)', () => {
   const faltantes = (parcial: Partial<FaltantesValidacionPropuesta>): FaltantesValidacionPropuesta => ({
     sinItemsActivos: false,
+    itemsSinPrecio: [],
     itemsSinRuteo: [],
     itemsSinCostear: [],
     operacionesConTarifaRespaldo: [],
@@ -781,6 +783,7 @@ describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09
     parcial: Partial<FaltantesValidacionPropuesta>,
   ): FaltantesValidacionPropuesta => ({
     sinItemsActivos: false,
+    itemsSinPrecio: [],
     itemsSinRuteo: [],
     itemsSinCostear: [],
     operacionesConTarifaRespaldo: [],

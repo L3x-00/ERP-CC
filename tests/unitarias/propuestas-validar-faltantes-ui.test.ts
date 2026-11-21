@@ -91,6 +91,7 @@ const DETALLE = {
 function faltantes(parcial: Partial<FaltantesValidacionPropuesta>): FaltantesValidacionPropuesta {
   const base: FaltantesValidacionPropuesta = {
     sinItemsActivos: false,
+    itemsSinPrecio: [],
     itemsSinRuteo: [],
     itemsSinCostear: [],
     operacionesConTarifaRespaldo: [],
@@ -182,6 +183,7 @@ describe('PanelAccionesPropuesta — qué falta para validar (obs. cliente 2026-
       onIrA,
       faltantes: faltantes({
         sinItemsActivos: true,
+        itemsSinPrecio: [],
         itemsSinRuteo: ['IT01'],
         sinArchivos: true,
         contenido: ['al menos un ítem activo', 'ítem IT01: ruteo por proceso', 'al menos un archivo'],
