@@ -170,6 +170,7 @@ export type CodigoErrorProduccion =
   | 'sin_permiso_setup'
   | 'sesion_orden_inconsistente'
   | 'orden_no_terminada'
+  | 'pausa_administrativa_pendiente'
   | 'pausa_sin_corte'
   | 'pausa_huerfana_invalida'
   | 'motivo_cierre_invalido'
@@ -352,6 +353,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sin_permiso_actualizar_avance',
   'sesion_orden_inconsistente',
   'orden_no_terminada',
+  'pausa_administrativa_pendiente',
   'pausa_sin_corte',
   'pausa_huerfana_invalida',
   'motivo_cierre_invalido',
@@ -806,6 +808,8 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'No se pudo cerrar la pausa; actualiza el tablero';
     case 'orden_no_terminada':
       return 'Solo se puede cerrar una pausa huérfana cuando la orden ya terminó.';
+    case 'pausa_administrativa_pendiente':
+      return 'Esta operación la pausó administración. Espera a que Planeación apruebe la reanudación o reprograme la operación.';
     case 'pausa_sin_corte':
       return 'La pausa no tiene una hora de corte registrada; actualiza el tablero.';
     case 'pausa_huerfana_invalida':
