@@ -25,10 +25,9 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT meta.secuencia, coalesce(proceso.nombre, 'el proceso anterior')
+  SELECT meta.secuencia, coalesce(meta.nombre, 'el proceso anterior')
   INTO v_secuencia, v_proceso
   FROM public.metas_proceso_partida AS meta
-  LEFT JOIN public.catalogo_procesos AS proceso ON proceso.id = meta.proceso_id
   WHERE meta.id = NEW.meta_proceso_id;
 
   IF v_secuencia IS NULL OR v_secuencia <= 1 THEN
