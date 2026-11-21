@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  mensajeMotivoConsumoPiezas,
   piezasUsadasEfectivas,
   validarConsumoPiezasCierre,
 } from '@/modulos/produccion/utilidades/consumo-piezas';
@@ -25,12 +26,14 @@ describe('consumo de piezas entre procesos (C17)', () => {
     expect(piezasUsadasEfectivas(0, 250, false)).toBe(0);
   });
 
-  it('cita el valor capturado y ofrece la corrección 1:1 al consumir menos', () => {
+  it('cita el valor capturado y ofrece la corrección al consumir menos', () => {
     const fallo = validarConsumoPiezasCierre({ ...BASE, usada: 2 });
     expect(fallo).not.toBeNull();
-    expect(fallo?.mensaje).toContain('Declaraste 250 piezas producidas en DOBLADO_CNC');
-    expect(fallo?.mensaje).toContain('«Usado» de Corte laser tiene 2');
-    expect(fallo?.sugerirUnoAUno).toBe(true);
+    expect(fallo?.titulo).toBe('Revisa el consumo de piezas');
+    expect(fallo?.mensaje).toBe(
+      'Declaraste 250 piezas terminadas en DOBLADO_CNC, pero el campo Usado de Corte laser tiene 2. Para cerrar, deja Usado en 0 y el sistema tomará las 250 piezas, o escribe 250 o más.',
+    );
+    expect(fallo?.sugerirUsarProducidas).toBe(true);
   });
 
   it('acepta el consumo 1:1 y el consumo con merma dentro de lo disponible', () => {
@@ -44,8 +47,10 @@ describe('consumo de piezas entre procesos (C17)', () => {
       usada: 300,
       disponibles: 250,
     });
-    expect(fallo?.mensaje).toContain('solo hay 250 disponibles');
-    expect(fallo?.sugerirUnoAUno).toBe(false);
+    expect(fallo?.mensaje).toBe(
+      'Solo hay 250 piezas terminadas por Corte laser. Bajaste 300 entre usadas y mermas; ajusta Usado o Merma para continuar.',
+    );
+    expect(fallo?.sugerirUsarProducidas).toBe(false);
   });
 
   it('rechaza decimales y negativos', () => {
@@ -55,8 +60,14 @@ describe('consumo de piezas entre procesos (C17)', () => {
 
   it('pide capturar al menos lo producido cuando se deja «Usado» por debajo', () => {
     const fallo = validarConsumoPiezasCierre({ ...BASE, usada: 0, producidas: 10, disponibles: 250 });
-    expect(fallo?.mensaje).toContain('«Usado» de Corte laser tiene 0');
-    expect(fallo?.mensaje).toContain('consumir 1:1');
-    expect(fallo?.sugerirUnoAUno).toBe(true);
+    expect(fallo?.mensaje).toContain('el campo Usado de Corte laser tiene 0');
+    expect(fallo?.mensaje).toContain('el sistema tomará las 10 piezas');
+    expect(fallo?.sugerirUsarProducidas).toBe(true);
+  });
+
+  it('explica el motivo con una frase que dice qué escribir', () => {
+    expect(mensajeMotivoConsumoPiezas('Corte laser', 250)).toBe(
+      'Escribe por qué consumiste 250 piezas de Corte laser. Necesitamos al menos 3 caracteres.',
+    );
   });
 });

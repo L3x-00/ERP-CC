@@ -826,6 +826,8 @@ export function DetalleProcesoOperador({
     exito?: boolean;
     error: string;
     codigo?: string;
+    titulo?: string;
+    etiquetaCerrar?: string;
     accion?: DatosErrorCierre['accion'];
   }): void {
     setMensaje({
@@ -834,8 +836,9 @@ export function DetalleProcesoOperador({
       ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
     });
     setErrorCierre({
-      titulo: 'No se pudo cerrar la sesión',
+      titulo: resultado.titulo ?? 'No se pudo cerrar la sesión',
       mensaje: resultado.error,
+      ...(resultado.etiquetaCerrar ? { etiquetaCerrar: resultado.etiquetaCerrar } : {}),
       ...(resultado.accion ? { accion: resultado.accion } : {}),
     });
   }
@@ -941,7 +944,9 @@ export function DetalleProcesoOperador({
     if (incluirConsumo && motivoConsumo.trim().length < 3) {
       fallarCierre({
         exito: false,
-        error: 'Indica el motivo del consumo de material (mínimo 3 caracteres).',
+        titulo: 'Falta el motivo del consumo',
+        error: 'Escribe por qué consumiste ese material. Necesitamos al menos 3 caracteres.',
+        etiquetaCerrar: 'Volver a revisar',
       });
       return;
     }
@@ -957,11 +962,13 @@ export function DetalleProcesoOperador({
       if (fallo) {
         fallarCierre({
           exito: false,
+          titulo: fallo.titulo,
           error: fallo.mensaje,
-          ...(fallo.sugerirUnoAUno
+          etiquetaCerrar: 'Volver a revisar',
+          ...(fallo.sugerirUsarProducidas
             ? {
                 accion: {
-                  etiqueta: `Usar ${formatearNumero(piezasCapturadas, 0)} piezas (1:1)`,
+                  etiqueta: `Usar ${formatearNumero(piezasCapturadas, 0)} piezas de ${nombreProcesoPrevio}`,
                   alElegir: () => {
                     setCantidadUsada(String(piezasCapturadas));
                     setMensaje(null);
@@ -976,7 +983,9 @@ export function DetalleProcesoOperador({
       if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
         fallarCierre({
           exito: false,
+          titulo: 'Falta el motivo del consumo',
           error: mensajeMotivoConsumoPiezas(nombreProcesoPrevio, totalPiezas),
+          etiquetaCerrar: 'Volver a revisar',
         });
         return;
       }

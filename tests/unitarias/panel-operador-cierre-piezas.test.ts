@@ -88,12 +88,17 @@ describe('PanelOperadorProduccion — cierre de un proceso posterior', () => {
     const aviso = await screen.findByTestId('error-cierre-panel');
     expect(aviso.getAttribute('role')).toBe('alertdialog');
     const mensaje = screen.getByTestId('error-cierre-mensaje').textContent ?? '';
-    expect(mensaje).toContain('Declaraste 250 piezas producidas en DOBLADO_CNC');
-    expect(mensaje).toContain('«Usado» de Corte laser tiene 5');
+    expect(aviso.textContent).toContain('Revisa el consumo de piezas');
+    expect(mensaje).toContain('Declaraste 250 piezas terminadas en DOBLADO_CNC');
+    expect(mensaje).toContain('el campo Usado de Corte laser tiene 5');
+    expect(mensaje).toContain('el sistema tomará las 250 piezas');
+    expect(mensaje).not.toContain('1:1');
+    expect(screen.getByTestId('error-cierre-accion').textContent)
+      .toBe('Usar 250 piezas de Corte laser');
     expect(cerrar).not.toHaveBeenCalled();
   });
 
-  it('la acción sugerida rellena «Usado» con el consumo 1:1', async () => {
+  it('la acción sugerida rellena «Usado» con lo producido', async () => {
     const cerrar = vi.fn().mockResolvedValue({ exito: true });
     render(createElement(PanelOperadorProduccion, { ...BASE, onCerrar: cerrar, onIniciar: vi.fn(), onReanudar: vi.fn() }));
 

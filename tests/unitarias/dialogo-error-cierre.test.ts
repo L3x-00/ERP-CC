@@ -67,7 +67,7 @@ describe('DialogoErrorCierre', () => {
     const onCerrar = vi.fn();
     const alElegir = vi.fn();
     render(createElement(AvisoConEstado, {
-      error: { mensaje: ERROR.mensaje, accion: { etiqueta: 'Usar 250 piezas (1:1)', alElegir } },
+      error: { mensaje: ERROR.mensaje, accion: { etiqueta: 'Usar 250 piezas de Corte laser', alElegir } },
       onCerrar,
     }));
 
@@ -81,6 +81,21 @@ describe('DialogoErrorCierre', () => {
     fireEvent.click(await screen.findByTestId('error-cierre-entendido'));
     expect(onCerrar).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull());
+  });
+
+  it('permite un título concreto y una salida acorde al error', async () => {
+    render(createElement(DialogoErrorCierre, {
+      error: {
+        titulo: 'Revisa el consumo de piezas',
+        mensaje: 'Falta el campo Usado.',
+        etiquetaCerrar: 'Volver a revisar',
+      },
+      onCerrar: vi.fn(),
+    }));
+
+    const dialogo = await screen.findByTestId('error-cierre-dialogo');
+    expect(dialogo.textContent).toContain('Revisa el consumo de piezas');
+    expect(screen.getByTestId('error-cierre-entendido').textContent).toBe('Volver a revisar');
   });
 
   it('dentro de otro diálogo, Esc cierra solo el aviso y no el formulario', async () => {

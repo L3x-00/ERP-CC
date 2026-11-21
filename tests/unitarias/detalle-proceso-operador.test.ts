@@ -1073,9 +1073,14 @@ describe('DetalleProcesoOperador', () => {
     const dialogo = await screen.findByTestId('error-cierre-dialogo');
     expect(dialogo.getAttribute('role')).toBe('alertdialog');
     const mensaje = screen.getByTestId('error-cierre-mensaje');
-    expect(mensaje.textContent).toContain('Declaraste 250 piezas producidas en Doblado CNC');
-    expect(mensaje.textContent).toContain('«Usado» de Corte laser tiene 5');
-    expect(mensaje.textContent).toContain('Lo consumido no puede ser menor a lo producido');
+    expect(dialogo.textContent).toContain('Revisa el consumo de piezas');
+    expect(mensaje.textContent).toContain('Declaraste 250 piezas terminadas en Doblado CNC');
+    expect(mensaje.textContent).toContain('el campo Usado de Corte laser tiene 5');
+    expect(mensaje.textContent).toContain('el sistema tomará las 250 piezas');
+    expect(mensaje.textContent).not.toContain('1:1');
+    expect(screen.getByTestId('error-cierre-accion').textContent)
+      .toBe('Usar 250 piezas de Corte laser');
+    expect(screen.getByTestId('error-cierre-entendido').textContent).toBe('Volver a revisar');
     expect(cerrar).not.toHaveBeenCalled();
 
     // «Entendido» solo cierra el aviso; el formulario sigue abierto y sin enviar.
@@ -1084,7 +1089,7 @@ describe('DetalleProcesoOperador', () => {
     expect(cerrar).not.toHaveBeenCalled();
     expect(screen.getByTestId('cerrar-sesion-detalle')).toBeTruthy();
 
-    // La acción sugerida rellena «Usado» con el consumo 1:1 y cierra el aviso.
+    // La acción sugerida rellena «Usado» con lo producido y cierra el aviso.
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
     await screen.findByTestId('error-cierre-dialogo');
     fireEvent.click(screen.getByTestId('error-cierre-accion'));
