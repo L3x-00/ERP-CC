@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ahoraMs,
   esperarDuracionMinima,
+  EVENTO_ACCESO_PERMITIDO,
   EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
 } from '@/compartido/constantes/bienvenida';
@@ -112,10 +113,10 @@ export function TecladoPin() {
     await esperarDuracionMinima(inicio);
 
     if (exito) {
-      // Primero se pinta el check y después se retira el splash, para que la
-      // animación verde sea lo que se ve al descubrir el teclado.
+      // El check vive dentro del splash; este no se retira hasta que la ruta
+      // /produccion-piso ya esté montada, sin mostrar el teclado intermedio.
       setResultado('permitido');
-      window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
+      window.dispatchEvent(new Event(EVENTO_ACCESO_PERMITIDO));
       navegacionRef.current = window.setTimeout(() => {
         navegacionRef.current = null;
         setResultado(null);

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ahoraMs,
   esperarDuracionMinima,
+  EVENTO_ACCESO_PERMITIDO,
   EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
 } from '@/compartido/constantes/bienvenida';
@@ -56,8 +57,9 @@ export function FormularioIniciarSesion() {
     await esperarDuracionMinima(inicio);
 
     if (exito) {
-      // No se cierra aquí: el splash se oculta cuando la ruta ya cambió a
-      // /dashboard, evitando volver a mostrar el formulario validando.
+      // El check se pinta dentro del splash, que sigue visible hasta que la
+      // ruta ya cambió a /dashboard.
+      window.dispatchEvent(new Event(EVENTO_ACCESO_PERMITIDO));
       router.push('/dashboard');
       router.refresh();
       return;

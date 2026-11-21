@@ -8,11 +8,16 @@ export const DURACION_BIENVENIDA_MS = 2000;
 export const EVENTO_INICIO_SESION = 'orca:inicio-sesion';
 
 /**
- * Se dispara cuando la validación falló o cuando el acceso por PIN ya mostró
- * su resultado. En un login administrativo correcto NO se dispara: el splash
- * se mantiene hasta que la ruta cambia a /dashboard.
+ * Se dispara cuando la validación falló: cierra el splash y deja visible el
+ * formulario con su mensaje de error. En un login correcto NO se dispara.
  */
 export const EVENTO_FIN_VALIDACION = 'orca:fin-validacion';
+
+/**
+ * Se dispara cuando la validación terminó bien: el check verde se pinta dentro
+ * del splash y este se mantiene hasta que la ruta destino ya esté montada.
+ */
+export const EVENTO_ACCESO_PERMITIDO = 'orca:acceso-permitido';
 
 /** Se dispara al cerrar sesión para no reutilizar el rastro de actividad. */
 export const EVENTO_FIN_SESION = 'orca:fin-sesion';
