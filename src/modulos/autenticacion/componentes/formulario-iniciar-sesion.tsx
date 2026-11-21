@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { DURACION_BIENVENIDA_MS, EVENTO_INICIO_SESION } from '@/compartido/constantes/bienvenida';
+import {
+  ahoraMs,
+  esperarDuracionMinima,
+  EVENTO_FIN_VALIDACION,
+  EVENTO_INICIO_SESION,
+} from '@/compartido/constantes/bienvenida';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
@@ -16,7 +21,6 @@ import { iniciarSesionAccion } from '@/modulos/autenticacion/acciones/iniciar-se
  */
 export function FormularioIniciarSesion() {
   const router = useRouter();
-  const cierreRef = useRef<number | null>(null);
   const [email, setEmail] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -26,37 +30,39 @@ export function FormularioIniciarSesion() {
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
-    return () => {
-      cancelAnimationFrame(marco);
-      if (cierreRef.current !== null) window.clearTimeout(cierreRef.current);
-    };
+    return () => cancelAnimationFrame(marco);
   }, []);
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setError(null);
     setEnviando(true);
+    const inicio = ahoraMs();
 
+    // El splash tapa el formulario desde que empieza la validación, no desde
+    // que llega la respuesta: así nunca se ve el botón en «Iniciando sesión…».
+    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+
+    let exito = false;
+    let mensaje = 'Error de conexión. Intenta de nuevo.';
     try {
       const respuesta = await iniciarSesionAccion({ email, contrasena });
-
-      if (respuesta.exito) {
-        // El splash vive en el layout raíz; se muestra solo ahora, nunca en el
-        // primer render de la página de acceso.
-        window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
-        cierreRef.current = window.setTimeout(() => {
-          cierreRef.current = null;
-          router.push('/dashboard');
-          router.refresh();
-        }, DURACION_BIENVENIDA_MS);
-        return;
-      }
-
-      setError(respuesta.error);
+      exito = respuesta.exito;
+      if (!respuesta.exito) mensaje = respuesta.error;
     } catch {
-      setError('Error de conexión. Intenta de nuevo.');
+      // Se conserva el mensaje de conexión por defecto.
     }
 
+    await esperarDuracionMinima(inicio);
+    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
+
+    if (exito) {
+      router.push('/dashboard');
+      router.refresh();
+      return;
+    }
+
+    setError(mensaje);
     setEnviando(false);
   }
 

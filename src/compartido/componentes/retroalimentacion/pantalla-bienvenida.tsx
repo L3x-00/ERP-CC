@@ -9,6 +9,7 @@ import {
   CLAVE_SESION_BIENVENIDA,
   DURACION_BIENVENIDA_MS,
   EVENTO_FIN_SESION,
+  EVENTO_FIN_VALIDACION,
   EVENTO_INICIO_SESION,
   INACTIVIDAD_BIENVENIDA_MS,
 } from '@/compartido/constantes/bienvenida';
@@ -33,9 +34,10 @@ function esAcceso(ruta: string): boolean {
 /**
  * Splash de inicio de sesión.
  *
- * No se muestra al abrir la página de login: solo aparece cuando el acceso
- * (admin u operador) termina correctamente, o cuando se recarga una pantalla
- * autenticada después de un periodo de inactividad. Permanece 2 segundos.
+ * No se muestra al abrir la página de login: aparece en cuanto empieza la
+ * validación (admin u operador) y se mantiene hasta que termina, con un mínimo
+ * de 2 segundos. También aparece al recargar una pantalla autenticada tras un
+ * periodo de inactividad.
  */
 export function PantallaBienvenida() {
   const pathname = usePathname();
@@ -51,6 +53,7 @@ export function PantallaBienvenida() {
   const [saliendo, setSaliendo] = useState(false);
   const [indice, setIndice] = useState(0);
   const temporizadores = useRef<number[]>([]);
+  const esperandoFinRef = useRef(false);
 
   const limpiarTemporizadores = useCallback(() => {
     for (const id of temporizadores.current) {
@@ -60,24 +63,45 @@ export function PantallaBienvenida() {
     temporizadores.current = [];
   }, []);
 
-  const mostrar = useCallback(() => {
+  const ocultar = useCallback(() => {
+    limpiarTemporizadores();
+    esperandoFinRef.current = false;
+    setSaliendo(true);
+    temporizadores.current = [
+      window.setTimeout(() => {
+        setVisible(false);
+        setSaliendo(false);
+      }, 500),
+    ];
+  }, [limpiarTemporizadores]);
+
+  const mostrar = useCallback((esperarFin = false) => {
     if (esDocs(rutaRef.current)) return;
     limpiarTemporizadores();
+    esperandoFinRef.current = esperarFin;
     setIndice(0);
     setSaliendo(false);
     setVisible(true);
-    temporizadores.current = [
+    const nuevos: number[] = [
       window.setInterval(
         () => setIndice((actual) => (actual + 1) % MENSAJES.length),
         500,
       ),
-      window.setTimeout(
-        () => setSaliendo(true),
-        Math.max(DURACION_BIENVENIDA_MS - 500, 0),
-      ),
-      window.setTimeout(() => setVisible(false), DURACION_BIENVENIDA_MS),
     ];
-  }, [limpiarTemporizadores]);
+    if (esperarFin) {
+      // La validación avisa cuándo terminó. Red de seguridad por si no avisa.
+      nuevos.push(window.setTimeout(ocultar, 60_000));
+    } else {
+      nuevos.push(
+        window.setTimeout(
+          () => setSaliendo(true),
+          Math.max(DURACION_BIENVENIDA_MS - 500, 0),
+        ),
+        window.setTimeout(() => setVisible(false), DURACION_BIENVENIDA_MS),
+      );
+    }
+    temporizadores.current = nuevos;
+  }, [limpiarTemporizadores, ocultar]);
 
   useEffect(() => {
     rutaRef.current = pathname;
@@ -105,7 +129,14 @@ export function PantallaBienvenida() {
       } catch {
         // Sin sessionStorage no hay rastro entre recargas, pero se muestra igual.
       }
-      mostrar();
+      // Se abre al empezar a validar y se cierra con EVENTO_FIN_VALIDACION.
+      mostrar(true);
+    };
+
+    const alFinValidacion = (): void => {
+      if (!esperandoFinRef.current) return;
+      registrarActividad();
+      ocultar();
     };
 
     const alFinalizarSesion = (): void => {
@@ -117,6 +148,7 @@ export function PantallaBienvenida() {
     };
 
     window.addEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+    window.addEventListener(EVENTO_FIN_VALIDACION, alFinValidacion);
     window.addEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
     window.addEventListener('pointerdown', registrarActividad, { passive: true });
     window.addEventListener('keydown', registrarActividad);
@@ -140,12 +172,13 @@ export function PantallaBienvenida() {
 
     return () => {
       window.removeEventListener(EVENTO_INICIO_SESION, alIniciarSesion);
+      window.removeEventListener(EVENTO_FIN_VALIDACION, alFinValidacion);
       window.removeEventListener(EVENTO_FIN_SESION, alFinalizarSesion);
       window.removeEventListener('pointerdown', registrarActividad);
       window.removeEventListener('keydown', registrarActividad);
       limpiarTemporizadores();
     };
-  }, [limpiarTemporizadores, mostrar]);
+  }, [limpiarTemporizadores, mostrar, ocultar]);
 
   if (!visible || enDocs) return null;
 
