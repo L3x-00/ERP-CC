@@ -4,7 +4,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(5);
+SELECT plan(4);
 
 SELECT is(
   privado.horas_sesion_en_fecha(
