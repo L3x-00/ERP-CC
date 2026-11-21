@@ -90,14 +90,14 @@ export function TecladoPin() {
 
     limpiarTemporizadorRetardo();
     limpiarTemporizadorCierre();
+    const inicio = ahoraMs();
+
+    // Se anuncia el splash antes de cualquier setState para que el teclado no
+    // llegue a pintarse en estado «validando» sin la cubierta.
+    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
     enviandoRef.current = true;
     setValidando(true);
     setError(null);
-    const inicio = ahoraMs();
-
-    // El splash cubre el teclado mientras se valida; se cierra cuando la
-    // validación termina, nunca antes de los 2 segundos mínimos.
-    window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
 
     let exito = false;
     let mensaje = 'Error de conexión. Intenta de nuevo.';
@@ -110,10 +110,12 @@ export function TecladoPin() {
     }
 
     await esperarDuracionMinima(inicio);
-    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
 
     if (exito) {
+      // Primero se pinta el check y después se retira el splash, para que la
+      // animación verde sea lo que se ve al descubrir el teclado.
       setResultado('permitido');
+      window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
       navegacionRef.current = window.setTimeout(() => {
         navegacionRef.current = null;
         setResultado(null);
@@ -126,6 +128,7 @@ export function TecladoPin() {
       return;
     }
 
+    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
     setError(mensaje);
     setResultado('denegado');
     cierreRef.current = window.setTimeout(() => {

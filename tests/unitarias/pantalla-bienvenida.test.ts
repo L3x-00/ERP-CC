@@ -59,19 +59,17 @@ describe('PantallaBienvenida', () => {
     expect(window.sessionStorage.getItem(CLAVE_SESION_BIENVENIDA)).toBe('1');
   });
 
-  it('la navegación no lo oculta antes de que termine la validación', () => {
+  it('se oculta cuando la ruta ya cambió, sin mostrar el formulario validando', () => {
     const { rerender } = render(createElement(PantallaBienvenida));
 
     act(() => window.dispatchEvent(new Event(EVENTO_INICIO_SESION)));
-    act(() => vi.advanceTimersByTime(500));
-    navegacion.ruta = '/dashboard';
-    rerender(createElement(PantallaBienvenida));
-
     act(() => vi.advanceTimersByTime(3000));
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
 
-    act(() => window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION)));
+    navegacion.ruta = '/dashboard';
+    rerender(createElement(PantallaBienvenida));
     act(() => vi.advanceTimersByTime(500));
+
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 
