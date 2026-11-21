@@ -3,6 +3,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fechaLocalNegocio,
+  sumarDiasFecha,
+} from '@/compartido/utilidades/fecha-negocio';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
@@ -724,6 +728,9 @@ describe('DetalleProcesoOperador', () => {
       puedeIniciar: false,
       motivoNoInicia: 'Operación completa: registra el consumo pendiente para cerrarla',
     } as unknown as ProcesoEspacioOperador;
+    const materialPendiente = [
+      { id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' },
+    ];
 
     render(createElement(DetalleProcesoOperador, {
       proceso: completo,
@@ -731,7 +738,7 @@ describe('DetalleProcesoOperador', () => {
       soloLectura: false,
       procesando: false,
       motivosPausa: [],
-      materiales: [],
+      materiales: materialPendiente,
       consumos: [],
       acciones: {
         reclamar: vi.fn(),
@@ -914,6 +921,7 @@ describe('DetalleProcesoOperador', () => {
       presentacion: 'integrado',
     }));
 
+    fireEvent.click(screen.getByTestId('corregir-avance-pausa'));
     expect((screen.getByTestId('avance-sesion') as HTMLSelectElement).value).toBe('sesion-pausada');
     fireEvent.submit(screen.getByTestId('formulario-actualizar-avance'));
 
@@ -921,6 +929,92 @@ describe('DetalleProcesoOperador', () => {
       reanudado,
       expect.objectContaining({ sesionId: 'sesion-pausada', piezasProducidas: 4, horasReales: 1 }),
     ));
+  });
+
+  it('A20: bloquea el cierre cuando la hora editada está adelantada', async () => {
+    const manana = sumarDiasFecha(fechaLocalNegocio(), 1);
+    const cerrar = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
+    const conSesionHoy = {
+      ...proceso,
+      fechaOperativa: manana,
+      sesionActiva: { ...proceso.sesionActiva, fechaInicio: `${manana}T12:00:00` },
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conSesionHoy,
+      hoy: manana,
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    const campo = screen.getByTestId('hora-fin-cierre') as HTMLInputElement;
+    expect(campo.value).toMatch(/^\d{2}:\d{2}$/u);
+    fireEvent.change(screen.getByTestId('piezas-cierre'), { target: { value: '1' } });
+    fireEvent.change(campo, { target: { value: '15:00' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    expect(cerrar).not.toHaveBeenCalled();
+    expect(screen.getByTestId('error-cierre-mensaje').textContent).toContain('adelantada');
+    fireEvent.click(screen.getByTestId('error-cierre-accion'));
+    await waitFor(() => expect(document.activeElement?.getAttribute('data-testid'))
+      .toBe('hora-fin-cierre'));
+  });
+
+  it('A20: una pausa declarada en una operación completa no abre el avance salvo que se pida', () => {
+    const sesionPausada = {
+      ...proceso.sesionActiva,
+      id: 'pausa-declarada',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-11-20T20:15:48.000Z',
+      fechaFin: '2026-11-20T20:15:48.000Z',
+      piezasProducidas: 50,
+      horasNetas: 0,
+      pendienteActualizacionAvance: false,
+    };
+    const completa = {
+      ...proceso,
+      columna: 'lista',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      metaPiezas: 50,
+      hechoPiezas: 50,
+      procesoCompleto: true,
+      piezasDisponibles: null,
+      puedeReanudar: false,
+      puedeIniciar: false,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: completa,
+      hoy: '2026-11-20',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('formulario-actualizar-avance')).toBeNull();
+    fireEvent.click(screen.getByTestId('corregir-avance-pausa'));
+    expect(screen.getByTestId('formulario-actualizar-avance')).toBeTruthy();
+    expect((screen.getByTestId('avance-sesion') as HTMLSelectElement).value).toBe('pausa-declarada');
   });
 
   it('oculta la reserva y el motivo redundante de la sesión en marcha', () => {

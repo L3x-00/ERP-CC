@@ -5,6 +5,7 @@
  * el contador. El aviso es informativo: la base decide y consume la autorización.
  */
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
+import { fechaHoraLocalTallerAIso } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 
 export const HORAS_JORNADA_PREDETERMINADA = 8;
 
@@ -33,6 +34,37 @@ export function ahoraLocalDatetimeInput(ahora: Date = new Date()): string {
 export function ahoraHoraInput(ahora: Date = new Date()): string {
   const dos = (valor: number): string => String(valor).padStart(2, '0');
   return `${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`;
+}
+
+/**
+ * C31/A20: la hora del campo se interpreta en America/Tijuana, así que el valor
+ * precargado debe venir de esa zona y no del reloj del dispositivo.
+ */
+export function ahoraHoraInputNegocio(ahora: Date = new Date()): string {
+  const partes = new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Tijuana',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(ahora);
+  const hora = partes.find((parte) => parte.type === 'hour')?.value ?? '00';
+  const minuto = partes.find((parte) => parte.type === 'minute')?.value ?? '00';
+  return `${hora}:${minuto}`;
+}
+
+/**
+ * C31/A20: misma tolerancia de dos minutos que `registrar_hora_fin_sesion`.
+ * Se comprueba antes de la RPC para no rechazar un cierre por una hora que el
+ * navegador veía correcta pero que, en hora del taller, cae en el futuro.
+ */
+export function horaFinEsFutura(
+  hora: string,
+  fechaNegocio: string,
+  ahora: Date = new Date(),
+): boolean {
+  if (!/^\d{2}:\d{2}$/u.test(hora)) return false;
+  const marca = fechaHoraLocalTallerAIso(`${fechaNegocio.slice(0, 10)}T${hora.slice(0, 5)}`);
+  return new Date(marca).getTime() > ahora.getTime() + 120_000;
 }
 
 /** Compone `AAAA-MM-DDTHH:mm` con la fecha de negocio de la sesión. */

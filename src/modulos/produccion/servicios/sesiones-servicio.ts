@@ -817,11 +817,9 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'sesion_orden_inconsistente':
       return 'La sesión no corresponde a una orden válida; actualiza el tablero.';
     case 'hora_fin_invalida':
-      return 'Indica una hora de finalización válida';
     case 'fecha_fin_futura':
-      return 'La hora de finalización no puede estar en el futuro';
     case 'fecha_fin_anterior_inicio':
-      return 'La hora de finalización no puede ser anterior al inicio de la sesión';
+      return describirErrorProduccion(error.codigo).mensaje;
     case 'actualizacion_avance_invalida':
       return 'Revisa las piezas y las horas declaradas para actualizar el avance';
     case 'sesion_no_pendiente_avance':
