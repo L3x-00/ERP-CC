@@ -549,7 +549,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await page.getByLabel('Horas estimadas').fill('4');
 
     const aviso = page.getByTestId('aviso-capacidad-insuficiente');
-    await expect(aviso).toContainText('Excede la capacidad por 2 h (10.0/8 h)');
+    await expect(aviso).toContainText('Excede la capacidad por 2 h (10/8 h)');
     await expect(aviso.getByTestId('insignia-saturacion-sobrecargado')).toBeVisible();
   });
 });
