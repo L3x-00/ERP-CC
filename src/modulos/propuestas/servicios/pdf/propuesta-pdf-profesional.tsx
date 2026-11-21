@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text -- `Image` es el componente de @react-pdf/renderer, no un <img> HTML. */
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
 import {
   Document,
   Image,
@@ -11,21 +11,48 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer';
 
+import { LOGO_EMPRESA_RUTA, resolverLogoDocumento } from '@/compartido/constantes/marca';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { DocumentoPropuesta } from './documento-propuesta';
 
-let logoEnCache: string | null | undefined;
+const cacheLogo = new Map<string, string | null>();
 
-/** Logo institucional embebido para que el PDF no dependa de la red. */
-function logoInstitucional(): string | null {
-  if (logoEnCache !== undefined) return logoEnCache;
-  try {
-    const bytes = readFileSync(join(process.cwd(), 'public', 'logo', 'logosf.png'));
-    logoEnCache = `data:image/png;base64,${bytes.toString('base64')}`;
-  } catch {
-    logoEnCache = null;
+/**
+ * Logo del documento: usa el configurado por la empresa y cae al institucional
+ * incluido con la aplicación. Las rutas relativas se incrustan como data URI
+ * para que el PDF no dependa de la red; las absolutas las resuelve react-pdf.
+ */
+export function logoInstitucional(configurado?: string | null): string | null {
+  const destino = resolverLogoDocumento(configurado || LOGO_EMPRESA_RUTA);
+  const guardado = cacheLogo.get(destino);
+  if (guardado !== undefined) return guardado;
+
+  let resultado: string | null;
+  if (/^https?:\/\//iu.test(destino)) {
+    resultado = destino;
+  } else {
+    const relativo = destino.replace(/^\/+/u, '');
+    if (relativo.split(/[\\/]/u).includes('..') || /^[a-zA-Z]:/u.test(relativo)) {
+      cacheLogo.set(destino, null);
+      return null;
+    }
+    try {
+      const bytes = readFileSync(join(process.cwd(), 'public', relativo));
+      const extension = extname(relativo).slice(1).toLowerCase();
+      const mime = extension === 'svg'
+        ? 'image/svg+xml'
+        : extension === 'webp'
+          ? 'image/webp'
+          : extension === 'jpg' || extension === 'jpeg'
+            ? 'image/jpeg'
+            : 'image/png';
+      resultado = `data:${mime};base64,${bytes.toString('base64')}`;
+    } catch {
+      resultado = null;
+    }
   }
-  return logoEnCache;
+  cacheLogo.set(destino, resultado);
+  return resultado;
 }
 
 const azul = '#16395f';
@@ -73,7 +100,7 @@ function PropuestaPdf({ documento }: { documento: DocumentoPropuesta }) {
   const nombreEmpresa = empresa.razonSocial || empresa.nombre;
   const fecha = new Intl.DateTimeFormat('es-MX', { dateStyle: 'long', timeZone: 'UTC' })
     .format(new Date(`${documento.fecha}T12:00:00.000Z`));
-  const logo = logoInstitucional();
+  const logo = logoInstitucional(empresa.logoUrl);
 
   return (
     <Document

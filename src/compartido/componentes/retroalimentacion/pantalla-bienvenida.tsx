@@ -29,8 +29,11 @@ const MENSAJES = [
  */
 export function PantallaBienvenida() {
   const pathname = usePathname();
-  const enDocs = pathname.startsWith('/docs');
-  const [visible, setVisible] = useState(true);
+  // El manual se sirve bajo /{idioma}/docs (p. ej. /es/docs), no bajo /docs.
+  const enDocs = /^\/(?:[a-z]{2}\/)?docs(?:\/|$)/u.test(pathname);
+  // Arranca oculto: sessionStorage solo se puede leer en el cliente. Así una
+  // recarga dentro de la misma sesión no pinta el splash antes de ocultarlo.
+  const [visible, setVisible] = useState(false);
   const [saliendo, setSaliendo] = useState(false);
   const [indice, setIndice] = useState(0);
 
@@ -45,11 +48,11 @@ export function PantallaBienvenida() {
       // Navegación privada estricta: se muestra igual y no se persiste.
     }
 
-    if (yaVisto) {
-      const ocultar = window.setTimeout(() => setVisible(false), 0);
-      return () => window.clearTimeout(ocultar);
-    }
+    if (yaVisto) return;
 
+    // Diferir un tick evita el setState sincrónico en el effect y mantiene el
+    // primer paint oculto: una sesión ya vista nunca ve el splash parpadear.
+    const mostrar = window.setTimeout(() => setVisible(true), 0);
     const intervaloMensajes = window.setInterval(
       () => setIndice((actual) => (actual + 1) % MENSAJES.length),
       500,
@@ -64,6 +67,7 @@ export function PantallaBienvenida() {
     );
 
     return () => {
+      window.clearTimeout(mostrar);
       window.clearInterval(intervaloMensajes);
       window.clearTimeout(temporizadorSalida);
       window.clearTimeout(temporizadorFin);

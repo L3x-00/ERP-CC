@@ -49,6 +49,7 @@ export function LogotipoEmpresa({
       </span>
       {conTexto ? (
         <span
+          aria-hidden="true"
           className={cn(
             'min-w-0 truncate font-bold tracking-tight text-texto-primario',
             medidas.texto,
