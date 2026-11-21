@@ -23,12 +23,6 @@ import type {
   DesglosePartidaPlaneacion,
   ProgramacionArea,
 } from '@/modulos/planeacion/tipos/indice';
-import {
-  etiquetaArea,
-  etiquetaAvancePartida,
-  etiquetaMaterial,
-  textoODefecto,
-} from '@/modulos/planeacion/utilidades/desglose';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
 import { pasoCapacidadInstalada } from '@/modulos/planeacion/utilidades/diagnostico-capacidad';
 
@@ -131,49 +125,19 @@ export function DialogoReprogramacionPlaneacion({
         </DialogHeader>
 
         <div className="flex flex-col gap-3 text-sm">
-          <div className="rounded-base border border-borde bg-superficie-2 p-3">
+          <div className="flex flex-col gap-1 rounded-base border border-borde bg-superficie-2 p-3 text-sm">
             <p className="font-mono text-xs font-medium">
               {desglose ? `${desglose.folio} · ${desglose.codigoPieza}` : 'Partida'}
             </p>
-            <p className="text-texto-secundario">{textoODefecto(desglose?.descripcion)}</p>
-            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-              {programacion.operacionNombre ? (
-                <div className="col-span-2">
-                  <dt className="text-texto-secundario">Operación</dt>
-                  <dd>{programacion.secuencia} · {programacion.operacionNombre}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt className="text-texto-secundario">De</dt>
-                <dd>{programacion.fechaProgramada}</dd>
-              </div>
-              <div>
-                <dt className="text-texto-secundario">A</dt>
-                <dd data-testid="fecha-destino-reprogramacion">{fechaPropuesta}</dd>
-              </div>
-              <div>
-                <dt className="text-texto-secundario">Área</dt>
-                <dd>{desglose ? etiquetaArea(desglose) : textoODefecto(null)}</dd>
-              </div>
-              <div>
-                <dt className="text-texto-secundario">Material</dt>
-                <dd>{desglose ? etiquetaMaterial(desglose) : textoODefecto(null)}</dd>
-              </div>
-              <div>
-                <dt className="text-texto-secundario">Equipo / estación</dt>
-                <dd>{textoODefecto(desglose?.maquinaAsignada)}</dd>
-              </div>
-              <div className="col-span-2">
-                <dt className="text-texto-secundario">Avance</dt>
-                <dd>{desglose ? etiquetaAvancePartida(desglose) : textoODefecto(null)}</dd>
-              </div>
-            </dl>
+            <p className="text-xs text-texto-secundario">
+              De {programacion.fechaProgramada} → A{' '}
+              <span data-testid="fecha-destino-reprogramacion">{fechaPropuesta}</span>
+            </p>
+            <p className="text-xs text-texto-secundario">
+              {ETIQUETA_TURNO[programacion.turno]} · {programacion.horasEstimadas} h · prioridad{' '}
+              {programacion.ordenPrioridad}
+            </p>
           </div>
-
-          <p>
-            {ETIQUETA_TURNO[programacion.turno]} · {programacion.horasEstimadas} h · prioridad{' '}
-            {programacion.ordenPrioridad}
-          </p>
 
           <div className="flex flex-col items-start gap-1">
             <p

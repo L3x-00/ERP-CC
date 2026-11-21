@@ -76,71 +76,76 @@ export function DetalleProgramacionPlaneacion({
         </div>
       ) : consulta.data ? (
         <div className="mt-3 space-y-4 text-sm">
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
-            <div className="col-span-2">
-              <dt className="text-xs text-texto-secundario">Responsable de la programación</dt>
-              <dd className="font-medium text-texto-primario">{consulta.data.responsableNombre}</dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-xs text-texto-secundario">Recurso asignado</dt>
-              <dd className="font-medium text-texto-primario">{consulta.data.recursoNombre}</dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-xs text-texto-secundario">Grupo de equipo</dt>
-              <dd className="font-medium text-texto-primario">
-                {consulta.data.grupoEquipoNombre ?? 'Sin grupo registrado'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-texto-secundario">Horas estimadas (Planeación)</dt>
-              <dd className="font-mono text-texto-primario">{horas(consulta.data.horasEstimadas)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-texto-secundario">Horas reales (Producción)</dt>
-              <dd className="font-mono text-texto-primario">{horas(consulta.data.horasReales)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-texto-secundario">Exceso real (Producción)</dt>
-              <dd className={consulta.data.horasExceso > 0 ? 'font-mono text-advertencia-texto' : 'font-mono text-texto-primario'}>
-                {horas(consulta.data.horasExceso)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs text-texto-secundario">Liberación</dt>
-              <dd className="text-texto-primario">
-                {consulta.data.recursoLiberado ? 'Recurso liberado' : 'Conserva la capacidad'}
-              </dd>
-            </div>
-          </dl>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-xs text-texto-secundario">
+              Ver detalle completo
+            </summary>
+            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+              <div className="col-span-2">
+                <dt className="text-xs text-texto-secundario">Responsable de la programación</dt>
+                <dd className="font-medium text-texto-primario">{consulta.data.responsableNombre}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-xs text-texto-secundario">Recurso asignado</dt>
+                <dd className="font-medium text-texto-primario">{consulta.data.recursoNombre}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-xs text-texto-secundario">Grupo de equipo</dt>
+                <dd className="font-medium text-texto-primario">
+                  {consulta.data.grupoEquipoNombre ?? 'Sin grupo registrado'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-texto-secundario">Horas estimadas (Planeación)</dt>
+                <dd className="font-mono text-texto-primario">{horas(consulta.data.horasEstimadas)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-texto-secundario">Horas reales (Producción)</dt>
+                <dd className="font-mono text-texto-primario">{horas(consulta.data.horasReales)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-texto-secundario">Exceso real (Producción)</dt>
+                <dd className={consulta.data.horasExceso > 0 ? 'font-mono text-advertencia-texto' : 'font-mono text-texto-primario'}>
+                  {horas(consulta.data.horasExceso)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-texto-secundario">Liberación</dt>
+                <dd className="text-texto-primario">
+                  {consulta.data.recursoLiberado ? 'Recurso liberado' : 'Conserva la capacidad'}
+                </dd>
+              </div>
+            </dl>
 
-          <div>
-            <h3 className="font-medium text-texto-primario">Historial de cambios</h3>
-            {consulta.data.historial.length === 0 ? (
-              <p className="mt-1 text-texto-secundario">Sin cambios registrados.</p>
-            ) : (
-              <ol className="mt-2 space-y-3">
-                {consulta.data.historial.map((cambio, indice) => (
-                  <li
-                    key={`${cambio.creadoEn}-${indice}`}
-                    className="rounded-md border border-borde bg-superficie-2 p-3"
-                  >
-                    <p className="font-medium text-texto-primario">{cambio.motivo}</p>
-                    <p className="text-xs text-texto-secundario">
-                      {fechaHora(cambio.creadoEn)} · {cambio.actorNombre}
-                    </p>
-                    <p className="mt-2 text-xs text-texto-secundario">
-                      {cambio.anterior.recurso} · {cambio.anterior.fechaProgramada} · {cambio.anterior.turno}
-                      {' · '}{horas(cambio.anterior.horasEstimadas)} · prioridad {cambio.anterior.ordenPrioridad}
-                    </p>
-                    <p className="text-xs text-texto-primario">
-                      → {cambio.nuevo.recurso} · {cambio.nuevo.fechaProgramada} · {cambio.nuevo.turno}
-                      {' · '}{horas(cambio.nuevo.horasEstimadas)} · prioridad {cambio.nuevo.ordenPrioridad}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
+            <div>
+              <h3 className="font-medium text-texto-primario">Historial de cambios</h3>
+              {consulta.data.historial.length === 0 ? (
+                <p className="mt-1 text-texto-secundario">Sin cambios registrados.</p>
+              ) : (
+                <ol className="mt-2 space-y-3">
+                  {consulta.data.historial.map((cambio, indice) => (
+                    <li
+                      key={`${cambio.creadoEn}-${indice}`}
+                      className="rounded-md border border-borde bg-superficie-2 p-3"
+                    >
+                      <p className="font-medium text-texto-primario">{cambio.motivo}</p>
+                      <p className="text-xs text-texto-secundario">
+                        {fechaHora(cambio.creadoEn)} · {cambio.actorNombre}
+                      </p>
+                      <p className="mt-2 text-xs text-texto-secundario">
+                        {cambio.anterior.recurso} · {cambio.anterior.fechaProgramada} · {cambio.anterior.turno}
+                        {' · '}{horas(cambio.anterior.horasEstimadas)} · prioridad {cambio.anterior.ordenPrioridad}
+                      </p>
+                      <p className="text-xs text-texto-primario">
+                        → {cambio.nuevo.recurso} · {cambio.nuevo.fechaProgramada} · {cambio.nuevo.turno}
+                        {' · '}{horas(cambio.nuevo.horasEstimadas)} · prioridad {cambio.nuevo.ordenPrioridad}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          </details>
         </div>
       ) : null}
     </section>

@@ -5,6 +5,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { DialogFooter } from '@/compartido/componentes/ui/dialog';
 import {
   evaluarAsignacionTurno,
   horasRuteoValidas,
@@ -893,32 +894,34 @@ export function PanelAsignacionPlaneacion({
             {desgloseSeleccionado.folio} · {desgloseSeleccionado.codigoPieza}
           </p>
           <p className="text-texto-secundario">{textoODefecto(desgloseSeleccionado.descripcion)}</p>
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
-            <div>
-              <dt className="text-texto-secundario">Área</dt>
-              <dd>{etiquetaArea(desgloseSeleccionado)}</dd>
-            </div>
-            <div>
-              <dt className="text-texto-secundario">Procesos</dt>
-              <dd>{etiquetaProcesos(desgloseSeleccionado)}</dd>
-            </div>
-            <div>
-              <dt className="text-texto-secundario">Equipo / estación</dt>
-              <dd>{textoODefecto(desgloseSeleccionado.maquinaAsignada)}</dd>
-            </div>
-            <div>
-              <dt className="text-texto-secundario">Material</dt>
-              <dd>{etiquetaMaterial(desgloseSeleccionado)}</dd>
-            </div>
-            <div>
-              <dt className="text-texto-secundario">Tiempo estimado</dt>
-              <dd>{formatearDuracionMinutos(desgloseSeleccionado.tiempoEstimadoMinutos)}</dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-texto-secundario">Avance</dt>
-              <dd>{etiquetaAvancePartida(desgloseSeleccionado)}</dd>
-            </div>
-          </dl>
+          <p className="text-texto-secundario">
+            Avance: <strong>{etiquetaAvancePartida(desgloseSeleccionado)}</strong>
+          </p>
+          <details className="text-texto-secundario">
+            <summary className="cursor-pointer text-[11px]">Detalles de fabricación</summary>
+            <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+              <div>
+                <dt className="text-texto-secundario">Área</dt>
+                <dd>{etiquetaArea(desgloseSeleccionado)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-secundario">Procesos</dt>
+                <dd>{etiquetaProcesos(desgloseSeleccionado)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-secundario">Equipo / estación</dt>
+                <dd>{textoODefecto(desgloseSeleccionado.maquinaAsignada)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-secundario">Material</dt>
+                <dd>{etiquetaMaterial(desgloseSeleccionado)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-secundario">Tiempo estimado</dt>
+                <dd>{formatearDuracionMinutos(desgloseSeleccionado.tiempoEstimadoMinutos)}</dd>
+              </div>
+            </dl>
+          </details>
         </section>
       ) : null}
 
@@ -1202,18 +1205,20 @@ export function PanelAsignacionPlaneacion({
           aria-label="Resumen antes de guardar"
           data-testid="resumen-programacion-planeacion"
         >
-          <p className="font-medium">Capacidad del turno</p>
-          {!programacion && operacionElegida ? (
-            <p>Operación: {operacionElegida.secuencia} · {operacionElegida.nombre}</p>
-          ) : null}
-          {programacion?.operacionNombre ? (
-            <p>Operación: {programacion.secuencia} · {programacion.operacionNombre}</p>
-          ) : null}
-          <p>
-            {programacion ? 'Reprogramar' : 'Programar'} en{' '}
-            {recursos.find((recurso) => recurso.id === recursoId)?.codigo ?? 'recurso'} ·{' '}
-            {fechaProgramada} · {ETIQUETA_TURNO[turno]} · {horasNumero} h · prioridad{' '}
-            {ordenPrioridad || '1'}
+          <p className="flex flex-wrap gap-x-2 text-texto-secundario">
+            <span className="font-medium text-texto-primario">Capacidad del turno</span>
+            {!programacion && operacionElegida ? (
+              <span>Operación: {operacionElegida.secuencia} · {operacionElegida.nombre}</span>
+            ) : null}
+            {programacion?.operacionNombre ? (
+              <span>Operación: {programacion.secuencia} · {programacion.operacionNombre}</span>
+            ) : null}
+            <span>
+              {programacion ? 'Reprogramar' : 'Programar'} en{' '}
+              {recursos.find((recurso) => recurso.id === recursoId)?.codigo ?? 'recurso'} ·{' '}
+              {fechaProgramada} · {ETIQUETA_TURNO[turno]} · {horasNumero} h · prioridad{' '}
+              {ordenPrioridad || '1'}
+            </span>
           </p>
           {verificandoCapacidad ? (
             <p
@@ -1374,7 +1379,7 @@ export function PanelAsignacionPlaneacion({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <DialogFooter className="sticky bottom-0 z-10 border-t border-borde bg-superficie py-2">
         <Button
           type="submit"
           disabled={
@@ -1405,7 +1410,7 @@ export function PanelAsignacionPlaneacion({
             {preparando ? 'Activando…' : 'Iniciar preparación'}
           </Button>
         ) : null}
-      </div>
+      </DialogFooter>
 
       <DialogoErrorPlaneacion
         error={errorModal}
