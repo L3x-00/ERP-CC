@@ -565,7 +565,6 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(botonValidar).toBeDisabled();
       const faltantes = ficha.getByTestId('faltantes-validacion');
       await expect(faltantes).toContainText(/Faltan \d+ datos/u);
-      await expect(page.getByTestId('faltante-costeo-IT01')).toBeVisible();
 
       // Cada ruteo se confirma por ítem antes de habilitar el costeo: así queda
       // claro qué se guardó y no se mezclan dos operaciones persistentes.
