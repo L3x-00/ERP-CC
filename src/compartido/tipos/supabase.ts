@@ -6098,6 +6098,10 @@ export type Database = {
           programacion_id: string
         }[]
       }
+      obtener_piezas_disponibles_proceso: {
+        Args: { p_meta_proceso_id: string }
+        Returns: Json
+      }
       obtener_carga_capacidad_diaria: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: {

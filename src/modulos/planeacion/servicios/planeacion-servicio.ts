@@ -166,11 +166,31 @@ function programacionActualizadaDesdeRpc(fila: {
   };
 }
 
+/** PLAN-1: bloquea programar una operación posterior sin piezas del previo. */
+async function validarPiezasPreviasPlaneacion(
+  admin: SupabaseClient<Database>,
+  metaProcesoId: string | null | undefined,
+): Promise<void> {
+  if (!metaProcesoId) return;
+  const { data, error } = await admin.rpc('obtener_piezas_disponibles_proceso', {
+    p_meta_proceso_id: metaProcesoId,
+  });
+  if (error) return; // La RPC de programación sigue siendo la autoridad final.
+  const info = (data ?? {}) as { secuencia?: number; nombre?: string | null; disponibles?: number | null };
+  if ((Number(info.secuencia) || 1) <= 1) return;
+  if (!Number.isFinite(info.disponibles ?? null) || Number(info.disponibles) > 0) return;
+  throw new ErrorPlaneacion(
+    'proceso_previo_sin_piezas',
+    `No hay piezas terminadas por ${info.nombre ?? 'el proceso anterior'}. Programa y produce primero esa operación o espera a que libere piezas; así esta no se bloqueará al iniciar`,
+  );
+}
+
 /** Programa una partida mediante la RPC que bloquea capacidad dentro de PostgreSQL. */
 export async function programarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
   entrada: ProgramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
+  await validarPiezasPreviasPlaneacion(admin, entrada.metaProcesoId);
   const { data, error } = await admin.rpc('programar_partida_recurso_auditada', {
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
@@ -197,6 +217,7 @@ export async function programarOperacionMultidiaServicio(
   admin: SupabaseClient<Database>,
   entrada: ProgramarMultidiaEntrada,
 ): Promise<ProgramacionActualizada> {
+  await validarPiezasPreviasPlaneacion(admin, entrada.metaProcesoId);
   const { data, error } = await admin.rpc('programar_operacion_multidia_auditada', {
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
@@ -218,6 +239,12 @@ export async function reprogramarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
   entrada: ReprogramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
+  const { data: programacion } = await admin
+    .from('programacion_areas')
+    .select('meta_proceso_id')
+    .eq('id', entrada.programacionId)
+    .maybeSingle();
+  await validarPiezasPreviasPlaneacion(admin, programacion?.meta_proceso_id);
   const { data, error } = await admin.rpc('reprogramar_partida_recurso_auditada', {
     p_programacion_id: entrada.programacionId,
     p_recurso_id: entrada.recursoId,

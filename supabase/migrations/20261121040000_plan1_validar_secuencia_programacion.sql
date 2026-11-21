@@ -1,58 +1,45 @@
--- PLAN-1: no se puede programar una operación posterior sin piezas del previo.
+-- PLAN-1: exposición controlada de la disponibilidad de piezas del proceso
+-- previo para que Planeación pueda validar antes de programar.
 --
--- La regla ya existe en Producción (privado.piezas_disponibles_proceso y
--- proceso_previo_sin_piezas), pero los RPC de Planeación no la consultaban: se
--- podía reservar capacidad para Doblado con Corte sin producir nada y el
--- bloqueo aparecía después, al iniciar sesión.
---
--- Un trigger sobre programacion_areas cubre de una vez programar, reprogramar y
--- programación multidia sin reescribir las RPC auditadas. Solo aplica a filas
--- con meta conocida, secuencia > 1 y estado todavía no terminal.
+-- La regla ya existe en Producción (privado.piezas_disponibles_proceso) y la
+-- función privada no es ejecutable por service_role. Este wrapper de solo
+-- lectura devuelve la secuencia y el nombre de la operación junto con las
+-- piezas disponibles, sin mutar nada ni relajar permisos.
 
-CREATE OR REPLACE FUNCTION privado.validar_secuencia_programacion()
-RETURNS trigger
+CREATE OR REPLACE FUNCTION public.obtener_piezas_disponibles_proceso(
+  p_meta_proceso_id uuid
+)
+RETURNS jsonb
 LANGUAGE plpgsql
+STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_secuencia integer;
-  v_proceso text;
-  v_previas numeric;
+  v_meta public.metas_proceso_partida%ROWTYPE;
 BEGIN
-  -- Solo programaciones hechas desde Planeación llevan prioridad > 0; las
-  -- filas internas que crea Producción al preparar una sesión no se validan
-  -- aquí (esa validación ya existe al iniciar).
-  IF NEW.meta_proceso_id IS NULL
-     OR coalesce(NEW.orden_prioridad, 0) <= 0
-     OR NEW.estado_planeacion IN ('completada', 'cancelada') THEN
-    RETURN NEW;
+  IF p_meta_proceso_id IS NULL THEN
+    RETURN jsonb_build_object('secuencia', 1, 'nombre', null, 'disponibles', null);
   END IF;
 
-  SELECT meta.secuencia, coalesce(meta.nombre, 'el proceso anterior')
-  INTO v_secuencia, v_proceso
+  SELECT * INTO v_meta
   FROM public.metas_proceso_partida AS meta
-  WHERE meta.id = NEW.meta_proceso_id;
-
-  IF v_secuencia IS NULL OR v_secuencia <= 1 THEN
-    RETURN NEW;
+  WHERE meta.id = p_meta_proceso_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'meta_proceso_no_corresponde' USING ERRCODE = 'check_violation';
   END IF;
 
-  v_previas := privado.piezas_disponibles_proceso(NEW.meta_proceso_id);
-  IF v_previas IS NULL OR v_previas <= 0 THEN
-    RAISE EXCEPTION 'proceso_previo_sin_piezas' USING ERRCODE = 'check_violation',
-      DETAIL = v_proceso;
-  END IF;
-
-  RETURN NEW;
+  RETURN jsonb_build_object(
+    'secuencia', v_meta.secuencia,
+    'nombre', v_meta.nombre,
+    'disponibles', privado.piezas_disponibles_proceso(p_meta_proceso_id)
+  );
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_validar_secuencia_programacion ON public.programacion_areas;
-CREATE TRIGGER trg_validar_secuencia_programacion
-BEFORE INSERT OR UPDATE OF meta_proceso_id, estado_planeacion
-ON public.programacion_areas
-FOR EACH ROW EXECUTE FUNCTION privado.validar_secuencia_programacion();
+REVOKE ALL ON FUNCTION public.obtener_piezas_disponibles_proceso(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.obtener_piezas_disponibles_proceso(uuid) TO service_role;
 
-COMMENT ON FUNCTION privado.validar_secuencia_programacion() IS
-  'PLAN-1: impide programar una operación posterior sin piezas terminadas por el proceso previo.';
+COMMENT ON FUNCTION public.obtener_piezas_disponibles_proceso(uuid) IS
+  'PLAN-1: disponibilidad de piezas del previo para validar programaciones desde Planeación. Solo service_role.';
