@@ -35,13 +35,13 @@ export function FormularioIniciarSesion() {
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
-    setError(null);
-    setEnviando(true);
     const inicio = ahoraMs();
 
-    // El splash tapa el formulario desde que empieza la validación, no desde
-    // que llega la respuesta: así nunca se ve el botón en «Iniciando sesión…».
+    // Primero se anuncia el splash y luego el estado «enviando», para que el
+    // botón nunca llegue a pintarse solo con «Iniciando sesión…».
     window.dispatchEvent(new Event(EVENTO_INICIO_SESION));
+    setError(null);
+    setEnviando(true);
 
     let exito = false;
     let mensaje = 'Error de conexión. Intenta de nuevo.';
@@ -54,14 +54,16 @@ export function FormularioIniciarSesion() {
     }
 
     await esperarDuracionMinima(inicio);
-    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
 
     if (exito) {
+      // No se cierra aquí: el splash se oculta cuando la ruta ya cambió a
+      // /dashboard, evitando volver a mostrar el formulario validando.
       router.push('/dashboard');
       router.refresh();
       return;
     }
 
+    window.dispatchEvent(new Event(EVENTO_FIN_VALIDACION));
     setError(mensaje);
     setEnviando(false);
   }

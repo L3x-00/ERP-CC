@@ -7,7 +7,11 @@ export const DURACION_BIENVENIDA_MS = 2000;
 /** Se dispara en cuanto empieza la validación de credenciales o del PIN. */
 export const EVENTO_INICIO_SESION = 'orca:inicio-sesion';
 
-/** Se dispara cuando la validación termina (acierto o fallo) y ya se puede ocultar. */
+/**
+ * Se dispara cuando la validación falló o cuando el acceso por PIN ya mostró
+ * su resultado. En un login administrativo correcto NO se dispara: el splash
+ * se mantiene hasta que la ruta cambia a /dashboard.
+ */
 export const EVENTO_FIN_VALIDACION = 'orca:fin-validacion';
 
 /** Se dispara al cerrar sesión para no reutilizar el rastro de actividad. */

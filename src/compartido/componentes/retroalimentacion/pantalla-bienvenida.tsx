@@ -107,6 +107,15 @@ export function PantallaBienvenida() {
     rutaRef.current = pathname;
   }, [pathname]);
 
+  // Un login administrativo no avisa el fin: se mantiene tapado hasta que la
+  // navegación a /dashboard ya ocurrió. Así no reaparece el formulario.
+  useEffect(() => {
+    if (!esperandoFinRef.current) return;
+    if (esAcceso(pathname) || esDocs(pathname)) return;
+    const temporizador = window.setTimeout(ocultar, 0);
+    return () => window.clearTimeout(temporizador);
+  }, [ocultar, pathname]);
+
   useEffect(() => {
     if (esDocs(rutaRef.current)) return;
 
