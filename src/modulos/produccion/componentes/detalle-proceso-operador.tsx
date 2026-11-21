@@ -245,17 +245,37 @@ export function DetalleProcesoOperador({
   // C20/C21: corrección de la pausa (piezas, horas y notas). Se prefija con la
   // pausa corregible más reciente (nunca la sesión activa) para no restar
   // producción ni enviar la corrección a la sesión equivocada.
-  const sesionPausadaInicial = pausaCorregible(proceso);
+  // C31/A14: solo una pausa que aún necesita avance abre el formulario. Una
+  // pausa manual con piezas declaradas se continúa, no se vuelve a declarar.
+  const sesionesPausadasValidas = (proceso?.sesiones ?? []).filter(
+    (sesion) => sesion.estadoSesion === 'pausada'
+      && !sesion.sesionInvalida
+      && !sesion.recursoLiberado,
+  );
+  const sesionesParaAvance = sesionesPausadasValidas
+    .filter((sesion) => sesion.pendienteActualizacionAvance
+      || sesion.piezasProducidas === 0
+      // Con sesión activa la pausa anterior quedó como historial, pero el
+      // operador todavía debe poder corregirla (C21).
+      || Boolean(proceso?.sesionActiva)
+      // Varias pausas declaradas significan varios bloques que se pueden
+      // corregir; el formulario permite elegir el correcto.
+      || sesionesPausadasValidas.length > 1
+      || proceso?.procesoCompleto === true)
+    // La pausa más reciente es la que el operador acaba de vivir.
+    .sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio)
+      || b.id.localeCompare(a.id));
+  const sesionAvanceInicial = sesionesParaAvance[0] ?? pausaCorregible(proceso);
   const [avancePiezas, setAvancePiezas] = useState(
-    () => (sesionPausadaInicial ? String(sesionPausadaInicial.piezasProducidas) : '0'),
+    () => (sesionAvanceInicial ? String(sesionAvanceInicial.piezasProducidas) : '0'),
   );
   const [avanceHoras, setAvanceHoras] = useState(
-    () => (sesionPausadaInicial ? String(sesionPausadaInicial.horasNetas) : '0'),
+    () => (sesionAvanceInicial ? String(sesionAvanceInicial.horasNetas) : '0'),
   );
   const [avanceNotas, setAvanceNotas] = useState('');
   // C21: corrección de cualquier sesión pausada y consumo opcional.
   const [sesionCorreccionId, setSesionCorreccionId] = useState<string | null>(
-    () => sesionPausadaInicial?.id ?? null,
+    () => sesionAvanceInicial?.id ?? null,
   );
   const [avanceMaterialId, setAvanceMaterialId] = useState('');
   const [avanceUsada, setAvanceUsada] = useState('0');
@@ -511,9 +531,9 @@ export function DetalleProcesoOperador({
   // C30: una operación que queda completa en este mismo avance ya no puede
   // "dejar el consumo para el cierre": el cierre requiere el consumo y la
   // sesión quedaría pausada. En la primera operación se pide aquí mismo.
-  const sesionAvanceActual = proceso.sesiones.find(
-    (item) => item.id === (sesionCorreccionId ?? pausaCorregible(proceso)?.id),
-  );
+  const sesionAvanceActual = sesionesParaAvance.find(
+    (item) => item.id === sesionCorreccionId,
+  ) ?? sesionAvanceInicial ?? null;
   // El tiempo real declarado pertenece al bloque de pausa seleccionado, no al
   // proceso completo. El servidor lo limita a la duración real del bloque;
   // mostrar el máximo evita que el operador caiga en el error una y otra vez.
@@ -2817,6 +2837,18 @@ export function DetalleProcesoOperador({
               </div>
             ) : null}
 
+            {sesionesPausadasValidas.length > 0
+              && sesionesParaAvance.length === 0
+              && !proceso.procesoCompleto
+              && !soloDetalle ? (
+              <p
+                className="rounded-lg border border-borde bg-superficie-2 p-3 text-sm text-texto-secundario"
+                data-testid="aviso-pausa-declarada"
+              >
+                El avance de esta pausa ya está declarado. Puedes continuar la sesión o cerrar la pausa sin producir; no hace falta volver a declararlo.
+              </p>
+            ) : null}
+
             {proceso.procesoCompleto && haySesionPausada && !consumoPendienteAvance ? (
               <p
                 className="rounded-lg border border-advertencia/50 bg-advertencia-suave p-3 text-sm text-advertencia-texto"
@@ -2862,7 +2894,7 @@ export function DetalleProcesoOperador({
                   {procesando ? 'Cerrando…' : 'Registrar consumo y cerrar pausa'}
                 </Button>
               </form>
-            ) : !avanceGuardado && haySesionPausada && !soloDetalle ? (
+            ) : !avanceGuardado && sesionesParaAvance.length > 0 && !soloDetalle ? (
               <form
                 noValidate
                 className="grid gap-3 rounded-lg border border-advertencia/50 bg-superficie p-3"
@@ -2896,7 +2928,7 @@ export function DetalleProcesoOperador({
                 <label className={CLASE_ETIQUETA}>
                   Sesión a actualizar
                   <Select
-                    value={sesionCorreccionId ?? sesionPausadaInicial?.id ?? ''}
+                    value={sesionCorreccionId ?? sesionAvanceInicial?.id ?? ''}
                     onChange={(evento) => {
                       const siguienteId = evento.target.value;
                       setSesionCorreccionId(siguienteId);
@@ -2909,8 +2941,7 @@ export function DetalleProcesoOperador({
                     }}
                     data-testid="avance-sesion"
                   >
-                    {[...proceso.sesiones]
-                      .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
+                    {[...sesionesParaAvance]
                       .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
                       .map((sesion) => (
                         <option key={sesion.id} value={sesion.id}>
