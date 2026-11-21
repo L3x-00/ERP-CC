@@ -15,8 +15,10 @@ export async function pausarOperacionAdministrativaAccion(entrada: {
   notas: string;
 }): Promise<RespuestaAccion<Resultado>> {
   const usuario = await obtenerUsuarioServidor();
-  if (!usuario || !(await can(usuario, 'gestionar_planeacion'))) {
-    return { exito: false, error: 'Sin permiso para pausar operaciones desde Planeación' };
+  if (!usuario || usuario.rol !== 'admin'
+    || !(await can(usuario, 'gestionar_planeacion'))
+    || !(await can(usuario, 'gestionar_produccion'))) {
+    return { exito: false, error: 'Solo un administrador con acceso a Planeación y Producción puede pausar una operación en marcha' };
   }
   const admin = crearClienteSupabaseAdmin();
   const { data: sesion, error } = await admin

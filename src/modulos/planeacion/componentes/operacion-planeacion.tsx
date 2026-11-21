@@ -766,35 +766,33 @@ export function OperacionPlaneacion({
                   Esta operación ya está en marcha. No se puede reprogramar: pausa la sesión con un
                   motivo administrativo para que el operador lo vea en su vista.
                 </p>
-                <label className="flex flex-col gap-1 text-xs text-texto-secundario" htmlFor="pausa-administrativa-notas">
-                  Motivo de la pausa
-                  <Textarea
-                    id="pausa-administrativa-notas"
-                    value={pausaNotas}
-                    onChange={(evento) => setPausaNotas(evento.target.value)}
-                    maxLength={1000}
-                    rows={3}
-                    data-testid="pausa-administrativa-notas"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    disabled={pausaNotas.trim().length < 3}
-                    onClick={() => void pausarOperacion()}
-                    data-testid="pausar-operacion-administrativa"
-                  >
-                    Pausar operación (administrativa)
-                  </Button>
-                  <Button
-                    type="button"
-                    variante="contorno"
-                    onClick={() => void aprobarPausa()}
-                    data-testid="aprobar-pausa-administrativa"
-                  >
-                    Aprobar reanudación
-                  </Button>
-                </div>
+                {esAdmin ? (
+                  <>
+                    <label className="flex flex-col gap-1 text-xs text-texto-secundario" htmlFor="pausa-administrativa-notas">
+                      Motivo de la pausa
+                      <Textarea
+                        id="pausa-administrativa-notas"
+                        value={pausaNotas}
+                        onChange={(evento) => setPausaNotas(evento.target.value)}
+                        maxLength={1000}
+                        rows={3}
+                        data-testid="pausa-administrativa-notas"
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      disabled={pausaNotas.trim().length < 3}
+                      onClick={() => void pausarOperacion()}
+                      data-testid="pausar-operacion-administrativa"
+                    >
+                      Pausar operación (administrativa)
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-texto-tenue">
+                    Solo un administrador puede pausar una operación en marcha.
+                  </p>
+                )}
               </section>
             ) : (
             <PanelAsignacionPlaneacion
@@ -828,6 +826,22 @@ export function OperacionPlaneacion({
               preseleccion={preseleccion}
             />
             )}
+            {esAdmin && programacionSeleccionada ? (
+              <section className="flex flex-col gap-2 rounded-base border border-borde p-3">
+                <p className="text-xs text-texto-secundario">
+                  Si pausaste esta operación por motivos administrativos, autoriza al operador a
+                  reanudarla cuando el motivo ya esté resuelto.
+                </p>
+                <Button
+                  type="button"
+                  variante="contorno"
+                  onClick={() => void aprobarPausa()}
+                  data-testid="aprobar-pausa-administrativa"
+                >
+                  Aprobar reanudación
+                </Button>
+              </section>
+            ) : null}
             {programacionSeleccionada ? (
               <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
             ) : null}
