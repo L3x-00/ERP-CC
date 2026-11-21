@@ -30,6 +30,7 @@ afterEach(() => {
 describe('PantallaBienvenida', () => {
   it('permanece visible exactamente 2 segundos', () => {
     render(createElement(PantallaBienvenida));
+    act(() => vi.advanceTimersByTime(0));
 
     expect(screen.getByTestId('pantalla-bienvenida')).toBeTruthy();
 
@@ -42,6 +43,7 @@ describe('PantallaBienvenida', () => {
 
   it('la navegación no lo oculta antes de cumplir los 2 segundos', () => {
     const { rerender } = render(createElement(PantallaBienvenida));
+    act(() => vi.advanceTimersByTime(0));
 
     act(() => vi.advanceTimersByTime(500));
     navegacion.ruta = '/dashboard';
@@ -51,6 +53,23 @@ describe('PantallaBienvenida', () => {
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeTruthy();
 
     act(() => vi.advanceTimersByTime(100));
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
+  });
+
+  it('no se muestra en el manual bajo /es/docs ni consume la sesión', () => {
+    navegacion.ruta = '/es/docs/page';
+
+    render(createElement(PantallaBienvenida));
+
+    expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
+    expect(window.sessionStorage.getItem('orca-bienvenida-visual-v1')).toBeNull();
+  });
+
+  it('no pinta el splash en el primer render de una sesión ya vista', () => {
+    window.sessionStorage.setItem('orca-bienvenida-visual-v1', '1');
+
+    render(createElement(PantallaBienvenida));
+
     expect(screen.queryByTestId('pantalla-bienvenida')).toBeNull();
   });
 

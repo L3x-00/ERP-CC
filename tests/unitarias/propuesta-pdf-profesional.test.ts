@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { construirDocumentoPropuesta } from '@/modulos/propuestas/servicios/pdf/documento-propuesta';
-import { generarPdfPropuestaProfesional } from '@/modulos/propuestas/servicios/pdf/propuesta-pdf-profesional';
+import {
+  generarPdfPropuestaProfesional,
+  logoInstitucional,
+} from '@/modulos/propuestas/servicios/pdf/propuesta-pdf-profesional';
 
 describe('PDF profesional de propuestas', () => {
   it('genera un PDF válido de presentación a partir del documento comercial público', async () => {
@@ -34,5 +37,13 @@ describe('PDF profesional de propuestas', () => {
     expect(texto).toContain('%%EOF');
     expect(texto).toContain('Propuesta CNC-1026_01-A');
     expect(texto).toContain('CC Manufacturing Group, S. de R.L. de C.V.');
+  });
+
+  it('usa el logo configurado por la empresa y cae al institucional', () => {
+    expect(logoInstitucional('/logo/logosf.webp')).toContain('data:image/webp;base64,');
+    expect(logoInstitucional(null)).toContain('data:image/png;base64,');
+    expect(logoInstitucional('https://cdn.ejemplo.mx/logo.png'))
+      .toBe('https://cdn.ejemplo.mx/logo.png');
+    expect(logoInstitucional('/logo/../../secreto.png')).toBeNull();
   });
 });

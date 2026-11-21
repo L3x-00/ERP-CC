@@ -62,8 +62,13 @@ async function prepararDisponibilidad(contexto: Contexto): Promise<void> {
   }).formatToParts(new Date());
   const campo = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value;
   const hoy = `${campo('year')}-${campo('month')}-${campo('day')}`;
+  // El domingo no hay jornada: programar "mañana" rompe el resumen según el
+  // día en que corra la suite. Se usa el próximo lunes (jornada completa) y se
+  // aparta la excepción de capacidad a otro día para que no cancele esa carga.
+  const diaSemana = new Date(`${hoy}T12:00:00.000Z`).getUTCDay();
+  const lunes = sumarDias(hoy, (8 - diaSemana) % 7);
   const excepcion = await admin.from('excepciones_capacidad_recurso').insert({
-    recurso_id: creado.recursoId, fecha: sumarDias(hoy, 2), turno: 'matutino',
+    recurso_id: creado.recursoId, fecha: sumarDias(lunes, 1), turno: 'matutino',
     horas_capacidad: 0, motivo: 'Mantenimiento de prueba',
   });
   if (excepcion.error) throw new Error(`Sin excepción: ${excepcion.error.message}`);
@@ -87,7 +92,7 @@ async function prepararDisponibilidad(contexto: Contexto): Promise<void> {
 
   const programacion = await admin.from('programacion_areas').insert({
     orden_id: creado.ordenId, partida_id: creado.partidaId, recurso_id: creado.recursoId,
-    fecha_programada: sumarDias(hoy, 1), turno: 'matutino', horas_estimadas: 4, secuencia: 1,
+    fecha_programada: lunes, turno: 'matutino', horas_estimadas: 4, secuencia: 1,
   });
   if (programacion.error) throw new Error(`Sin carga programada: ${programacion.error.message}`);
 }

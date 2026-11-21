@@ -92,8 +92,16 @@ export function TecladoPin() {
       if (respuesta.exito) {
         setResultado('permitido');
         cierreRef.current = window.setTimeout(() => {
+          cierreRef.current = null;
+          // La navegación ya trae el estado fresco del servidor; refresh() aquí
+          // corría contra la ruta anterior y podía dejar la vista en la puerta.
+          // Se libera el bloqueo para poder reintentar si la ruta falla.
+          setResultado(null);
+          setPin('');
+          setError(null);
+          setValidando(false);
+          enviandoRef.current = false;
           router.push('/produccion-piso');
-          router.refresh();
         }, DURACION_ACCESO_PERMITIDO_MS);
         return;
       }
@@ -108,6 +116,7 @@ export function TecladoPin() {
       cierreRef.current = null;
       setResultado(null);
       setPin('');
+      setError(null);
       setValidando(false);
       enviandoRef.current = false;
       campoPin.current?.focus();

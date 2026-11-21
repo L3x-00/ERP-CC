@@ -206,6 +206,12 @@ describe('PestanaUsuarios — alta de usuario en modal', () => {
 });
 
 describe('PestanaOperadores — alta y retiro en modal (UI-04)', () => {
+  it('avisa que los PIN anteriores deben reemitirse', () => {
+    envolver(createElement(PestanaOperadores, { operadores: OPERADORES, onCambio: vi.fn(), onIrAAreas: vi.fn() }));
+
+    expect(screen.getByTestId('aviso-pin-seis-digitos').textContent).toContain('6 dígitos');
+  });
+
   it('abre el alta en modal y crea el operador con PIN', async () => {
     const onCambio = vi.fn(async () => undefined);
     envolver(createElement(PestanaOperadores, { operadores: OPERADORES, onCambio, onIrAAreas: vi.fn() }));

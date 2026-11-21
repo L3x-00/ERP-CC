@@ -38,9 +38,9 @@ export default function PaginaIniciarSesion() {
             <p className="mt-10 text-[11px] font-semibold uppercase tracking-[0.3em] text-[#7ee2a8]">
               Orca MFG ERP
             </p>
-            <h1 className="mt-3 max-w-sm text-3xl font-bold leading-tight tracking-tight">
+            <h2 className="mt-3 max-w-sm text-3xl font-bold leading-tight tracking-tight">
               Toda tu operación de manufactura, en un solo lugar.
-            </h1>
+            </h2>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/60">
               Cotizaciones, órdenes, producción, entregas y finanzas conectadas en tiempo real.
             </p>
@@ -78,9 +78,9 @@ export default function PaginaIniciarSesion() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-acento-texto">
                 Acceso al sistema
               </p>
-              <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-texto-primario">
+              <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-texto-primario">
                 Bienvenido de nuevo
-              </h2>
+              </h1>
               <p className="mt-1 text-sm text-texto-secundario">
                 Ingresa con tu correo corporativo para continuar.
               </p>

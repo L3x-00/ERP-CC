@@ -140,6 +140,10 @@ export function PestanaOperadores({
             Administra el acceso por PIN sin borrar el historial de trabajo. Las áreas autorizadas
             se asignan en Áreas de trabajo.
           </p>
+          <p className="text-xs text-advertencia-texto" data-testid="aviso-pin-seis-digitos">
+            Los PIN anteriores a 6 dígitos ya no sirven para entrar. Reemite el PIN de los operadores
+            que sigan activos.
+          </p>
         </div>
         <Button type="button" tamano="lg" variante="contorno" onClick={abrirNuevo} data-testid="nuevo-operador-config">
           Nuevo operador
