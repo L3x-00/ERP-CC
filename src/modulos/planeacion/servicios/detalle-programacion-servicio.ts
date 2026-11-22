@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { ZONA_HORARIA_NEGOCIO } from '@/compartido/utilidades/fecha-negocio';
 import type { Database, Json, Tables } from '@/compartido/tipos/supabase';
+import { horasTranscurridasSesion } from '@/modulos/produccion/utilidades/horas-extra';
 import { ErrorPlaneacion } from '@/modulos/planeacion/servicios/planeacion-servicio';
 import type {
   DetalleProgramacion,
@@ -85,6 +87,16 @@ function fallar(error: { message: string } | null): void {
   if (error) throw new ErrorPlaneacion('desconocido', error.message);
 }
 
+/** Hora mural del taller, nunca la zona del dispositivo (AUD-12/CRIT-1). */
+function horaTaller(fecha: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: ZONA_HORARIA_NEGOCIO,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(fecha));
+}
+
 /**
  * C9.3: compone el detalle operativo desde tablas internas y devuelve únicamente
  * campos de negocio aprobados. La acción llamadora debe autorizar antes de usar
@@ -96,7 +108,7 @@ export async function obtenerDetalleProgramacionServicio(
 ): Promise<DetalleProgramacion> {
   const programacionResp = await admin
     .from('programacion_areas')
-    .select('orden_id, recurso_id, horas_estimadas')
+    .select('orden_id, recurso_id, horas_estimadas, meta_proceso_id')
     .eq('id', programacionId)
     .maybeSingle();
   fallar(programacionResp.error);
@@ -112,7 +124,7 @@ export async function obtenerDetalleProgramacionServicio(
       .maybeSingle(),
     admin
       .from('sesiones_trabajo')
-      .select('id, creado_en, estado_sesion, motivo_pausa_codigo, horas_netas, recurso_liberado')
+      .select('id, creado_en, fecha_inicio, estado_sesion, motivo_pausa_codigo, horas_netas, recurso_liberado, operador_id, piezas_producidas')
       .eq('programacion_id', programacionId),
     admin
       .from('orden_eventos_cambio')
@@ -139,11 +151,17 @@ export async function obtenerDetalleProgramacionServicio(
   fallar(historialResp.error);
   if (!recursoResp.data) throw new ErrorPlaneacion('recurso_inexistente');
 
+  const sesionesOrdenadas = [...(sesionesResp.data ?? [])].sort((a, b) =>
+    new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
+    || String(b.id).localeCompare(String(a.id)));
+  const sesionActiva = sesionesOrdenadas.find((sesion) => sesion.estado_sesion === 'activa') ?? null;
+
   const cambios = (historialResp.data ?? [])
     .map(cambioCrudo)
     .filter((cambio): cambio is CambioCrudo => cambio !== null);
   const actorIds = [
     inicialResp.data?.actor_id ?? null,
+    sesionActiva?.operador_id ?? null,
     ...cambios.map((cambio) => cambio.actorId),
   ].filter((id): id is string => id !== null);
   const recursoIds = cambios.flatMap((cambio) => [
@@ -188,11 +206,44 @@ export async function obtenerDetalleProgramacionServicio(
   // Una pausa administrativa ya aprobada sigue en el historial con el motivo
   // limpio, y al reanudar aparece una sesión más reciente: en ambos casos el
   // botón de aprobación debe desaparecer.
-  const ultimaSesion = [...(sesionesResp.data ?? [])].sort((a, b) =>
-    new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
-    || String(b.id).localeCompare(String(a.id)))[0];
+  const ultimaSesion = sesionesOrdenadas[0];
   const pausaAdministrativaPendiente = ultimaSesion?.estado_sesion === 'pausada'
     && ultimaSesion?.motivo_pausa_codigo === 'PAUSA_ADMIN';
+
+  // Cierre del módulo: la sesión en marcha ya trae quién la opera y desde cuándo;
+  // la meta y sus avances acumulados dan el porcentaje. No se inventa ningún dato.
+  let operacionEnCurso: DetalleProgramacion['operacionEnCurso'] = null;
+  if (sesionActiva && programacionResp.data.meta_proceso_id
+    && Number.isFinite(new Date(sesionActiva.fecha_inicio).getTime())) {
+    const [metaResp, avancesResp] = await Promise.all([
+      admin
+        .from('metas_proceso_partida')
+        .select('meta_piezas')
+        .eq('id', programacionResp.data.meta_proceso_id)
+        .maybeSingle(),
+      admin
+        .from('registros_avance_partida')
+        .select('cantidad_producida')
+        .eq('meta_proceso_id', programacionResp.data.meta_proceso_id),
+    ]);
+    fallar(metaResp.error);
+    fallar(avancesResp.error);
+    const metaPiezas = Number(metaResp.data?.meta_piezas ?? 0);
+    const piezasProducidas = (avancesResp.data ?? []).reduce(
+      (total, avance) => total + Number(avance.cantidad_producida),
+      0,
+    );
+    operacionEnCurso = {
+      operadorNombre: nombreActor(sesionActiva.operador_id, actores),
+      horaInicio: horaTaller(sesionActiva.fecha_inicio),
+      horasTranscurridas: horasTranscurridasSesion(sesionActiva.fecha_inicio, new Date()),
+      piezasProducidas,
+      metaPiezas,
+      porcentajeAvance: metaPiezas > 0
+        ? Math.min((piezasProducidas / metaPiezas) * 100, 100)
+        : 0,
+    };
+  }
 
   return {
     responsableNombre: inicialResp.data
@@ -207,6 +258,7 @@ export async function obtenerDetalleProgramacionServicio(
     horasExceso: Math.max(horasReales - horasEstimadas, 0),
     recursoLiberado: (sesionesResp.data ?? []).some((sesion) => sesion.recurso_liberado),
     pausaAdministrativaPendiente,
+    operacionEnCurso,
     historial: cambios.map((cambio) => ({
       creadoEn: cambio.creadoEn,
       actorNombre: nombreActor(cambio.actorId, actores),
