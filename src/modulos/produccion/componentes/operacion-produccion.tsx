@@ -36,6 +36,7 @@ import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-
 import { PanelHorasExtraProduccion } from '@/modulos/produccion/componentes/panel-horas-extra-produccion';
 import { PanelOperadorProduccion, type CierreSupervisor } from '@/modulos/produccion/componentes/panel-operador-produccion';
 import { PanelRecursosLiberados } from '@/modulos/produccion/componentes/panel-recursos-liberados';
+import { ResumenAdministrativoOrden } from '@/modulos/produccion/componentes/resumen-administrativo-orden';
 import { PanelRetrabajosProduccion } from '@/modulos/produccion/componentes/panel-retrabajos-produccion';
 import { PanelMaterialClienteProduccion } from '@/modulos/produccion/componentes/panel-material-cliente-produccion';
 import { PanelTiemposIntegrados } from '@/modulos/produccion/componentes/panel-tiempos-integrados';
@@ -410,11 +411,13 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
               />
             ) : (
               <>
-                <FichaOrdenProduccion
+                <ResumenAdministrativoOrden
                   orden={ordenSeleccionada}
-                  areas={datos.areas ?? []}
+                  sesionActivaId={sesionActiva?.id ?? null}
                   responsables={datos.responsables ?? {}}
-                  recursos={datos.recursos}
+                  esAdmin={esAdmin}
+                  procesando={procesando}
+                  onPausarAdministrativa={cerrarComoSupervisor}
                 />
 
                 <section aria-labelledby="titulo-operacion-piso" className="flex flex-col gap-3">
@@ -453,9 +456,6 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                 </section>
 
                 <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
-                <PanelRetrabajosProduccion orden={ordenSeleccionada} />
-                <PanelMaterialClienteProduccion orden={ordenSeleccionada} />
-                <PanelTiemposIntegrados orden={ordenSeleccionada} />
                 <FormularioNotaEntrega
                   key={ordenSeleccionada.id}
                   orden={ordenSeleccionada}
@@ -481,6 +481,26 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                   titulo={`Comentarios de ${ordenSeleccionada.folio}`}
                   compositorModal
                 />
+
+                <details
+                  className="rounded-base border border-borde p-3"
+                  data-testid="antecedentes-orden-produccion"
+                >
+                  <summary className="cursor-pointer text-sm font-medium text-texto-primario">
+                    Ficha completa y antecedentes
+                  </summary>
+                  <div className="mt-3 flex flex-col gap-3">
+                    <FichaOrdenProduccion
+                      orden={ordenSeleccionada}
+                      areas={datos.areas ?? []}
+                      responsables={datos.responsables ?? {}}
+                      recursos={datos.recursos}
+                    />
+                    <PanelRetrabajosProduccion orden={ordenSeleccionada} />
+                    <PanelMaterialClienteProduccion orden={ordenSeleccionada} />
+                    <PanelTiemposIntegrados orden={ordenSeleccionada} />
+                  </div>
+                </details>
               </>
             )}
           </div>
