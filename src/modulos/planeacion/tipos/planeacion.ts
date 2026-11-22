@@ -203,6 +203,15 @@ export interface DetalleProgramacion {
   recursoLiberado: boolean;
   /** PLAN-3: la última sesión está pausada por administración y espera aprobación. */
   pausaAdministrativaPendiente: boolean;
+  /** Cierre del módulo: datos de la sesión en marcha, ya presentes en el sistema. */
+  operacionEnCurso: {
+    operadorNombre: string;
+    horaInicio: string;
+    horasTranscurridas: number;
+    piezasProducidas: number;
+    metaPiezas: number;
+    porcentajeAvance: number;
+  } | null;
   historial: HistorialReprogramacion[];
 }
 

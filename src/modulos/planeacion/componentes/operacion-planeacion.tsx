@@ -49,6 +49,7 @@ import {
   ordenConcluida,
 } from '@/modulos/ordenes/utilidades/conclusion-orden';
 import { DetalleProgramacionPlaneacion } from '@/modulos/planeacion/componentes/detalle-programacion-planeacion';
+import { ResumenOperacionEnCurso } from '@/modulos/planeacion/componentes/resumen-operacion-en-curso';
 import { DialogoReprogramacionPlaneacion } from '@/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion';
 import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
 import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
@@ -745,17 +746,20 @@ export function OperacionPlaneacion({
                 : programacionSeleccionada ? 'Reprogramar operación' : 'Programar operación'}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              {programacionSeleccionada
-                ? 'Ajusta recurso, fecha, turno u horas en una sola ventana.'
-                : 'Operación, recurso, fecha, turno y horas.'}
+              {programacionSeleccionada?.estadoPlaneacion === 'en_proceso'
+                ? 'Estado de la operación en marcha y pausa administrativa.'
+                : programacionSeleccionada
+                  ? 'Ajusta recurso, fecha, turno u horas en una sola ventana.'
+                  : 'Operación, recurso, fecha, turno y horas.'}
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto scroll-sutil px-4 py-4">
             {programacionSeleccionada?.estadoPlaneacion === 'en_proceso' ? (
               <section className="flex flex-col gap-3" data-testid="pausa-administrativa-planeacion">
+                <ResumenOperacionEnCurso programacion={programacionSeleccionada} />
                 <p className="text-sm text-texto-secundario">
-                  Esta operación ya está en marcha. No se puede reprogramar: pausa la sesión con un
-                  motivo administrativo para que el operador lo vea en su vista.
+                  Esta orden está en proceso y no se puede reprogramar. Si necesitas detenerla,
+                  pausa la sesión con un motivo administrativo para que el operador lo vea en su vista.
                 </p>
                 {esAdmin ? (
                   <>

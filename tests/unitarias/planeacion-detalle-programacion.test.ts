@@ -11,11 +11,13 @@ const RECURSO_ANTERIOR_ID = '44444444-4444-4444-8444-444444444444';
 const GRUPO_ID = '55555555-5555-4555-8555-555555555555';
 const ACTOR_INICIAL_ID = '66666666-6666-4666-8666-666666666666';
 const ACTOR_CAMBIO_ID = '77777777-7777-4777-8777-777777777777';
+const META_PROCESO_ID = '88888888-8888-4888-8888-888888888888';
+const OPERADOR_ID = '99999999-9999-4999-8999-999999999999';
 
 type Respuesta = { data: unknown; error: { message: string } | null };
 
 function crearClienteDetalle(
-  opciones: { sinProgramacion?: boolean; sesiones?: unknown[] } = {},
+  opciones: { sinProgramacion?: boolean; sesiones?: unknown[]; operacionEnCurso?: boolean } = {},
 ) {
   const llamadas: Array<{ tabla: string; filtros: Record<string, unknown> }> = [];
   const responder = (tabla: string, filtros: Record<string, unknown>): Respuesta => {
@@ -23,16 +25,33 @@ function crearClienteDetalle(
       return {
         data: opciones.sinProgramacion
           ? null
-          : { orden_id: ORDEN_ID, recurso_id: RECURSO_ID, horas_estimadas: 8 },
+          : {
+            orden_id: ORDEN_ID,
+            recurso_id: RECURSO_ID,
+            horas_estimadas: 8,
+            meta_proceso_id: opciones.operacionEnCurso ? META_PROCESO_ID : null,
+          },
         error: null,
       };
     }
     if (tabla === 'sesiones_trabajo') {
       return {
-        data: opciones.sesiones ?? [
-          { horas_netas: 3 },
-          { horas_netas: 1, recurso_liberado: true },
-        ],
+        data: opciones.sesiones ?? (opciones.operacionEnCurso
+          ? [{
+            id: 'sesion-activa',
+            creado_en: '2026-11-22T08:00:00.000Z',
+            fecha_inicio: '2026-11-22T08:00:00.000Z',
+            estado_sesion: 'activa',
+            motivo_pausa_codigo: null,
+            horas_netas: 2,
+            recurso_liberado: false,
+            operador_id: OPERADOR_ID,
+            piezas_producidas: 6,
+          }]
+          : [
+            { horas_netas: 3 },
+            { horas_netas: 1, recurso_liberado: true },
+          ]),
         error: null,
       };
     }
@@ -81,9 +100,16 @@ function crearClienteDetalle(
         data: [
           { id: ACTOR_INICIAL_ID, nombre_completo: 'Ana Planeación' },
           { id: ACTOR_CAMBIO_ID, nombre_completo: 'Bruno Planeación' },
+          { id: OPERADOR_ID, nombre_completo: 'Jorge Operador' },
         ],
         error: null,
       };
+    }
+    if (tabla === 'metas_proceso_partida') {
+      return { data: { meta_piezas: 10 }, error: null };
+    }
+    if (tabla === 'registros_avance_partida') {
+      return { data: [{ cantidad_producida: 6 }, { cantidad_producida: 2 }], error: null };
     }
     if (tabla === 'grupos_equipo') {
       return { data: { codigo: 'LAS', nombre: 'Láser' }, error: null };
@@ -153,6 +179,7 @@ describe('obtenerDetalleProgramacionServicio', () => {
       horasExceso: 0,
       recursoLiberado: true,
       pausaAdministrativaPendiente: false,
+      operacionEnCurso: null,
       historial: [{
         creadoEn: '2026-10-16T10:00:00.000Z',
         actorNombre: 'Bruno Planeación',
@@ -223,6 +250,22 @@ describe('obtenerDetalleProgramacionServicio', () => {
 
     const detalle = await obtenerDetalleProgramacionServicio(cliente, PROGRAMACION_ID);
     expect(detalle.pausaAdministrativaPendiente).toBe(false);
+  });
+
+  it('expone operador, inicio, tiempo y avance de la sesión en marcha', async () => {
+    const { cliente } = crearClienteDetalle({ operacionEnCurso: true });
+
+    const detalle = await obtenerDetalleProgramacionServicio(cliente, PROGRAMACION_ID);
+
+    expect(detalle.operacionEnCurso).toMatchObject({
+      operadorNombre: 'Jorge Operador',
+      piezasProducidas: 8,
+      metaPiezas: 10,
+      porcentajeAvance: 80,
+    });
+    expect(detalle.operacionEnCurso?.horaInicio).toMatch(/^\d{2}:\d{2}$/);
+    expect(Number.isFinite(detalle.operacionEnCurso?.horasTranscurridas)).toBe(true);
+    expect(detalle.operacionEnCurso?.horasTranscurridas).toBeGreaterThanOrEqual(0);
   });
 
   it('normaliza una programación inexistente al error de dominio', async () => {
