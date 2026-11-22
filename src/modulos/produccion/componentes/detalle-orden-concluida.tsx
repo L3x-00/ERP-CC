@@ -228,74 +228,6 @@ export function DetalleOrdenConcluida({
 
       <AccesosRapidosOrden ordenId={orden.id} />
 
-      <FichaOrdenProduccion
-        orden={orden}
-        areas={areas}
-        responsables={responsables}
-        recursos={recursos}
-      />
-
-      <section
-        aria-labelledby="titulo-material-utilizado"
-        className="rounded-lg border border-borde bg-superficie p-4"
-        data-testid="material-utilizado-orden"
-      >
-        <h2 id="titulo-material-utilizado" className="text-base font-semibold text-texto-primario">
-          Material utilizado
-        </h2>
-        <p className="mt-1 text-sm text-texto-secundario">
-          Consumos registrados al cerrar las sesiones de trabajo.
-        </p>
-        {consumosConsulta.isPending ? (
-          <p className="mt-3 text-sm text-texto-secundario" role="status">Cargando consumos…</p>
-        ) : consumosConsulta.isError ? (
-          <div className="mt-3 flex flex-col items-start gap-2" role="alert">
-            <p className="text-sm text-peligro-texto">No se pudo cargar el material utilizado.</p>
-            <Button
-              type="button"
-              variante="contorno"
-              tamano="sm"
-              onClick={() => void consumosConsulta.refetch()}
-            >
-              Reintentar
-            </Button>
-          </div>
-        ) : (consumosConsulta.data ?? []).length === 0 ? (
-          <p className="mt-3 text-sm text-texto-secundario">
-            La orden no tiene consumos de material registrados.
-          </p>
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-texto-secundario">
-                <tr>
-                  <th className="py-2 pr-3 font-medium">Pieza</th>
-                  <th className="py-2 pr-3 font-medium">Material</th>
-                  <th className="py-2 pr-3 text-right font-medium">Usado</th>
-                  <th className="py-2 pr-3 text-right font-medium">Scrap</th>
-                  <th className="py-2 font-medium">Fecha</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(consumosConsulta.data ?? []).map((consumo) => (
-                  <tr key={consumo.id} className="border-t border-borde">
-                    <td className="py-2 pr-3 font-mono text-xs">{consumo.codigoPieza}</td>
-                    <td className="py-2 pr-3">{consumo.materialNombre}</td>
-                    <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                      {formatearNumero(consumo.cantidadUsada)} {consumo.unidadBase ?? ''}
-                    </td>
-                    <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                      {formatearNumero(consumo.cantidadScrap)} {consumo.unidadBase ?? ''}
-                    </td>
-                    <td className="py-2 text-texto-secundario">{formatearFecha(consumo.creadoEn)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
       {esOrdenConcluida ? (
         <section
           aria-labelledby="titulo-entrega-concluida"
@@ -389,6 +321,84 @@ export function DetalleOrdenConcluida({
         titulo={`Comentarios de ${orden.folio}`}
         compositorModal
       />
+
+      <details
+        className="rounded-lg border border-borde bg-superficie p-4"
+        data-testid="antecedentes-orden-concluida"
+      >
+        <summary className="cursor-pointer text-sm font-medium text-texto-primario">
+          Ficha completa y materiales
+        </summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <FichaOrdenProduccion
+            orden={orden}
+            areas={areas}
+            responsables={responsables}
+            recursos={recursos}
+          />
+
+          <section
+            aria-labelledby="titulo-material-utilizado"
+            className="rounded-lg border border-borde bg-superficie p-4"
+            data-testid="material-utilizado-orden"
+          >
+            <h2 id="titulo-material-utilizado" className="text-base font-semibold text-texto-primario">
+              Material utilizado
+            </h2>
+            <p className="mt-1 text-sm text-texto-secundario">
+              Consumos registrados al cerrar las sesiones de trabajo.
+            </p>
+            {consumosConsulta.isPending ? (
+              <p className="mt-3 text-sm text-texto-secundario" role="status">Cargando consumos…</p>
+            ) : consumosConsulta.isError ? (
+              <div className="mt-3 flex flex-col items-start gap-2" role="alert">
+                <p className="text-sm text-peligro-texto">No se pudo cargar el material utilizado.</p>
+                <Button
+                  type="button"
+                  variante="contorno"
+                  tamano="sm"
+                  onClick={() => void consumosConsulta.refetch()}
+                >
+                  Reintentar
+                </Button>
+              </div>
+            ) : (consumosConsulta.data ?? []).length === 0 ? (
+              <p className="mt-3 text-sm text-texto-secundario">
+                La orden no tiene consumos de material registrados.
+              </p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[34rem] text-left text-sm">
+                  <thead className="text-xs uppercase tracking-wide text-texto-secundario">
+                    <tr>
+                      <th className="py-2 pr-3 font-medium">Pieza</th>
+                      <th className="py-2 pr-3 font-medium">Material</th>
+                      <th className="py-2 pr-3 text-right font-medium">Usado</th>
+                      <th className="py-2 pr-3 text-right font-medium">Scrap</th>
+                      <th className="py-2 font-medium">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(consumosConsulta.data ?? []).map((consumo) => (
+                      <tr key={consumo.id} className="border-t border-borde">
+                        <td className="py-2 pr-3 font-mono text-xs">{consumo.codigoPieza}</td>
+                        <td className="py-2 pr-3">{consumo.materialNombre}</td>
+                        <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                          {formatearNumero(consumo.cantidadUsada)} {consumo.unidadBase ?? ''}
+                        </td>
+                        <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                          {formatearNumero(consumo.cantidadScrap)} {consumo.unidadBase ?? ''}
+                        </td>
+                        <td className="py-2 text-texto-secundario">{formatearFecha(consumo.creadoEn)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      </details>
     </div>
   );
 }
