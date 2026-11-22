@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import {
   activarModoPreparacionAccion,
-  aprobarPausaAdministrativaAccion,
   asignarResponsablePlaneacionAccion,
   pausarOperacionAdministrativaAccion,
   liberarPreparacionPlaneacionAccion,
@@ -439,14 +438,6 @@ export function OperacionPlaneacion({
     }
   }, [actualizarCalendario, pausaNotas, programacionSeleccionada]);
 
-  const aprobarPausa = useCallback(async (): Promise<void> => {
-    if (!programacionSeleccionada) return;
-    const resultado = await aprobarPausaAdministrativaAccion({
-      programacionId: programacionSeleccionada.id,
-    });
-    if (resultado.exito) await actualizarCalendario();
-  }, [actualizarCalendario, programacionSeleccionada]);
-
   const abrirProduccion = useCallback((): void => {
     const ordenId = programacionSeleccionada?.ordenId ?? detalleConcluido?.id ?? null;
     enrutador.push(ordenId ? `/produccion?ordenId=${ordenId}` : '/produccion');
@@ -826,24 +817,11 @@ export function OperacionPlaneacion({
               preseleccion={preseleccion}
             />
             )}
-            {esAdmin && programacionSeleccionada ? (
-              <section className="flex flex-col gap-2 rounded-base border border-borde p-3">
-                <p className="text-xs text-texto-secundario">
-                  Si pausaste esta operación por motivos administrativos, autoriza al operador a
-                  reanudarla cuando el motivo ya esté resuelto.
-                </p>
-                <Button
-                  type="button"
-                  variante="contorno"
-                  onClick={() => void aprobarPausa()}
-                  data-testid="aprobar-pausa-administrativa"
-                >
-                  Aprobar reanudación
-                </Button>
-              </section>
-            ) : null}
             {programacionSeleccionada ? (
-              <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
+              <DetalleProgramacionPlaneacion
+                programacion={programacionSeleccionada}
+                onPausaAprobada={actualizarDatosPlaneacion}
+              />
             ) : null}
           </div>
         </DialogContent>
