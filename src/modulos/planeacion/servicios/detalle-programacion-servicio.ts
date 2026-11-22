@@ -112,7 +112,7 @@ export async function obtenerDetalleProgramacionServicio(
       .maybeSingle(),
     admin
       .from('sesiones_trabajo')
-      .select('horas_netas, recurso_liberado')
+      .select('id, creado_en, estado_sesion, motivo_pausa_codigo, horas_netas, recurso_liberado')
       .eq('programacion_id', programacionId),
     admin
       .from('orden_eventos_cambio')
@@ -184,6 +184,15 @@ export async function obtenerDetalleProgramacionServicio(
     0,
   );
   const horasEstimadas = Number(programacionResp.data.horas_estimadas);
+  // Misma regla que reanudar_sesion_trabajo_a20: solo cuenta la última sesión.
+  // Una pausa administrativa ya aprobada sigue en el historial con el motivo
+  // limpio, y al reanudar aparece una sesión más reciente: en ambos casos el
+  // botón de aprobación debe desaparecer.
+  const ultimaSesion = [...(sesionesResp.data ?? [])].sort((a, b) =>
+    new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
+    || String(b.id).localeCompare(String(a.id)))[0];
+  const pausaAdministrativaPendiente = ultimaSesion?.estado_sesion === 'pausada'
+    && ultimaSesion?.motivo_pausa_codigo === 'PAUSA_ADMIN';
 
   return {
     responsableNombre: inicialResp.data
@@ -197,6 +206,7 @@ export async function obtenerDetalleProgramacionServicio(
     horasReales,
     horasExceso: Math.max(horasReales - horasEstimadas, 0),
     recursoLiberado: (sesionesResp.data ?? []).some((sesion) => sesion.recurso_liberado),
+    pausaAdministrativaPendiente,
     historial: cambios.map((cambio) => ({
       creadoEn: cambio.creadoEn,
       actorNombre: nombreActor(cambio.actorId, actores),

@@ -1,15 +1,21 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { Button } from '@/compartido/componentes/ui/button';
-import { obtenerDetalleProgramacionAccion } from '@/modulos/planeacion/acciones/indice';
+import {
+  aprobarPausaAdministrativaAccion,
+  obtenerDetalleProgramacionAccion,
+} from '@/modulos/planeacion/acciones/indice';
 import { claveDetalleProgramacion } from '@/modulos/planeacion/componentes/claves-consulta';
 import type { ProgramacionArea } from '@/modulos/planeacion/tipos/indice';
 
 export interface PropsDetalleProgramacionPlaneacion {
   programacion: Pick<ProgramacionArea, 'id' | 'actualizadoEn'>;
+  /** PLAN-3: actualiza el calendario después de aprobar una pausa administrativa. */
+  onPausaAprobada?: () => void | Promise<void>;
 }
 
 function horas(valor: number): string {
@@ -26,7 +32,10 @@ function fechaHora(valor: string): string {
 /** Detalle C9.3 cargado bajo demanda para la programación seleccionada. */
 export function DetalleProgramacionPlaneacion({
   programacion,
+  onPausaAprobada,
 }: PropsDetalleProgramacionPlaneacion) {
+  const [aprobando, setAprobando] = useState(false);
+  const [errorAprobacion, setErrorAprobacion] = useState<string | null>(null);
   const consulta = useQuery({
     queryKey: claveDetalleProgramacion(programacion.id, programacion.actualizadoEn),
     queryFn: async () => {
@@ -52,6 +61,46 @@ export function DetalleProgramacionPlaneacion({
         Planeación fija el estimado y el recurso asignado; Producción registra las horas reales.
         El estimado original no se altera.
       </p>
+
+      {consulta.data?.pausaAdministrativaPendiente ? (
+        <section className="mt-3 flex flex-col items-start gap-2 rounded-base border border-borde p-3">
+          <p className="text-xs text-texto-secundario">
+            Esta operación está pausada por administración. Autoriza al operador a reanudarla
+            cuando el motivo ya esté resuelto.
+          </p>
+          <Button
+            type="button"
+            variante="contorno"
+            tamano="sm"
+            disabled={aprobando}
+            onClick={() => void (async () => {
+              setAprobando(true);
+              setErrorAprobacion(null);
+              try {
+                const resultado = await aprobarPausaAdministrativaAccion({
+                  programacionId: programacion.id,
+                });
+                if (!resultado.exito) {
+                  setErrorAprobacion(resultado.error ?? 'No se pudo aprobar la reanudación');
+                  return;
+                }
+                await consulta.refetch();
+                if (onPausaAprobada) await onPausaAprobada();
+              } catch {
+                setErrorAprobacion('No se pudo aprobar la reanudación');
+              } finally {
+                setAprobando(false);
+              }
+            })()}
+            data-testid="aprobar-pausa-administrativa"
+          >
+            {aprobando ? 'Aprobando…' : 'Aprobar reanudación'}
+          </Button>
+          {errorAprobacion ? (
+            <p role="alert" className="text-xs text-peligro-texto">{errorAprobacion}</p>
+          ) : null}
+        </section>
+      ) : null}
 
       {consulta.isPending ? (
         <div className="mt-3 space-y-3" role="status" aria-label="Cargando detalle de programación">

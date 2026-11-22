@@ -49,6 +49,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/modulos/planeacion/acciones/indice', () => ({
   activarModoPreparacionAccion: (...args: unknown[]) => activarPreparacionMock(...args),
+  aprobarPausaAdministrativaAccion: vi.fn(async () => ({ exito: true, datos: { aprobada: true } })),
   obtenerCalendarioPlaneacionAccion: (...args: unknown[]) => obtenerCalendarioMock(...args),
   obtenerDetalleProgramacionAccion: (...args: unknown[]) => obtenerDetalleMock(...args),
   programarPartidaRecursoAccion: (...args: unknown[]) => programarMock(...args),
@@ -221,6 +222,7 @@ describe('operación de Planeación en cliente', () => {
         horasReales: 5,
         horasExceso: 1,
         recursoLiberado: false,
+        pausaAdministrativaPendiente: false,
         historial: [{
           creadoEn: '2026-09-14T10:00:00.000Z',
           actorNombre: 'Bruno Planeación',
@@ -315,6 +317,40 @@ describe('operación de Planeación en cliente', () => {
     expect(detalle.textContent).toContain('Historial de cambios');
     expect(detalle.textContent).toContain('Ajuste de turno');
     expect(detalle.textContent).toContain('Bruno Planeación');
+  });
+
+  it('PLAN-3: no ofrece aprobar reanudación en una operación en marcha sin pausa', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+
+    const detalle = await screen.findByTestId('detalle-programacion-planeacion');
+    await waitFor(() => expect(detalle.textContent).toContain('Ana Planeación'));
+    expect(within(detalle).queryByTestId('aprobar-pausa-administrativa')).toBeNull();
+  });
+
+  it('PLAN-3: ofrece aprobar solo cuando hay pausa administrativa pendiente', async () => {
+    obtenerDetalleMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        responsableNombre: 'Ana Planeación',
+        recursoNombre: 'CNC-01 · CNC principal',
+        grupoEquipoNombre: null,
+        horasEstimadas: 4,
+        horasReales: 4,
+        horasExceso: 0,
+        recursoLiberado: false,
+        pausaAdministrativaPendiente: true,
+        historial: [],
+      },
+    });
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+
+    const detalle = await screen.findByTestId('detalle-programacion-planeacion');
+    expect(await within(detalle).findByTestId('aprobar-pausa-administrativa')).toBeTruthy();
+    expect(detalle.textContent).toContain('Autoriza al operador a reanudarla');
   });
 
   it('el clic en el bloque abre el panel con el contexto de la operación (P05)', async () => {

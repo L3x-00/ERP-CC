@@ -14,7 +14,9 @@ const ACTOR_CAMBIO_ID = '77777777-7777-4777-8777-777777777777';
 
 type Respuesta = { data: unknown; error: { message: string } | null };
 
-function crearClienteDetalle(opciones: { sinProgramacion?: boolean } = {}) {
+function crearClienteDetalle(
+  opciones: { sinProgramacion?: boolean; sesiones?: unknown[] } = {},
+) {
   const llamadas: Array<{ tabla: string; filtros: Record<string, unknown> }> = [];
   const responder = (tabla: string, filtros: Record<string, unknown>): Respuesta => {
     if (tabla === 'programacion_areas') {
@@ -26,7 +28,13 @@ function crearClienteDetalle(opciones: { sinProgramacion?: boolean } = {}) {
       };
     }
     if (tabla === 'sesiones_trabajo') {
-      return { data: [{ horas_netas: 3 }, { horas_netas: 1, recurso_liberado: true }], error: null };
+      return {
+        data: opciones.sesiones ?? [
+          { horas_netas: 3 },
+          { horas_netas: 1, recurso_liberado: true },
+        ],
+        error: null,
+      };
     }
     if (tabla === 'orden_eventos_cambio') {
       if (filtros.tipo === 'programacion_inicial') {
@@ -144,6 +152,7 @@ describe('obtenerDetalleProgramacionServicio', () => {
       horasReales: 4,
       horasExceso: 0,
       recursoLiberado: true,
+      pausaAdministrativaPendiente: false,
       historial: [{
         creadoEn: '2026-10-16T10:00:00.000Z',
         actorNombre: 'Bruno Planeación',
@@ -173,6 +182,47 @@ describe('obtenerDetalleProgramacionServicio', () => {
     expect(filtrosEventos.every((filtro) =>
       filtro.includes('detalle->>programacion_id')
       && filtro.includes('detalle->nuevo->>programacion_id'))).toBe(true);
+  });
+
+  it('PLAN-3: marca la pausa administrativa solo si la última sesión la tiene', async () => {
+    const { cliente } = crearClienteDetalle({
+      sesiones: [
+        {
+          id: 'sesion-pausada',
+          creado_en: '2026-11-21T10:00:00.000Z',
+          estado_sesion: 'pausada',
+          motivo_pausa_codigo: 'PAUSA_ADMIN',
+          horas_netas: 2,
+        },
+      ],
+    });
+
+    const detalle = await obtenerDetalleProgramacionServicio(cliente, PROGRAMACION_ID);
+    expect(detalle.pausaAdministrativaPendiente).toBe(true);
+  });
+
+  it('PLAN-3: la pausa ya aprobada o una sesión posterior dejan de mostrarla', async () => {
+    const { cliente } = crearClienteDetalle({
+      sesiones: [
+        {
+          id: 'sesion-pausada-aprobada',
+          creado_en: '2026-11-21T10:00:00.000Z',
+          estado_sesion: 'pausada',
+          motivo_pausa_codigo: null,
+          horas_netas: 2,
+        },
+        {
+          id: 'sesion-activa',
+          creado_en: '2026-11-21T12:00:00.000Z',
+          estado_sesion: 'activa',
+          motivo_pausa_codigo: null,
+          horas_netas: 1,
+        },
+      ],
+    });
+
+    const detalle = await obtenerDetalleProgramacionServicio(cliente, PROGRAMACION_ID);
+    expect(detalle.pausaAdministrativaPendiente).toBe(false);
   });
 
   it('normaliza una programación inexistente al error de dominio', async () => {

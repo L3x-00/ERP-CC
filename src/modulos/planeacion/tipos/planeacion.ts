@@ -201,6 +201,8 @@ export interface DetalleProgramacion {
   horasReales: number;
   horasExceso: number;
   recursoLiberado: boolean;
+  /** PLAN-3: la última sesión está pausada por administración y espera aprobación. */
+  pausaAdministrativaPendiente: boolean;
   historial: HistorialReprogramacion[];
 }
 
