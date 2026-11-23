@@ -541,8 +541,24 @@ describe('EditorItemsPropuesta — resumen de importes sin indicador de utilidad
     expect(importe('Subtotal de venta')).toBe('$400.00');
     expect(importe('Costo estimado total')).toBe('$600.00');
     afirmarSinIndicadorDeUtilidad();
+    // El botón se habilita al editar: no se bloquea por utilidad negativa.
+    for (const campo of screen.getAllByLabelText(/^Precio IT/)) {
+      fireEvent.change(campo, { target: { value: '250.5' } });
+    }
     const botones = screen.getAllByRole('button', { name: 'Guardar' }) as HTMLButtonElement[];
     expect(botones.every((boton) => !boton.disabled)).toBe(true);
+  });
+
+  it('obs 1: el botón Guardar sigue bloqueado hasta que se edite el ítem', () => {
+    renderizarEditor({ abrirAlta: false });
+
+    const botones = screen.getAllByRole('button', { name: 'Guardar' }) as HTMLButtonElement[];
+    expect(botones.length).toBeGreaterThan(0);
+    expect(botones.every((boton) => boton.disabled)).toBe(true);
+
+    fireEvent.change(screen.getAllByLabelText(/^Precio IT/)[0], { target: { value: '250.5' } });
+    const primerBoton = screen.getAllByRole('button', { name: 'Guardar' })[0] as HTMLButtonElement;
+    expect(primerBoton.disabled).toBe(false);
   });
 
   it('sin costo capturado no muestra aviso de utilidad ni de costo pendiente', () => {

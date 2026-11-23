@@ -109,6 +109,20 @@ export function EditorItemsPropuesta({
     );
   }
 
+  /** Cambios reales frente al item guardado; null cuando no hay nada que guardar. */
+  function cambiosDe(item: PropuestaItem): Record<string, unknown> | null {
+    const valor = valorDe(item);
+    const cambios: Record<string, unknown> = { itemId: item.id, actualizadoEn: item.actualizadoEn };
+    if (valor.descripcion !== item.descripcion) cambios.descripcion = valor.descripcion;
+    if (Number(valor.cantidad) !== item.cantidad) cambios.cantidad = Number(valor.cantidad);
+    if (Number(valor.precioUnitario) !== item.precioUnitario) {
+      cambios.precioUnitario = Number(valor.precioUnitario);
+    }
+    if (valor.esDescuento !== item.esDescuento) cambios.esDescuento = valor.esDescuento;
+    if (valor.activo !== item.activo) cambios.activo = valor.activo;
+    return Object.keys(cambios).length === 2 ? null : cambios;
+  }
+
   function actualizar(item: PropuestaItem, parche: Partial<Borrador>): void {
     setBorradores((actual) => ({ ...actual, [item.id]: { ...valorDe(item), ...parche } }));
   }
@@ -145,48 +159,45 @@ export function EditorItemsPropuesta({
 
   async function guardar(item: PropuestaItem): Promise<void> {
     const valor = valorDe(item);
-    const cambios: Record<string, unknown> = { itemId: item.id, actualizadoEn: item.actualizadoEn };
-    if (valor.descripcion !== item.descripcion) cambios.descripcion = valor.descripcion;
-    if (Number(valor.cantidad) !== item.cantidad) cambios.cantidad = Number(valor.cantidad);
-    if (Number(valor.precioUnitario) !== item.precioUnitario) {
-      cambios.precioUnitario = Number(valor.precioUnitario);
-    }
-    if (valor.esDescuento !== item.esDescuento) cambios.esDescuento = valor.esDescuento;
-    if (valor.activo !== item.activo) cambios.activo = valor.activo;
-
-    if (Object.keys(cambios).length === 2) {
+    const cambios = cambiosDe(item);
+    if (!cambios) {
       setMensaje('Sin cambios en el ítem.');
       return;
     }
 
     setGuardando(item.id);
-    setMensaje(null);
-    const respuesta = await editarItemPropuestaAccion(cambios);
-    setGuardando(null);
-    if (!respuesta.exito) {
-      setMensaje(respuesta.error);
-      return;
+    setMensaje('Guardando…');
+    try {
+      const respuesta = await editarItemPropuestaAccion(cambios);
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error);
+        return;
+      }
+      // P2: se refresca primero y solo se suelta el borrador cuando la caché ya
+      // trae el valor guardado. Así el campo no cae al valor anterior ni parpadea.
+      await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+      const frescos = queryClient.getQueryData(claveDetallePropuesta(revision.propuestaId)) as
+        | { exito?: boolean; datos?: { items?: PropuestaItem[] } }
+        | undefined;
+      const guardado = frescos?.datos?.items?.find((candidato) => candidato.id === item.id);
+      if (guardado
+        && guardado.descripcion === valor.descripcion
+        && Number(guardado.cantidad) === Number(valor.cantidad)
+        && guardado.precioUnitario === Number(valor.precioUnitario)
+        && guardado.esDescuento === valor.esDescuento
+        && guardado.activo === valor.activo) {
+        setBorradores((actual) => {
+          const copia = { ...actual };
+          delete copia[item.id];
+          return copia;
+        });
+      }
+      setMensaje(`Ítem ${item.codigo} guardado.`);
+    } finally {
+      // El botón sigue en «Guardando…» durante el refetch para que el usuario
+      // vea que la acción está en curso y no crea que no pasó nada.
+      setGuardando(null);
     }
-    // P2: se refresca primero y solo se suelta el borrador cuando la caché ya
-    // trae el valor guardado. Así el campo no cae al valor anterior ni parpadea.
-    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
-    const frescos = queryClient.getQueryData(claveDetallePropuesta(revision.propuestaId)) as
-      | { exito?: boolean; datos?: { items?: PropuestaItem[] } }
-      | undefined;
-    const guardado = frescos?.datos?.items?.find((candidato) => candidato.id === item.id);
-    if (guardado
-      && guardado.descripcion === valor.descripcion
-      && Number(guardado.cantidad) === Number(valor.cantidad)
-      && guardado.precioUnitario === Number(valor.precioUnitario)
-      && guardado.esDescuento === valor.esDescuento
-      && guardado.activo === valor.activo) {
-      setBorradores((actual) => {
-        const copia = { ...actual };
-        delete copia[item.id];
-        return copia;
-      });
-    }
-    setMensaje(`Ítem ${item.codigo} guardado.`);
   }
 
   return (
@@ -331,9 +342,9 @@ export function EditorItemsPropuesta({
                         tamano="sm"
                         variante="contorno"
                         onClick={() => void guardar(item)}
-                        disabled={guardando === item.id}
+                        disabled={guardando === item.id || cambiosDe(item) === null}
                       >
-                        {guardando === item.id ? '…' : 'Guardar'}
+                        {guardando === item.id ? 'Guardando…' : 'Guardar'}
                       </Button>
                     )}
                   </td>

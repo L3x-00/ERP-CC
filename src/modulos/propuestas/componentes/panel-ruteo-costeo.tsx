@@ -103,6 +103,8 @@ export function PanelRuteoCosteo({
   // '' = costeo general (filas heredadas sin ítem); si no, id del ítem costeado.
   const [itemCosto, setItemCosto] = useState('');
   const [mensaje, setMensaje] = useState<{ texto: string; tono: 'error' | 'exito' } | null>(null);
+  /** Error del costeo, junto al botón para que el usuario no lo pase por alto. */
+  const [errorCosto, setErrorCosto] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
   // Aclaración cliente 2026-11-09: tiempos inválidos se marcan en rojo por campo.
   const [erroresHoras, setErroresHoras] = useState<Record<string, ErroresHorasRuteo>>({});
@@ -414,28 +416,32 @@ export function PanelRuteoCosteo({
 
     setGuardando(`ruteo-${item.id}`);
     setMensaje(null);
-    const respuesta = await editarRuteoItemAccion({
-      itemId: item.id,
-      actualizadoEn: revision.actualizadoEn,
-      filas: filas.map((fila) => ({
-        procesoId: fila.procesoId,
-        grupoEquipoId: fila.grupoEquipoId,
-        grupoPlaneadoId: fila.grupoPlaneadoId || null,
-        recursoId: fila.recursoId || null,
-        setupHoras: Number(fila.setupHoras) || 0,
-        runHoras: Number(fila.runHoras) || 0,
-      })),
-    });
-    setGuardando(null);
-    if (!respuesta.exito) {
-      setMensaje({ texto: respuesta.error, tono: 'error' });
-      return;
+    try {
+      const respuesta = await editarRuteoItemAccion({
+        itemId: item.id,
+        actualizadoEn: revision.actualizadoEn,
+        filas: filas.map((fila) => ({
+          procesoId: fila.procesoId,
+          grupoEquipoId: fila.grupoEquipoId,
+          grupoPlaneadoId: fila.grupoPlaneadoId || null,
+          recursoId: fila.recursoId || null,
+          setupHoras: Number(fila.setupHoras) || 0,
+          runHoras: Number(fila.runHoras) || 0,
+        })),
+      });
+      if (!respuesta.exito) {
+        setMensaje({ texto: respuesta.error, tono: 'error' });
+        return;
+      }
+      limpiarErroresItem(item.id);
+      // Primero se refresca la caché y solo después se suelta el borrador: si se
+      // limpia antes, las filas caen al dato viejo y el usuario ve parpadear la tabla.
+      await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+      setRuteoBorrador((actual) => ({ ...actual, [item.id]: undefined }));
+      setMensaje({ texto: `Ruteo de ${item.codigo} guardado correctamente.`, tono: 'exito' });
+    } finally {
+      setGuardando(null);
     }
-    limpiarErroresItem(item.id);
-    setRuteoBorrador((actual) => ({ ...actual, [item.id]: undefined }));
-    // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
-    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
-    setMensaje({ texto: `Ruteo de ${item.codigo} guardado correctamente.`, tono: 'exito' });
   }
 
   function limpiarBorradorCosto(): void {
@@ -447,10 +453,9 @@ export function PanelRuteoCosteo({
   async function guardarCostos(): Promise<void> {
     const invalidas = CATEGORIAS_COSTO_EDITABLES.filter((categoria) => montoDe(categoria) === null);
     if (invalidas.length > 0) {
-      setMensaje({
-        texto: `Revisa el monto de ${invalidas.map((categoria) => ETIQUETA_CATEGORIA_COSTO[categoria]).join(', ')}: escribe un número, por ejemplo 1250.50.`,
-        tono: 'error',
-      });
+      setErrorCosto(
+        `Revisa el monto de ${invalidas.map((categoria) => ETIQUETA_CATEGORIA_COSTO[categoria]).join(', ')}: escribe un número, por ejemplo 1250.50.`,
+      );
       return;
     }
     const filas = CATEGORIAS_COSTO_EDITABLES.filter(
@@ -464,26 +469,31 @@ export function PanelRuteoCosteo({
       };
     });
     if (filas.length === 0) {
-      setMensaje({ texto: 'Captura al menos un monto para guardar el costeo.', tono: 'error' });
+      setErrorCosto('Captura al menos un monto para guardar el costeo.');
       return;
     }
     setGuardando('costos');
     setMensaje(null);
-    const respuesta = await guardarCostoRevisionAccion({
-      revisionId: revision.id,
-      itemId: itemCosto === '' ? null : itemCosto,
-      actualizadoEn: revision.actualizadoEn,
-      costos: filas,
-    });
-    setGuardando(null);
-    if (!respuesta.exito) {
-      setMensaje({ texto: respuesta.error, tono: 'error' });
-      return;
+    setErrorCosto(null);
+    try {
+      const respuesta = await guardarCostoRevisionAccion({
+        revisionId: revision.id,
+        itemId: itemCosto === '' ? null : itemCosto,
+        actualizadoEn: revision.actualizadoEn,
+        costos: filas,
+      });
+      if (!respuesta.exito) {
+        setErrorCosto(respuesta.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+      // Los campos quedan listos para capturar el costeo del siguiente ítem.
+      limpiarBorradorCosto();
+      setErrorCosto(null);
+      setMensaje({ texto: 'Costos guardados correctamente.', tono: 'exito' });
+    } finally {
+      setGuardando(null);
     }
-    // Los campos quedan listos para capturar el costeo del siguiente ítem.
-    limpiarBorradorCosto();
-    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
-    setMensaje({ texto: 'Costos guardados correctamente.', tono: 'exito' });
   }
 
   function editarCostoGuardado(itemId: string): void {
@@ -1099,6 +1109,11 @@ export function PanelRuteoCosteo({
             <Button tamano="sm" onClick={() => void guardarCostos()} disabled={guardando === 'costos'}>
               {guardando === 'costos' ? 'Guardando…' : 'Guardar costos'}
             </Button>
+            {errorCosto ? (
+              <p role="alert" data-testid="error-costo-inline" className="mt-2 text-xs text-peligro-texto">
+                {errorCosto}
+              </p>
+            ) : null}
           </div>
         )}
         {costeosGuardados.length > 0 && (

@@ -834,7 +834,8 @@ export async function obtenerEspacioOperadorServicio(
         programacionEstado: programacion?.estadoPlaneacion ?? null,
       });
       const urgencia = derivarUrgenciaProceso(orden.fechaCompromiso, orden.prioridad, hoy);
-      const ordenIniciable = orden.estado === 'programada'
+      const ordenIniciable = orden.estado === 'borrador'
+        || orden.estado === 'programada'
         || orden.estado === 'pausada'
         || orden.estado === 'en_proceso';
       const pausado = sesionPausada || programacion?.estadoPlaneacion === 'bloqueada';
@@ -859,9 +860,10 @@ export async function obtenerEspacioOperadorServicio(
       if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
       else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
       else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
-      else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
-        motivoNoInicia = 'La orden aún no se libera a Bandeja';
-      } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
+      // Corrección obs 6: el operador ya puede iniciar con el día/turno de su
+      // reclamo; no debe esperar a que Planeación programe ni a que un admin
+      // libere la orden a Bandeja. La RPC admite 'borrador' (migración 20261123000000).
+      else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
       else if (bloqueadoSinSesion) {
         motivoNoInicia = MOTIVO_BLOQUEO_TEXTO.programacion_bloqueada_sin_sesion;
       }

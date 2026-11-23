@@ -28,6 +28,7 @@ import {
   evaluarDestinoEnvio,
 } from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
+import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
 import { diaSemanaCalendario } from '@/modulos/planeacion/utilidades/horario-laboral';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
@@ -198,6 +199,9 @@ export function PanelAccionesPropuesta({
       setDestino('');
       setDestinoManual(false);
       await refrescar();
+      // Obs 5: aprobar una propuesta crea una orden que debe verse en Planeación
+      // aunque esa pestaña ya tenga cacheada la vista Semana.
+      await queryClient.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION });
     } catch {
       setMensaje('No se pudo completar la acción. Revisa la conexión e inténtalo de nuevo.');
     } finally {
@@ -289,7 +293,7 @@ export function PanelAccionesPropuesta({
         {estado === 'READY_TO_SEND' && permisos.generarPdf && (
           <Button
             tamano="sm"
-            variante="contorno"
+            variante={pdfVigente ? 'exito' : 'contorno'}
             onClick={() => {
               if (pdfVigente) return void verPdfGenerado(pdfVigente.archivoId);
               return void generarPdf();

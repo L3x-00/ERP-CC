@@ -187,6 +187,12 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('actualizado_en_requerido')) {
     return 'Falta la versión del registro; vuelve a cargar la propuesta';
   }
+  if (mensaje.includes('costo_item_invalido')) {
+    return 'El costeo de ese ítem no es válido. Revisa el importe de material y el de otros gastos.';
+  }
+  if (mensaje.includes('42883') || (mensaje.includes('guardar_costo_revision') && mensaje.includes('does not exist'))) {
+    return 'Falta aplicar la actualización de costos por ítem en la base de datos. Avísale al administrador.';
+  }
   console.error('[PROPUESTAS] Error no traducido:', mensaje);
   return 'No se pudo completar la acción sobre la propuesta';
 }
