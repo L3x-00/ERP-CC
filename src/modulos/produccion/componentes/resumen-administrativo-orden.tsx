@@ -50,7 +50,9 @@ export function ResumenAdministrativoOrden({
   const responsableId = partidas.find((partida) => partida.operadorAsignadoId)?.operadorAsignadoId;
   const responsable = responsableId ? responsables[responsableId] ?? 'Sin asignar' : 'Sin asignar';
 
-  const sesion = (orden.sesiones ?? []).find((item) => item.id === sesionActivaId) ?? null;
+  const sesion = (orden.sesiones ?? []).find(
+    (item) => item.id === sesionActivaId && item.estadoSesion === 'activa',
+  ) ?? null;
   const operadorEnPiso = sesion?.operadorId ? responsables[sesion.operadorId] ?? 'Operador' : null;
 
   const pausar = async (): Promise<void> => {

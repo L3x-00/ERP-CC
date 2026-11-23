@@ -17,7 +17,12 @@ const OPERADOR_ID = '99999999-9999-4999-8999-999999999999';
 type Respuesta = { data: unknown; error: { message: string } | null };
 
 function crearClienteDetalle(
-  opciones: { sinProgramacion?: boolean; sesiones?: unknown[]; operacionEnCurso?: boolean } = {},
+  opciones: {
+    sinProgramacion?: boolean;
+    sesiones?: unknown[];
+    operacionEnCurso?: boolean;
+    avancesPaginados?: boolean;
+  } = {},
 ) {
   const llamadas: Array<{ tabla: string; filtros: Record<string, unknown> }> = [];
   const responder = (tabla: string, filtros: Record<string, unknown>): Respuesta => {
@@ -109,6 +114,15 @@ function crearClienteDetalle(
       return { data: { meta_piezas: 10 }, error: null };
     }
     if (tabla === 'registros_avance_partida') {
+      const rango = filtros.rango as [number, number] | undefined;
+      if (opciones.avancesPaginados && rango) {
+        return rango[0] >= 1000
+          ? { data: [{ cantidad_producida: 2 }], error: null }
+          : {
+            data: Array.from({ length: 1000 }, () => ({ cantidad_producida: 1 })),
+            error: null,
+          };
+      }
       return { data: [{ cantidad_producida: 6 }, { cantidad_producida: 2 }], error: null };
     }
     if (tabla === 'grupos_equipo') {
@@ -151,6 +165,10 @@ function crearClienteDetalle(
       }),
       order: vi.fn(() => consulta),
       limit: vi.fn(() => consulta),
+      range: vi.fn((desde: number, hasta: number) => {
+        filtros.rango = [desde, hasta];
+        return consulta;
+      }),
       maybeSingle: vi.fn(() => consulta),
       then: (resolver: (respuesta: Respuesta) => unknown) =>
         Promise.resolve(responder(tabla, filtros)).then(resolver),
@@ -266,6 +284,20 @@ describe('obtenerDetalleProgramacionServicio', () => {
     expect(detalle.operacionEnCurso?.horaInicio).toMatch(/^\d{2}:\d{2}$/);
     expect(Number.isFinite(detalle.operacionEnCurso?.horasTranscurridas)).toBe(true);
     expect(detalle.operacionEnCurso?.horasTranscurridas).toBeGreaterThanOrEqual(0);
+  });
+
+  it('suma todos los avances aunque PostgREST devuelva la respuesta en páginas', async () => {
+    const { cliente, llamadas } = crearClienteDetalle({
+      operacionEnCurso: true,
+      avancesPaginados: true,
+    });
+
+    const detalle = await obtenerDetalleProgramacionServicio(cliente, PROGRAMACION_ID);
+
+    expect(detalle.operacionEnCurso?.piezasProducidas).toBe(1002);
+    expect(detalle.operacionEnCurso?.porcentajeAvance).toBe(100);
+    const paginas = llamadas.filter((llamada) => llamada.tabla === 'registros_avance_partida');
+    expect(paginas).toHaveLength(2);
   });
 
   it('normaliza una programación inexistente al error de dominio', async () => {
