@@ -206,6 +206,11 @@ export function OperacionPlaneacion({
     queryKey: [...CLAVE_CALENDARIO_PLANEACION, filtros],
     queryFn: () => consultarCalendario(filtros),
     ...(esConsultaInicial ? { initialData: datosIniciales } : {}),
+    // Corrección obs 5: `initialData` con el staleTime global de 5 min dejaba la
+    // vista inicial congelada tras aprobar órdenes en otra pestaña. La foto del
+    // SSR se usa para pintar de inmediato, pero se refresca al volver a montar.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const datosCalendario = consulta.data ?? (
     esConsultaInicial

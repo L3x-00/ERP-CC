@@ -206,6 +206,14 @@ describe('traducción de errores tipados (B4)', () => {
     expect(traducirErrorPropuesta('item_desactualizado')).toContain('cambió');
   });
 
+  it('corrección obs 3: errors de costeo por ítem dejan de ser genéricos', () => {
+    expect(traducirErrorPropuesta('costo_item_invalido')).toContain('costeo de ese ítem no es válido');
+    expect(traducirErrorPropuesta('42883 undefined function guardar_costo_revision'))
+      .toContain('Falta aplicar la actualización de costos por ítem');
+    expect(traducirErrorPropuesta('error_desconocido_del_servidor'))
+      .toBe('No se pudo completar la acción sobre la propuesta');
+  });
+
   it('resume los faltantes del detalle de requiere_revision_pendiente', () => {
     const detalle = JSON.stringify({
       revisionId: ID,

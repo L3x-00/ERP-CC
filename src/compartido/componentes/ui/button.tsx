@@ -3,7 +3,7 @@
 import type { ComponentProps } from 'react';
 import { cn } from '@/compartido/utilidades/cn';
 
-type VarianteBoton = 'primario' | 'secundario' | 'destructivo' | 'contorno' | 'fantasma';
+type VarianteBoton = 'primario' | 'secundario' | 'destructivo' | 'contorno' | 'fantasma' | 'exito';
 type TamanoBoton = 'sm' | 'md' | 'lg' | 'piso';
 
 const VARIANTES: Record<VarianteBoton, string> = {
@@ -13,6 +13,7 @@ const VARIANTES: Record<VarianteBoton, string> = {
   destructivo:
     'border border-peligro/40 bg-peligro-suave text-peligro-texto hover:bg-peligro/10',
   contorno: 'border border-borde-fuerte bg-superficie text-texto-primario hover:bg-superficie-2',
+  exito: 'border border-exito/40 bg-exito-suave text-exito-texto hover:bg-exito/20',
   fantasma: 'text-texto-secundario hover:bg-superficie-2 hover:text-texto-primario',
 };
 

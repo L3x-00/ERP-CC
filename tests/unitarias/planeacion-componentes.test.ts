@@ -521,6 +521,12 @@ describe('operación de Planeación en cliente', () => {
         puedeEntregar: true,
       },
     });
+    // El calendario se refresca al montar, así que el mock debe devolver la
+    // misma programación concluida que el snapshot inicial.
+    obtenerCalendarioMock.mockResolvedValue({
+      exito: true,
+      datos: { ...DATOS, programaciones: [programacionConcluida] },
+    });
     renderizarOperacion(cliente, PARTIDAS_POR_DEFECTO, {
       datosIniciales: { ...DATOS, programaciones: [programacionConcluida] },
     });
@@ -1296,7 +1302,9 @@ describe('operación de Planeación en cliente', () => {
         'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.',
       ),
     ).toBeNull();
-    expect(obtenerCalendarioMock).toHaveBeenCalledTimes(1);
+    // Dos llamadas: el refetch al montar (corrección obs 5) y la consulta de
+    // capacidad de la fecha fuera de rango.
+    expect(obtenerCalendarioMock).toHaveBeenCalledTimes(2);
     expect(obtenerCalendarioMock).toHaveBeenCalledWith({
       fechaInicio: '2026-10-05',
       fechaFin: '2026-10-05',
@@ -1318,7 +1326,8 @@ describe('operación de Planeación en cliente', () => {
     });
 
     expect(screen.queryByTestId('verificando-capacidad-planeacion')).toBeNull();
-    expect(obtenerCalendarioMock).not.toHaveBeenCalled();
+    // Solo el refetch al montar: no se consulta capacidad adicional dentro del rango.
+    expect(obtenerCalendarioMock).toHaveBeenCalledTimes(1);
   });
 
   it('resume los procesos de la bolsa con la misma regla de Órdenes (C9.4/P-19)', () => {
