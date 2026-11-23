@@ -44,12 +44,19 @@ afterEach(cleanup);
 function renderResumen(opciones: {
   esAdmin?: boolean;
   conSesion?: boolean;
+  sesionPausada?: boolean;
   onPausar?: (datos: CierreSupervisor) => Promise<ResultadoPausaPrueba>;
 } = {}) {
   const onPausar = opciones.onPausar
-    ?? vi.fn(async (_datos: CierreSupervisor): Promise<ResultadoPausaPrueba> => ({ exito: true }));
+    ?? vi.fn(async (datos: CierreSupervisor): Promise<ResultadoPausaPrueba> => {
+      void datos;
+      return { exito: true };
+    });
+  const sesion = opciones.sesionPausada
+    ? { ...SESION, estadoSesion: 'pausada' }
+    : SESION;
   const orden = opciones.conSesion
-    ? { ...ORDEN, sesiones: [SESION] } as unknown as OrdenTableroProduccion
+    ? { ...ORDEN, sesiones: [sesion] } as unknown as OrdenTableroProduccion
     : ORDEN;
   render(createElement(ResumenAdministrativoOrden, {
     orden,
@@ -104,6 +111,12 @@ describe('ResumenAdministrativoOrden — cierre del módulo de Producción', () 
 
   it('no muestra la pausa a un perfil sin permiso de administrador', () => {
     renderResumen({ conSesion: true, esAdmin: false });
+    expect(screen.queryByTestId('pausar-administrativamente')).toBeNull();
+  });
+
+  it('oculta la sesión y la pausa cuando la sesión ya fue pausada', () => {
+    renderResumen({ conSesion: true, sesionPausada: true, esAdmin: true });
+    expect(screen.queryByTestId('resumen-operando-ahora')).toBeNull();
     expect(screen.queryByTestId('pausar-administrativamente')).toBeNull();
   });
 });

@@ -125,6 +125,12 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   )];
   const opcionesArea = opcionesFamiliaArea(datos.areas ?? datosIniciales.areas ?? [], codigosAreaConTrabajo);
   const ordenSeleccionada = datos.ordenes.find((orden) => orden.id === ordenSeleccionadaId) ?? null;
+  // Auditoría 5 PR: el resumen administrativo sigue la sesión en marcha de la
+  // orden, no la identidad HMAC del navegador, para que un administrador que
+  // supervisa a otro operador también vea la pausa administrativa.
+  const sesionEnPisoResumen = ordenSeleccionada?.sesiones.find(
+    (sesion) => sesion.estadoSesion === 'activa',
+  ) ?? null;
   const sesionActivaDesdeServidor = operadorId
     ? datos.ordenes.flatMap((orden) => orden.sesiones).find(
       (sesion) => sesion.operadorId === operadorId && sesion.estadoSesion === 'activa',
@@ -287,12 +293,15 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       const resultado = await cerrarSesionSupervisorAccion(datosCierre);
       if (!resultado.exito) return { exito: false, error: resultado.error };
       if (!resultado.datos) return { exito: false, error: 'El cierre no devolvió una confirmación' };
+      // Auditoría 5 PR: si el administrador pausó su propia sesión, se limpia la
+      // tienda para que ningún panel siga mostrándola como activa.
+      if (sesionActiva?.id === datosCierre.sesionId) establecerSesionActiva(null);
       await refrescar();
       return { exito: true, datos: resultado.datos };
     } finally {
       setProcesando(false);
     }
-  }, [refrescar]);
+  }, [establecerSesionActiva, refrescar, sesionActiva?.id]);
 
   const generarNota = useCallback(async (datosNota: {
     ordenId: string;
@@ -413,7 +422,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
               <>
                 <ResumenAdministrativoOrden
                   orden={ordenSeleccionada}
-                  sesionActivaId={sesionActiva?.id ?? null}
+                  sesionActivaId={sesionEnPisoResumen?.id ?? null}
                   responsables={datos.responsables ?? {}}
                   esAdmin={esAdmin}
                   procesando={procesando}

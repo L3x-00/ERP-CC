@@ -87,6 +87,32 @@ function fallar(error: { message: string } | null): void {
   if (error) throw new ErrorPlaneacion('desconocido', error.message);
 }
 
+const AVANCES_POR_PAGINA = 1000;
+
+/**
+ * Auditoría 5 PR: PostgREST recorta las respuestas grandes. Producción ya
+ * pagina estos mismos avances; sin paginación el porcentaje del resumen se
+ * subestimaba en operaciones con más de 1000 registros.
+ */
+async function piezasProducidasEnMeta(
+  admin: SupabaseClient<Database>,
+  metaProcesoId: string,
+): Promise<number> {
+  let total = 0;
+  for (let pagina = 0; ; pagina += AVANCES_POR_PAGINA) {
+    const { data, error } = await admin
+      .from('registros_avance_partida')
+      .select('cantidad_producida')
+      .eq('meta_proceso_id', metaProcesoId)
+      .order('id')
+      .range(pagina, pagina + AVANCES_POR_PAGINA - 1);
+    fallar(error);
+    for (const avance of data ?? []) total += Number(avance.cantidad_producida);
+    if (!data || data.length < AVANCES_POR_PAGINA) break;
+  }
+  return total;
+}
+
 /** Hora mural del taller, nunca la zona del dispositivo (AUD-12/CRIT-1). */
 function horaTaller(fecha: string): string {
   return new Intl.DateTimeFormat('en-GB', {
@@ -215,24 +241,16 @@ export async function obtenerDetalleProgramacionServicio(
   let operacionEnCurso: DetalleProgramacion['operacionEnCurso'] = null;
   if (sesionActiva && programacionResp.data.meta_proceso_id
     && Number.isFinite(new Date(sesionActiva.fecha_inicio).getTime())) {
-    const [metaResp, avancesResp] = await Promise.all([
+    const [metaResp, piezasProducidas] = await Promise.all([
       admin
         .from('metas_proceso_partida')
         .select('meta_piezas')
         .eq('id', programacionResp.data.meta_proceso_id)
         .maybeSingle(),
-      admin
-        .from('registros_avance_partida')
-        .select('cantidad_producida')
-        .eq('meta_proceso_id', programacionResp.data.meta_proceso_id),
+      piezasProducidasEnMeta(admin, programacionResp.data.meta_proceso_id),
     ]);
     fallar(metaResp.error);
-    fallar(avancesResp.error);
     const metaPiezas = Number(metaResp.data?.meta_piezas ?? 0);
-    const piezasProducidas = (avancesResp.data ?? []).reduce(
-      (total, avance) => total + Number(avance.cantidad_producida),
-      0,
-    );
     operacionEnCurso = {
       operadorNombre: nombreActor(sesionActiva.operador_id, actores),
       horaInicio: horaTaller(sesionActiva.fecha_inicio),
