@@ -659,5 +659,6 @@ EXCEPTION
   WHEN unique_violation THEN
     RAISE EXCEPTION 'recurso_ocupado: otro proceso tomó el equipo en el mismo instante; actualiza y vuelve a intentar' USING ERRCODE = 'unique_violation';
 END;
+$$;
 COMMENT ON FUNCTION public.preparar_reclamo_operador(uuid, uuid) IS
   'C10/C18/C24/C25/obs6: prepara la reserva del reclamo; admite orden en borrador para no depender de la liberación administrativa.';
