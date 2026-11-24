@@ -106,8 +106,8 @@ export function construirHtmlImpresion(documento: DocumentoImpresion): string {
   }
   .barra { height: 7px; background: var(--acento); border-radius: 4px; }
   header { display: flex; justify-content: space-between; gap: 24px; padding: 16px 0 12px; border-bottom: 2px solid var(--acento); }
-  .empresa { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-  .empresa .logo { height: 54px; width: auto; max-width: 170px; object-fit: contain; }
+  .empresa { display: flex; flex-direction: row; gap: 10px; align-items: center; }
+  .empresa .logo { height: 46px; width: auto; max-width: 120px; object-fit: contain; }
   .empresa strong { display: block; font-size: 15px; color: var(--acento); }
   .empresa span { display: block; font-size: 11px; color: #475569; line-height: 1.45; }
   .folio { text-align: right; }

@@ -78,7 +78,7 @@ describe('documento impreso aislado', () => {
     expect(html).not.toContain('sidebar');
   });
 
-  it('coloca la marca de agua institucional y el nombre debajo del logo', () => {
+  it('coloca la marca de agua institucional y logo y nombre en la misma fila', () => {
     const html = construirHtmlImpresion({
       titulo: 'Nota de entrega NE-1',
       folio: 'NE-1',
@@ -92,6 +92,7 @@ describe('documento impreso aislado', () => {
     expect(html.indexOf('class="logo"')).toBeLessThan(
       html.indexOf('CC Manufacturing Group SA de CV'),
     );
+    expect(html).toContain('.empresa { display: flex; flex-direction: row;');
   });
 
   it('usa el logo institucional cuando la empresa no configuró uno', () => {

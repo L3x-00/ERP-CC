@@ -59,6 +59,11 @@ describe('impresión de la nota de entrega', () => {
 
     expect(html).toContain('Firma de quien recibe');
     expect(html).toContain('https://storage.supabase.co/firma.png?token=abc');
+    // La firma debe quedar DENTRO de la celda de «Recibido por», antes de la
+    // celda de «Entregado por», no como hermana del grid.
+    expect(html.indexOf('Recibido por:')).toBeLessThan(html.indexOf('Firma de quien recibe'));
+    expect(html.indexOf('Firma de quien recibe')).toBeLessThan(html.indexOf('Entregado por:'));
+    expect(html).toContain('break-inside:avoid');
   });
 
   it('compone un documento A4 con la marca y sin el modal del ERP', () => {

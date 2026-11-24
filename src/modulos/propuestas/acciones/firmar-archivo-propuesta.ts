@@ -6,7 +6,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
-import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
+import { nombreDescargaEfectivo } from '@/modulos/propuestas/utilidades/nombre-descarga';
 import { esquemaFirmarArchivoPropuesta } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 export type ResultadoFirmarArchivo = { url: string };
@@ -91,11 +91,6 @@ export async function firmarArchivoPropuestaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
   const { propuestaId, archivoId } = analisis.data;
-  // El objeto en Storage lleva un UUID para no colisionar; el nombre de descarga
-  // que ve el cliente es el legible que pide el panel (Obs. cliente 2026-11-14).
-  const descarga = analisis.data.descarga
-    ? sanearNombreArchivo(analisis.data.descarga)
-    : undefined;
 
   try {
     const { crearClienteSupabaseServidor } = await import('@/nucleo/supabase/servidor');
@@ -116,7 +111,7 @@ export async function firmarArchivoPropuestaAccion(
 
     const { data: archivoVisible, error: errorArchivoVisible } = await servidor
       .from('archivos')
-      .select('id, entidad, entidad_id')
+      .select('id, entidad, entidad_id, nombre_original')
       .eq('id', archivoId)
       .maybeSingle();
     // La propuesta ya quedó autorizada mediante RLS. Si el vínculo histórico
@@ -129,7 +124,7 @@ export async function firmarArchivoPropuestaAccion(
     if (errorArchivoVisible || !archivo) {
       const { data: archivoHistorico, error: errorArchivoHistorico } = await admin
         .from('archivos')
-        .select('id, entidad, entidad_id')
+        .select('id, entidad, entidad_id, nombre_original')
         .eq('id', archivoId)
         .maybeSingle();
       if (errorArchivoHistorico || !archivoHistorico) {
@@ -149,8 +144,11 @@ export async function firmarArchivoPropuestaAccion(
       return { exito: false, error: 'El archivo no pertenece a esta propuesta' };
     }
 
-    const url = descarga
-      ? await firmarLecturaArchivo(admin, archivoId, 300, descarga)
+    // Aunque el botón sea «Ver», el nombre sugerido por el navegador debe ser
+    // el legible guardado, nunca el UUID técnico de la ruta de Storage.
+    const descargaEfectiva = nombreDescargaEfectivo(analisis.data.descarga, archivo.nombre_original);
+    const url = descargaEfectiva
+      ? await firmarLecturaArchivo(admin, archivoId, 300, descargaEfectiva)
       : await firmarLecturaArchivo(admin, archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {
