@@ -582,3 +582,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | Tras la corrección anterior seguía abriéndose el checklist y el error de ocupación aparecía al confirmar | `preparar_reclamo_operador` elige la máquina en el arranque, así que el proceso reclamado todavía no tiene `programacion.recursoId`. La detección en cliente por recurso nunca podía emparejar al ocupante | Nueva RPC de solo lectura `validar_ocupacion_inicio_reclamo` (migración `20261124000000`) que replica la parte de elección/ocupación con `privado.grupo_equipo_requerido_operacion`, `privado.obtener_capacidad_efectiva_recurso_turno` y `privado.detalle_ocupacion_recurso`, sin escribir datos. Nueva Server Action `validarOcupacionInicioAccion`; `abrirInicio` espera la validación en `espacio-operador.tsx` y `pagina-mi-panel-operador.tsx` y abre el modal con el mensaje exacto antes del checklist. La RPC de inicio sigue siendo autoridad final |
+
+## 71. Entregas: contacto y notas agrupadas
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El modal «Preparar entrega» siempre arrancaba en «Sin contacto registrado» aunque el cliente tuviera contacto principal; la pestaña «Notas registradas» mostraba una fila por entrega (30 parciales = 30 filas) | `panel-preparar-entrega.tsx` inicializaba `contactoId` en `''` sin derivarlo de `datos.contactos`, aunque la acción ya trae el principal ordenado primero; `cola-entregas.tsx` mapeaba una fila por `notas_entrega` | El contacto principal se usa como valor efectivo y su nombre se sugiere en «Recibido por» cuando está vacío, sin efecto ni estado forzado (editable). Las notas se agrupan por orden con `agruparEntregasPorOrden`, una fila por orden con totales y botón «Historial» que despliega cada parcial con su «Abrir». El contador dice «N entregas en M órdenes». Sin migración |

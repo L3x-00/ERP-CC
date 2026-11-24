@@ -43,6 +43,41 @@ export function construirFolioEntrega(
   return `NE-${base}-${formatearConsecutivoEntrega(consecutivo)}`;
 }
 
+export interface GrupoEntregasOrden {
+  ordenId: string;
+  folioOrden: string;
+  cliente: string;
+  entregas: EntregaCola[];
+  piezas: number;
+  totalOrden: number;
+}
+
+/** Una fila por orden con sus entregas (parciales y final) para el historial. */
+export function agruparEntregasPorOrden(
+  entregas: readonly EntregaCola[],
+): GrupoEntregasOrden[] {
+  const mapa = new Map<string, GrupoEntregasOrden>();
+  for (const fila of entregas) {
+    const ordenId = fila.entrega.ordenId;
+    const grupo = mapa.get(ordenId) ?? {
+      ordenId,
+      folioOrden: fila.ordenFolioSii ?? fila.ordenFolio,
+      cliente: fila.clienteNombre ?? '—',
+      entregas: [],
+      piezas: 0,
+      totalOrden: fila.totalSolicitadoOrden,
+    };
+    grupo.entregas.push(fila);
+    grupo.piezas += fila.totalPiezas;
+    mapa.set(ordenId, grupo);
+  }
+  return [...mapa.values()].map((grupo) => ({
+    ...grupo,
+    entregas: [...grupo.entregas].sort((a, b) =>
+      b.entrega.creadoEn.localeCompare(a.entrega.creadoEn)),
+  }));
+}
+
 export type FiltroEstadoEntrega = 'todas' | 'parcial' | 'completa';
 
 /** Filtra la cola de notas por estado (parcial/completa) y texto libre. */

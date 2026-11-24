@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -14,7 +14,11 @@ import {
 } from '@/modulos/entregas/acciones/obtener-cola-entregas';
 import { PanelPrepararEntrega } from '@/modulos/entregas/componentes/panel-preparar-entrega';
 import { SincronizadorEntregasRealtime } from '@/modulos/entregas/componentes/sincronizador-entregas-realtime';
-import { filtrarEntregasCola, type FiltroEstadoEntrega } from '@/modulos/entregas/utilidades/indice';
+import {
+  agruparEntregasPorOrden,
+  filtrarEntregasCola,
+  type FiltroEstadoEntrega,
+} from '@/modulos/entregas/utilidades/indice';
 import { cn } from '@/compartido/utilidades/cn';
 
 /**
@@ -38,6 +42,7 @@ export function ColaEntregas({
   const [sesionPanel, setSesionPanel] = useState(0);
   const [aviso, setAviso] = useState<string | null>(null);
   const [actualizando, setActualizando] = useState(false);
+  const [ordenHistorialAbierta, setOrdenHistorialAbierta] = useState<string | null>(null);
 
   async function actualizar(): Promise<void> {
     setActualizando(true);
@@ -59,6 +64,12 @@ export function ColaEntregas({
   const entregasFiltradas = useMemo(
     () => filtrarEntregasCola(datos.entregas, { estado: filtroEstado, texto }),
     [datos.entregas, filtroEstado, texto],
+  );
+
+  /** Una fila por orden; el historial guarda sus entregas (parciales y final). */
+  const gruposEntregas = useMemo(
+    () => agruparEntregasPorOrden(entregasFiltradas),
+    [entregasFiltradas],
   );
 
   const claseTab = (activa: boolean) =>
@@ -90,7 +101,7 @@ export function ColaEntregas({
             className={claseTab(tab === 'notas')}
             onClick={() => setTab('notas')}
           >
-            Notas registradas ({datos.entregas.length})
+            Notas registradas ({datos.entregas.length} entregas en {gruposEntregas.length} órdenes)
           </button>
         </div>
         <Button type="button" variante="contorno" tamano="sm" disabled={actualizando}
@@ -197,62 +208,80 @@ export function ColaEntregas({
           ) : (
             <div className="overflow-x-auto rounded-lg border border-borde" data-testid="tabla-notas-entrega">
               <table className="w-full border-collapse text-sm">
-                <caption className="sr-only">Notas de entrega registradas</caption>
+                <caption className="sr-only">Entregas agrupadas por orden</caption>
                 <thead className="bg-superficie-2 text-left text-xs uppercase tracking-wide text-texto-secundario">
                   <tr>
-                    <th scope="col" className="px-4 py-3">Folio</th>
                     <th scope="col" className="px-4 py-3">Orden</th>
                     <th scope="col" className="px-4 py-3">Cliente</th>
-                    <th scope="col" className="px-4 py-3">Estado</th>
-                    <th scope="col" className="px-4 py-3">Piezas</th>
-                    <th scope="col" className="px-4 py-3">Recibido por</th>
-                    <th scope="col" className="px-4 py-3">Fecha</th>
+                    <th scope="col" className="px-4 py-3">Entregas</th>
+                    <th scope="col" className="px-4 py-3">Piezas entregadas</th>
+                    <th scope="col" className="px-4 py-3">Última entrega</th>
                     <th scope="col" className="px-4 py-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {entregasFiltradas.map((fila) => {
-                    const folioVisible = fila.entrega.folioSii ?? fila.entrega.folio;
-                    const etiqueta = etiquetaNotaEntrega({
-                      esParcial: fila.entrega.esParcial,
-                      piezas: fila.totalPiezas,
-                      totalOrden: fila.totalSolicitadoOrden,
-                    });
+                  {gruposEntregas.map((grupo) => {
+                    const abierta = ordenHistorialAbierta === grupo.ordenId;
+                    const ultima = grupo.entregas[0];
                     return (
-                      <tr key={fila.entrega.id} data-testid={`fila-entrega-${folioVisible}`}
-                        className="border-t border-borde">
-                        <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs">
-                          <span>{folioVisible}</span>
-                          <span className="block text-[10px] font-normal uppercase tracking-wide text-texto-tenue">
-                            {fila.entrega.folioSii ? 'Folio SII' : 'Folio interno'}
-                          </span>
-                          {fila.entrega.folioSii ? (
-                            <span className="block text-[10px] font-normal text-texto-tenue" title="Folio interno">
-                              Interno {fila.entrega.folio}
-                            </span>
-                          ) : null}
-                        </th>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
-                          {fila.ordenFolioSii ?? fila.ordenFolio}
-                          <span className="block text-[10px] uppercase tracking-wide text-texto-tenue">
-                            {fila.ordenFolioSii ? 'Folio SII' : 'Folio interno'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">{fila.clienteNombre ?? '—'}</td>
-                        <td className="px-4 py-3" data-testid={`estado-entrega-${folioVisible}`}>
-                          {etiqueta.texto}
-                        </td>
-                        <td className="px-4 py-3 tabular-nums">{fila.totalPiezas}</td>
-                        <td className="px-4 py-3">{fila.entrega.recibidoPor}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-texto-secundario">{formatearFecha(fila.entrega.creadoEn)}</td>
-                        <td className="px-4 py-3 text-right">
-                          <Link href={`/entregas/${fila.entrega.id}`}
-                            className="font-semibold text-acento underline"
-                            data-testid={`abrir-entrega-${folioVisible}`}>
-                            Abrir
-                          </Link>
-                        </td>
-                      </tr>
+                      <Fragment key={grupo.ordenId}>
+                        <tr className="border-t border-borde" data-testid={`fila-entregas-orden-${grupo.folioOrden}`}>
+                          <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs">
+                            {grupo.folioOrden}
+                          </th>
+                          <td className="px-4 py-3">{grupo.cliente}</td>
+                          <td className="px-4 py-3 tabular-nums">{grupo.entregas.length}</td>
+                          <td className="px-4 py-3 tabular-nums">{grupo.piezas} de {grupo.totalOrden}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-texto-secundario">
+                            {formatearFecha(ultima.entrega.creadoEn)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              className="font-semibold text-acento underline"
+                              aria-expanded={abierta}
+                              onClick={() => setOrdenHistorialAbierta(abierta ? null : grupo.ordenId)}
+                              data-testid={`historial-entregas-${grupo.folioOrden}`}
+                            >
+                              {abierta ? 'Ocultar historial' : 'Historial'}
+                            </button>
+                          </td>
+                        </tr>
+                        {abierta ? (
+                          <tr className="border-t border-borde bg-superficie-2">
+                            <td colSpan={6} className="px-4 py-3">
+                              <ul className="flex flex-col gap-2" data-testid={`historial-notas-${grupo.folioOrden}`}>
+                                {grupo.entregas.map((fila) => {
+                                  const folioVisible = fila.entrega.folioSii ?? fila.entrega.folio;
+                                  const etiqueta = etiquetaNotaEntrega({
+                                    esParcial: fila.entrega.esParcial,
+                                    piezas: fila.totalPiezas,
+                                    totalOrden: fila.totalSolicitadoOrden,
+                                  });
+                                  return (
+                                    <li key={fila.entrega.id}
+                                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-superficie px-3 py-2"
+                                      data-testid={`fila-entrega-${folioVisible}`}>
+                                      <span className="font-mono text-xs">{folioVisible}</span>
+                                      <span className="text-xs" data-testid={`estado-entrega-${folioVisible}`}>
+                                        {etiqueta.texto}
+                                      </span>
+                                      <span className="text-xs text-texto-secundario">
+                                        {formatearFecha(fila.entrega.creadoEn)} · {fila.entrega.recibidoPor}
+                                      </span>
+                                      <Link href={`/entregas/${fila.entrega.id}`}
+                                        className="font-semibold text-acento underline"
+                                        data-testid={`abrir-entrega-${folioVisible}`}>
+                                        Abrir
+                                      </Link>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
                     );
                   })}
                 </tbody>

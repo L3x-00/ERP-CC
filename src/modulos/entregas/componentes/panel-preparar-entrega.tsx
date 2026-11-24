@@ -64,6 +64,15 @@ export function PanelPrepararEntrega({
   const solicitudId = useRef<string | null>(null);
 
   const datos = preparacion.data ?? null;
+
+  // El contacto principal se usa como sugerencia inicial sin sobrescribir lo que
+  // el usuario capture: el valor efectivo es la edición si existe, si no el dato
+  // del cliente. Así no hace falta sincronizar estado en un efecto.
+  const contactoPrincipal = datos?.contactos.find((contacto) => contacto.esPrincipal)
+    ?? datos?.contactos[0]
+    ?? null;
+  const contactoEfectivo = contactoId !== '' ? contactoId : contactoPrincipal?.id ?? '';
+  const recibidoEfectivo = recibidoPor.trim() !== '' ? recibidoPor : contactoPrincipal?.nombre ?? '';
   const error = errorAccion ?? (preparacion.isError ? (preparacion.error as Error).message : null);
 
   const partidasDisponibles = useMemo(
@@ -121,7 +130,7 @@ export function PanelPrepararEntrega({
       setErrorAccion('Captura al menos una cantidad a entregar');
       return;
     }
-    if (recibidoPor.trim().length < 3) {
+    if (recibidoEfectivo.trim().length < 3) {
       setErrorAccion('Indica quién recibe (mínimo 3 caracteres)');
       return;
     }
@@ -131,8 +140,8 @@ export function PanelPrepararEntrega({
     const respuesta = await registrarEntregaAccion({
       ordenId: datos.orden.id,
       renglones,
-      recibidoPor: recibidoPor.trim(),
-      contactoId: contactoId ? contactoId : null,
+      recibidoPor: recibidoEfectivo.trim(),
+      contactoId: contactoEfectivo ? contactoEfectivo : null,
       solicitudId: solicitudId.current,
     });
     setOcupado(false);
@@ -282,7 +291,7 @@ export function PanelPrepararEntrega({
                   minLength={3}
                   required
                   data-testid="recibido-por-entrega"
-                  value={recibidoPor}
+                  value={recibidoEfectivo}
                   onChange={(evento) => setRecibidoPor(evento.target.value)}
                 />
               </label>
@@ -291,7 +300,7 @@ export function PanelPrepararEntrega({
                 <Select
                   className="min-h-11"
                   data-testid="contacto-entrega"
-                  value={contactoId}
+                  value={contactoEfectivo}
                   onChange={(evento) => setContactoId(evento.target.value)}
                 >
                   <option value="">Sin contacto registrado</option>
@@ -317,7 +326,7 @@ export function PanelPrepararEntrega({
             <Button
               type="button"
               data-testid="confirmar-registrar-entrega"
-              disabled={ocupado || preparacion.isPending || totalCapturado <= 0 || recibidoPor.trim().length < 3}
+              disabled={ocupado || preparacion.isPending || totalCapturado <= 0 || recibidoEfectivo.trim().length < 3}
               onClick={() => void registrar()}
             >
               {ocupado ? 'Registrando…' : 'Registrar entrega'}
