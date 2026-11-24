@@ -482,7 +482,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     // arranque auditados se hacen desde el proceso, y el consumo en su cierre.
     const accionesEsperadas = [
       'cerrar_sesion_trabajo',
-      'iniciar_proceso_reclamado',
+      'iniciar_proceso_directo',
     ];
     for (const accion of accionesEsperadas) {
       expect(acciones.has(accion)).toBe(true);
