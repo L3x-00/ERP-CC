@@ -16,6 +16,7 @@ import {
   liberarReclamoAccion,
   moverReclamoAccion,
   reclamarProcesoAccion,
+  validarOcupacionInicioAccion,
 } from '@/modulos/produccion/acciones/espacio-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
 import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
@@ -413,10 +414,17 @@ export function EspacioOperador({
     }, 'Sesión iniciada');
   }
 
-  function abrirInicio(proceso: ProcesoEspacioOperador): void {
+  async function abrirInicio(proceso: ProcesoEspacioOperador): Promise<void> {
     if (proceso.equipoOcupadoPor) {
       setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
       return;
+    }
+    if (proceso.reclamo) {
+      const respuesta = await validarOcupacionInicioAccion({ reclamoId: proceso.reclamo.id });
+      if (respuesta.exito && respuesta.datos?.ocupadoPor) {
+        setEquipoOcupadoMensaje(respuesta.datos.ocupadoPor);
+        return;
+      }
     }
     setInicioPendiente(proceso);
   }

@@ -1,5 +1,7 @@
 'use server';
 
+import { z } from 'zod';
+
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
@@ -190,4 +192,32 @@ export async function iniciarProcesoReclamadoAccion(
     }, correlationId);
     return { exito: false, error: mensajeErrorSesion(error) };
   }
+}
+
+const esquemaValidarOcupacion = z.object({ reclamoId: z.uuid('ID de reclamo inválido') }).strict();
+
+/**
+ * Corrección obs: aviso anticipado de equipo ocupado. Solo lectura; la RPC de
+ * inicio sigue siendo la autoridad final si la máquina se ocupa después.
+ */
+export async function validarOcupacionInicioAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<{ ocupadoPor: string | null }>> {
+  const analisis = esquemaValidarOcupacion.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const operador = await obtenerOperadorParaMutacion(
+    'validar_ocupacion_inicio',
+    analisis.data.reclamoId,
+  );
+  if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
+
+  const { data, error } = await crearClienteSupabaseAdmin()
+    .rpc('validar_ocupacion_inicio_reclamo', {
+      p_reclamo_id: analisis.data.reclamoId,
+      p_operador_id: operador.id,
+    });
+  if (error) return { exito: false, error: 'No se pudo verificar la disponibilidad del equipo' };
+  return { exito: true, datos: { ocupadoPor: typeof data === 'string' && data.trim() !== '' ? data : null } };
 }

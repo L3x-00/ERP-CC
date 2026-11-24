@@ -6246,6 +6246,10 @@ export type Database = {
         Args: { p_operador_id: string; p_reclamo_id: string }
         Returns: string
       }
+      validar_ocupacion_inicio_reclamo: {
+        Args: { p_operador_id: string; p_reclamo_id: string }
+        Returns: string | null
+      }
       reclamar_proceso_operador: {
         Args: {
           p_fecha: string
