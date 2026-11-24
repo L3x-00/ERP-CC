@@ -25,6 +25,7 @@ DECLARE
   v_recurso record;
   v_detalle_ocupados text := '';
   v_hay_libre boolean := false;
+  v_sesion_ajena_activa boolean := false;
 BEGIN
   SELECT * INTO v_reclamo
   FROM public.reclamos_proceso_operador AS reclamo
@@ -76,6 +77,19 @@ BEGIN
       v_hay_libre := true;
       EXIT;
     END IF;
+    -- Solo se adelanta el aviso cuando hay una sesión ACTIVA de otro operador.
+    -- Los casos en preparación o sin sesión los decide la RPC real al iniciar.
+    IF EXISTS (
+      SELECT 1
+      FROM public.programacion_areas AS ocupada
+      JOIN public.sesiones_trabajo AS sesion
+        ON sesion.programacion_id = ocupada.id
+       AND sesion.estado_sesion = 'activa'
+      WHERE ocupada.recurso_id = v_recurso.id
+        AND sesion.operador_id IS DISTINCT FROM p_operador_id
+    ) THEN
+      v_sesion_ajena_activa := true;
+    END IF;
     v_detalle_ocupados := concat_ws(
       '; ',
       nullif(v_detalle_ocupados, ''),
@@ -86,6 +100,7 @@ BEGIN
   END LOOP;
 
   IF v_hay_libre THEN RETURN NULL; END IF;
+  IF NOT v_sesion_ajena_activa THEN RETURN NULL; END IF;
   IF v_detalle_ocupados IS NULL OR v_detalle_ocupados = '' THEN RETURN NULL; END IF;
   RETURN v_detalle_ocupados
     || '. No puedes cancelar el trabajo en curso de otro operador desde aquí:'
