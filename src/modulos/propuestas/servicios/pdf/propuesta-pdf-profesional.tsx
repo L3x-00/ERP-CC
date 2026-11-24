@@ -63,8 +63,9 @@ const borde = '#d7dde5';
 const estilos = StyleSheet.create({
   pagina: { padding: 42, fontFamily: 'Helvetica', fontSize: 9, color: '#152033' },
   encabezado: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: azul, paddingBottom: 14 },
-  marca: { width: '55%' },
-  logo: { width: 46, height: 46, objectFit: 'contain', marginBottom: 5 },
+  marca: { width: '55%', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 46, height: 46, objectFit: 'contain' },
+  datosMarca: { flex: 1 },
   marcaAgua: { position: 'absolute', top: 250, left: 147, width: 300, height: 300, opacity: 0.045 },
   nombreEmpresa: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: azul },
   datoEmpresa: { marginTop: 2, color: gris },
@@ -116,9 +117,11 @@ function PropuestaPdf({ documento }: { documento: DocumentoPropuesta }) {
         <View style={estilos.encabezado}>
           <View style={estilos.marca}>
             {logo ? <Image src={logo} style={estilos.logo} /> : null}
-            <Text style={estilos.nombreEmpresa}>{nombreEmpresa}</Text>
-            {empresa.rfc ? <Text style={estilos.datoEmpresa}>RFC: {empresa.rfc}</Text> : null}
-            {[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).map((dato) => <Text key={dato} style={estilos.datoEmpresa}>{dato}</Text>)}
+            <View style={estilos.datosMarca}>
+              <Text style={estilos.nombreEmpresa}>{nombreEmpresa}</Text>
+              {empresa.rfc ? <Text style={estilos.datoEmpresa}>RFC: {empresa.rfc}</Text> : null}
+              {[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).map((dato) => <Text key={dato} style={estilos.datoEmpresa}>{dato}</Text>)}
+            </View>
           </View>
           <View>
             <Text style={estilos.titulo}>{documento.titulo.toUpperCase()}</Text>

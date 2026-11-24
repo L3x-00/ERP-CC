@@ -77,15 +77,15 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
       <div><dt>Acumulado</dt><dd>${formatearNumero(documento.totalAcumulado)} de ${formatearNumero(documento.totalSolicitado)}</dd></div>
     </section>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;break-inside:avoid;page-break-inside:avoid;">
       <div style="border-top:1px solid #152033;padding-top:6px;text-align:center;">
         Recibido por: ${escaparHtml(documento.nota.recibidoPor)}
+        ${documento.nota.firmaImagenUrl ? `<img src="${escaparHtml(documento.nota.firmaImagenUrl)}" alt="Firma de quien recibe" style="width:180px;height:55px;max-width:100%;object-fit:contain;display:block;margin:8px auto 0;" />` : ''}
       </div>
       <div style="border-top:1px solid #152033;padding-top:6px;text-align:center;">
         Entregado por: ${escaparHtml(documento.empresa.razonSocial || documento.empresa.nombre)}
       </div>
     </div>
-    ${documento.nota.firmaImagenUrl ? `<img src="${escaparHtml(documento.nota.firmaImagenUrl)}" alt="Firma de quien recibe" style="max-width:220px;max-height:70px;display:block;margin:8px auto 0;" />` : ''}
     ${documento.nota.firmaClienteUrl ? '<p class="tenue" style="margin-top:8px;">Firma de conformidad registrada electrónicamente.</p>' : ''}`;
 
   return construirHtmlImpresion({

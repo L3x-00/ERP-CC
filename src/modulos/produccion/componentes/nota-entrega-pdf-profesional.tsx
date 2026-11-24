@@ -36,8 +36,9 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 2,
     borderBottomColor: azul, paddingBottom: 14,
   },
-  marca: { width: '55%' },
-  logo: { width: 46, height: 46, objectFit: 'contain', marginBottom: 5 },
+  marca: { width: '55%', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logo: { width: 46, height: 46, objectFit: 'contain' },
+  datosMarca: { flex: 1 },
   marcaAgua: { position: 'absolute', top: 250, left: 147, width: 300, height: 300, opacity: 0.045 },
   nombreEmpresa: { fontSize: 17, fontFamily: 'Helvetica-Bold', color: azul },
   datoEmpresa: { marginTop: 2, color: gris },
@@ -58,7 +59,11 @@ const estilos = StyleSheet.create({
   solicitado: { width: '14%', padding: 6, textAlign: 'right' },
   resumen: { marginTop: 12, alignItems: 'flex-end', color: gris },
   firma: { marginTop: 44, flexDirection: 'row', justifyContent: 'space-between' },
-  bloqueFirma: { width: '42%', borderTopWidth: 1, borderTopColor: '#152033', paddingTop: 6, textAlign: 'center' },
+  bloqueFirma: {
+    width: '46%', borderTopWidth: 1, borderTopColor: '#152033',
+    paddingTop: 6, alignItems: 'center', textAlign: 'center',
+  },
+  firmaImagen: { width: 180, height: 55, objectFit: 'contain', marginTop: 6 },
   pie: {
     position: 'absolute', left: 42, right: 42, bottom: 26, fontSize: 8, color: gris,
     flexDirection: 'row', justifyContent: 'space-between',
@@ -103,11 +108,13 @@ export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoN
         <View style={estilos.encabezado}>
           <View style={estilos.marca}>
             <Image src={logo} style={estilos.logo} />
-            <Text style={estilos.nombreEmpresa}>{nombreEmpresa}</Text>
-            {empresa.rfc ? <Text style={estilos.datoEmpresa}>RFC: {empresa.rfc}</Text> : null}
-            {[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).map((dato) => (
-              <Text key={dato} style={estilos.datoEmpresa}>{dato}</Text>
-            ))}
+            <View style={estilos.datosMarca}>
+              <Text style={estilos.nombreEmpresa}>{nombreEmpresa}</Text>
+              {empresa.rfc ? <Text style={estilos.datoEmpresa}>RFC: {empresa.rfc}</Text> : null}
+              {[empresa.direccion, empresa.telefono, empresa.email].filter(Boolean).map((dato) => (
+                <Text key={dato} style={estilos.datoEmpresa}>{dato}</Text>
+              ))}
+            </View>
           </View>
           <View>
             <Text style={estilos.titulo}>NOTA DE ENTREGA</Text>
@@ -156,14 +163,15 @@ export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoN
         </View>
 
         <View style={estilos.firma} wrap={false}>
-          <Text style={estilos.bloqueFirma}>Recibido por: {documento.nota.recibidoPor}</Text>
-          <Text style={estilos.bloqueFirma}>Entregado por: {nombreEmpresa}</Text>
-          {documento.nota.firmaImagenUrl ? (
-            <Image
-              src={documento.nota.firmaImagenUrl}
-              style={{ width: 180, height: 55, objectFit: 'contain', marginTop: 6 }}
-            />
-          ) : null}
+          <View style={estilos.bloqueFirma}>
+            <Text>Recibido por: {documento.nota.recibidoPor}</Text>
+            {documento.nota.firmaImagenUrl ? (
+              <Image src={documento.nota.firmaImagenUrl} style={estilos.firmaImagen} />
+            ) : null}
+          </View>
+          <View style={estilos.bloqueFirma}>
+            <Text>Entregado por: {nombreEmpresa}</Text>
+          </View>
         </View>
         {documento.nota.firmaClienteUrl ? <Text style={[estilos.meta, { marginTop: 8 }]}>Firma de conformidad registrada electrónicamente.</Text> : null}
         <View style={estilos.pie} fixed>

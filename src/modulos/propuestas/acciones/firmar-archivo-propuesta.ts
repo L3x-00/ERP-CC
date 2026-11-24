@@ -83,6 +83,15 @@ async function archivoPerteneceALaPropuesta(
  * concreta y que el archivo cuelgue de su árbol documental. La vigencia no
  * importa — una versión histórica del linaje se abre igual (CLI-06).
  */
+/** Nombre legible de descarga: el explícito gana; si no, el guardado saneado. */
+export function nombreDescargaEfectivo(
+  descarga: string | undefined,
+  nombreOriginal: string | null | undefined,
+): string | undefined {
+  if (descarga) return sanearNombreArchivo(descarga);
+  return nombreOriginal ? sanearNombreArchivo(nombreOriginal) : undefined;
+}
+
 export async function firmarArchivoPropuestaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ResultadoFirmarArchivo>> {
@@ -116,7 +125,7 @@ export async function firmarArchivoPropuestaAccion(
 
     const { data: archivoVisible, error: errorArchivoVisible } = await servidor
       .from('archivos')
-      .select('id, entidad, entidad_id')
+      .select('id, entidad, entidad_id, nombre_original')
       .eq('id', archivoId)
       .maybeSingle();
     // La propuesta ya quedó autorizada mediante RLS. Si el vínculo histórico
@@ -129,7 +138,7 @@ export async function firmarArchivoPropuestaAccion(
     if (errorArchivoVisible || !archivo) {
       const { data: archivoHistorico, error: errorArchivoHistorico } = await admin
         .from('archivos')
-        .select('id, entidad, entidad_id')
+        .select('id, entidad, entidad_id, nombre_original')
         .eq('id', archivoId)
         .maybeSingle();
       if (errorArchivoHistorico || !archivoHistorico) {
@@ -149,8 +158,11 @@ export async function firmarArchivoPropuestaAccion(
       return { exito: false, error: 'El archivo no pertenece a esta propuesta' };
     }
 
-    const url = descarga
-      ? await firmarLecturaArchivo(admin, archivoId, 300, descarga)
+    // Aunque el botón sea «Ver», el nombre sugerido por el navegador debe ser
+    // el legible guardado, nunca el UUID técnico de la ruta de Storage.
+    const descargaEfectiva = nombreDescargaEfectivo(descarga, archivo.nombre_original);
+    const url = descargaEfectiva
+      ? await firmarLecturaArchivo(admin, archivoId, 300, descargaEfectiva)
       : await firmarLecturaArchivo(admin, archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {
