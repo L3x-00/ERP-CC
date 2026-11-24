@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const { prepararMock, registrarMock } = vi.hoisted(() => ({
   prepararMock: vi.fn(),
@@ -78,5 +78,47 @@ describe('PanelPrepararEntrega con la orden entregada por completo', () => {
     expect(screen.queryByLabelText('Recibido por')).toBeNull();
     expect(screen.queryByTestId('contacto-entrega')).toBeNull();
     await waitFor(() => expect(screen.getByTestId('cerrar-panel-preparar').textContent).toBe('Cerrar'));
+  });
+
+  it('preselecciona el contacto principal y sugiere su nombre como receptor', async () => {
+    prepararMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        orden: {
+          id: ORDEN_ID,
+          folio: 'O-1126_12',
+          folioSii: null,
+          estadoSii: 'EN_PRODUCCION',
+          clienteId: '22222222-2222-4222-8222-222222222222',
+          clienteRazonSocial: 'Carso',
+          condicionesPago: null,
+        },
+        pendientes: [],
+        partidas: [{
+          id: '33333333-3333-4333-8333-333333333333',
+          codigoItem: 'IT01',
+          codigoPieza: 'IT01',
+          descripcion: 'Placa de unión',
+          cantidadSolicitada: 100,
+          cantidadProducida: 80,
+          cantidadEntregada: 0,
+        }],
+        entregas: [],
+        contactos: [
+          { id: 'contacto-2', nombre: 'Contacto secundario', correo: null, telefono: null, esPrincipal: false },
+          { id: 'contacto-1', nombre: 'Laura Méndez Arriaga', correo: null, telefono: null, esPrincipal: true },
+        ],
+      },
+    });
+
+    renderizar();
+
+    const contacto = await screen.findByTestId('contacto-entrega') as HTMLSelectElement;
+    expect(contacto.value).toBe('contacto-1');
+    const recibido = screen.getByTestId('recibido-por-entrega') as HTMLInputElement;
+    expect(recibido.value).toBe('Laura Méndez Arriaga');
+
+    fireEvent.change(recibido, { target: { value: 'ASISTENTE DE LAURA' } });
+    expect((screen.getByTestId('recibido-por-entrega') as HTMLInputElement).value).toBe('ASISTENTE DE LAURA');
   });
 });

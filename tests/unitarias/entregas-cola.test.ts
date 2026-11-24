@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import type { EntregaCola } from '@/modulos/entregas/servicios/obtener-entregas';
 import {
+  agruparEntregasPorOrden,
   filtrarEntregasCola,
 } from '@/modulos/entregas/utilidades/indice';
 
@@ -13,13 +14,14 @@ function fila(extra: {
   ordenFolio?: string;
   clienteNombre?: string | null;
   recibidoPor?: string;
+  ordenId?: string;
 }): EntregaCola {
   return {
     entrega: {
       id: extra.id,
       folio: `NE-00${extra.id}`,
       folioSii: extra.folioSii ?? null,
-      ordenId: `orden-${extra.id}`,
+      ordenId: extra.ordenId ?? `orden-${extra.id}`,
       esParcial: extra.esParcial ?? true,
       recibidoPor: extra.recibidoPor ?? 'Recepción',
       recibidoPorId: null,
@@ -76,5 +78,21 @@ describe('cola de entregas (SII-B7.3)', () => {
     expect(filtrarEntregasCola(cola, { estado: 'todas', texto: 'aceros' }).map((f) => f.entrega.id)).toEqual(['a']);
     expect(filtrarEntregasCola(cola, { estado: 'todas', texto: 'pedro' }).map((f) => f.entrega.id)).toEqual(['b']);
     expect(filtrarEntregasCola(cola, { estado: 'todas', texto: 'NE-00b' }).map((f) => f.entrega.id)).toEqual(['b']);
+  });
+
+  it('agrupa las entregas parciales de una orden en un solo registro con historial', () => {
+    const cola = [
+      fila({ id: '1', ordenId: 'orden-12', folioSii: 'NE-O-2611_12-01', recibidoPor: 'Laura' }),
+      fila({ id: '2', ordenId: 'orden-12', folioSii: 'NE-O-2611_12-02', recibidoPor: 'Laura' }),
+      fila({ id: '3', ordenId: 'orden-13', folioSii: 'NE-O-2611_13-01', recibidoPor: 'Jorge' }),
+    ];
+    const grupos = agruparEntregasPorOrden(cola);
+
+    expect(grupos).toHaveLength(2);
+    expect(grupos[0].ordenId).toBe('orden-12');
+    expect(grupos[0].entregas).toHaveLength(2);
+    expect(grupos[0].piezas).toBe(6);
+    expect(grupos[0].totalOrden).toBe(5);
+    expect(grupos[1].entregas).toHaveLength(1);
   });
 });
