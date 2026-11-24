@@ -21,7 +21,7 @@ import {
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
-  iniciarProcesoReclamadoAccion,
+  iniciarProcesoDirectoAccion,
   liberarReclamoAccion,
   moverReclamoAccion,
   reclamarProcesoAccion,
@@ -211,7 +211,7 @@ export function PaginaMiPanelOperador({
     },
 
     iniciar: async (proceso) => {
-      if (procesando === null && proceso.reclamadoPorMi) {
+      if (procesando === null && proceso.puedeIniciar) {
         if (proceso.equipoOcupadoPor) {
           setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
           return;
@@ -290,12 +290,17 @@ export function PaginaMiPanelOperador({
   };
 
   async function confirmarInicio(verificacion: VerificacionInicio): Promise<ResultadoOperacion> {
-    if (!inicioPendiente?.reclamo || !inicioPendiente.reclamadoPorMi) {
-      return { exito: false, error: 'Reclama el proceso antes de iniciarlo' };
+    if (!inicioPendiente) {
+      return { exito: false, error: 'Selecciona un proceso para iniciar' };
     }
     return ejecutar(inicioPendiente, async () => {
-      const resultado = await iniciarProcesoReclamadoAccion({
-        reclamoId: inicioPendiente.reclamo!.id,
+      // Obs. cliente: la reserva la crea la acción; el operador no reclama.
+      const resultado = await iniciarProcesoDirectoAccion({
+        ordenId: inicioPendiente.ordenId,
+        partidaId: inicioPendiente.partidaId,
+        metaProcesoId: inicioPendiente.metaProcesoId,
+        fecha: inicioPendiente.reclamo?.fecha ?? hoy,
+        turno: (inicioPendiente.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
       });
       if (resultado.exito) setInicioPendienteId(null);

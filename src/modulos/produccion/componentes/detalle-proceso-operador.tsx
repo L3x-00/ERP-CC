@@ -477,7 +477,8 @@ export function DetalleProcesoOperador({
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
-  const puedeReclamar = !soloDetalle && !proceso.reclamo && proceso.columna !== 'lista';
+  // Obs. cliente: el operador ya no reclama; la reserva la crea la acción de inicio.
+  const puedeReclamar = false;
   const puedeMover = !soloDetalle && proceso.reclamadoPorMi === true
     && proceso.sesionActiva === null
     && proceso.programacion?.estadoPlaneacion !== 'en_proceso'

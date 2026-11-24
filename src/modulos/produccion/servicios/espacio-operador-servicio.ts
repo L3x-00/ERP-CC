@@ -859,8 +859,7 @@ export async function obtenerEspacioOperadorServicio(
 
       let motivoNoInicia: string | null = null;
       if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
-      else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
-      else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
+      else if (reclamo && !reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
       // Corrección obs 6: el operador ya puede iniciar con el día/turno de su
       // reclamo; no debe esperar a que Planeación programe ni a que un admin
       // libere la orden a Bandeja. La RPC admite 'borrador' (migración 20261123000000).

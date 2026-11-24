@@ -111,8 +111,10 @@ export function matrizAccionesProceso(
       motivoBloqueo: 'proceso_completado', destino: null,
     };
   }
+  // Obs. cliente: el operador ya no hace el paso de «reclamar». La reserva la
+  // crea la acción de inicio; aquí solo se ofrece iniciar (o el motivo real).
   return {
-    principal: 'reclamar', etiqueta: 'Reclamar', deshabilitada: false,
-    motivoBloqueo: 'sin_reclamo', destino: null,
+    principal: 'iniciar', etiqueta: 'Iniciar proceso', deshabilitada: true,
+    motivoBloqueo: proceso.motivoBloqueo ?? null, destino: null,
   };
 }

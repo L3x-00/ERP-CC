@@ -12,7 +12,7 @@ import type {
   RecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import {
-  iniciarProcesoReclamadoAccion,
+  iniciarProcesoDirectoAccion,
   liberarReclamoAccion,
   moverReclamoAccion,
   reclamarProcesoAccion,
@@ -400,13 +400,18 @@ export function EspacioOperador({
   async function confirmarInicio(
     verificacion: VerificacionInicio,
   ): Promise<ResultadoOperacion> {
-    if (!inicioPendiente?.reclamo) {
-      return { exito: false, error: 'Reclama el proceso antes de iniciarlo' };
+    if (!inicioPendiente) {
+      return { exito: false, error: 'Selecciona un proceso para iniciar' };
     }
     const proceso = inicioPendiente;
     return ejecutar(proceso, async () => {
-      const respuesta = await iniciarProcesoReclamadoAccion({
-        reclamoId: proceso.reclamo!.id,
+      // Obs. cliente: la reserva se crea dentro de la acción de inicio.
+      const respuesta = await iniciarProcesoDirectoAccion({
+        ordenId: proceso.ordenId,
+        partidaId: proceso.partidaId,
+        metaProcesoId: proceso.metaProcesoId,
+        fecha: proceso.reclamo?.fecha ?? hoy,
+        turno: (proceso.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
       });
       if (respuesta.exito) setDetalle(null);
@@ -430,12 +435,9 @@ export function EspacioOperador({
   }
 
   function accionRapida(proceso: ProcesoEspacioOperador, tipo: TipoAccionTarjeta): void {
-    if (tipo === 'reclamar') {
-      void reclamar(proceso, hoy, 'matutino');
-      return;
-    }
-    if (tipo === 'iniciar') {
-      abrirInicio(proceso);
+    if (tipo === 'reclamar' || tipo === 'iniciar') {
+      // Ya no hay paso de reclamo: ambas acciones abren directamente el inicio.
+      void abrirInicio(proceso);
       return;
     }
     if (tipo === 'reanudar') {

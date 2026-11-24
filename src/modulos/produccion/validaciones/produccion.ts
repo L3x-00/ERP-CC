@@ -243,6 +243,17 @@ export const esquemaIniciarProcesoReclamado = z.object({
   corridaId: z.uuid('ID de corrida inválido').nullish(),
 }).strict();
 
+/** Inicio directo: la reserva se crea dentro de la acción, sin paso de reclamo. */
+export const esquemaIniciarProcesoDirecto = z.object({
+  ordenId: z.uuid('ID de orden inválido'),
+  partidaId: z.uuid('ID de partida inválido'),
+  metaProcesoId: z.uuid('ID de proceso inválido').nullable(),
+  fecha: z.iso.date('Fecha inválida'),
+  turno: z.enum(TURNOS_PLANEACION).default('matutino'),
+  verificacion: esquemaVerificacionInicio.optional(),
+  corridaId: z.uuid('ID de corrida inválido').nullish(),
+}).strict();
+
 export type IniciarSesionInput = z.infer<typeof esquemaIniciarSesion>;
 export type ReanudarSesionInput = z.infer<typeof esquemaReanudarSesion>;
 /** C20: corrección de avance y hora real de una pausa automática por jornada. */
