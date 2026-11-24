@@ -25,6 +25,7 @@ import {
   etiquetasProceso,
   filaAReclamoProceso,
   inicioSemana,
+  mensajeEquipoOcupado,
   resumirEspacioOperador,
   resolverAreaRaiz,
   sumarDias,
@@ -963,10 +964,28 @@ export async function obtenerEspacioOperadorServicio(
         puedeReanudar,
         motivoNoInicia,
         motivoBloqueo: bloqueadoSinSesion ? 'programacion_bloqueada_sin_sesion' : null,
+        equipoOcupadoPor: null,
       };
       proceso.etiquetas = etiquetasProceso(proceso);
       procesos.push(proceso);
     }
+  }
+
+  // Corrección obs: anticipar la ocupación del equipo con datos que ya están en
+  // el espacio (sesión activa + recurso de cada programación). Es solo un aviso
+  // para no abrir el checklist en falso; la RPC sigue siendo la autoridad final.
+  const ocupantesPorRecurso = new Map<string, ProcesoEspacioOperador>();
+  for (const proceso of procesos) {
+    const recursoId = proceso.programacion?.recursoId;
+    if (proceso.sesionActiva && recursoId) ocupantesPorRecurso.set(recursoId, proceso);
+  }
+  for (const proceso of procesos) {
+    if (!operadorId) continue;
+    const recursoId = proceso.programacion?.recursoId;
+    if (!recursoId) continue;
+    const ocupante = ocupantesPorRecurso.get(recursoId);
+    if (!ocupante || ocupante.id === proceso.id) continue;
+    proceso.equipoOcupadoPor = mensajeEquipoOcupado(ocupante, operadorId);
   }
 
   // Orden estable: urgencia, fecha compromiso y secuencia del ruteo.

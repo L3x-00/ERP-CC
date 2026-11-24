@@ -3131,7 +3131,7 @@ export function DetalleProcesoOperador({
             <div className="flex flex-wrap gap-2">
               {proceso.puedeIniciar ? (
                 <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso)} data-testid="iniciar-detalle">
-                  Iniciar proceso
+                  {proceso.equipoOcupadoPor ? 'Ocupado · Ver detalles' : 'Iniciar proceso'}
                 </Button>
               ) : null}
               {proceso.puedeReanudar && !proceso.pendienteActualizacionAvance ? (

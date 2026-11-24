@@ -43,6 +43,7 @@ import {
 } from '@/modulos/produccion/utilidades/formato-operador';
 import { resumirJornadaDiaria } from '@/modulos/produccion/utilidades/mi-panel-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
 import {
   DetalleProcesoOperador,
@@ -127,6 +128,7 @@ export function EspacioOperador({
   const [detalle, setDetalle] = useState<ProcesoEspacioOperador | null>(null);
   const [ordenAbiertaId, setOrdenAbiertaId] = useState<string | null>(null);
   const [inicioPendiente, setInicioPendiente] = useState<ProcesoEspacioOperador | null>(null);
+  const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
@@ -411,13 +413,21 @@ export function EspacioOperador({
     }, 'Sesión iniciada');
   }
 
+  function abrirInicio(proceso: ProcesoEspacioOperador): void {
+    if (proceso.equipoOcupadoPor) {
+      setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
+      return;
+    }
+    setInicioPendiente(proceso);
+  }
+
   function accionRapida(proceso: ProcesoEspacioOperador, tipo: TipoAccionTarjeta): void {
     if (tipo === 'reclamar') {
       void reclamar(proceso, hoy, 'matutino');
       return;
     }
     if (tipo === 'iniciar') {
-      setInicioPendiente(proceso);
+      abrirInicio(proceso);
       return;
     }
     if (tipo === 'reanudar') {
@@ -453,7 +463,7 @@ export function EspacioOperador({
     liberar,
     iniciar: (proceso) => {
       setDetalle(null);
-      setInicioPendiente(proceso);
+      abrirInicio(proceso);
     },
     reanudar,
     cerrarPausa,
@@ -685,6 +695,17 @@ export function EspacioOperador({
           if (!abierto) setInicioPendiente(null);
         }}
         onConfirmar={confirmarInicio}
+      />
+
+      <DialogoErrorCierre
+        error={equipoOcupadoMensaje ? {
+          titulo: 'Equipo ocupado',
+          mensaje: equipoOcupadoMensaje,
+          etiquetaCerrar: 'Entendido',
+        } : null}
+        descripcion="No se abrió el checklist porque la máquina ya está en uso."
+        testId="error-equipo-ocupado"
+        onCerrar={() => setEquipoOcupadoMensaje(null)}
       />
             {operadorId !== null ? (
         <MiPanelOperador
