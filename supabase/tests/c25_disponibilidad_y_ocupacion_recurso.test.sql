@@ -9,7 +9,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(14);
+SELECT plan(15);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures. Se usa el lunes de la semana actual para no depender del día en que
@@ -162,6 +162,14 @@ SELECT throws_like(format($$
 $$, (SELECT valor FROM c25 WHERE clave = 'reclamo_ocup2')),
   'recurso_ocupado: %C25R-OCUP%No puedes cancelar el trabajo en curso de otro operador%',
   'El arranque avisa que el equipo está ocupado y que no puede cancelar al otro operador');
+
+-- El aviso previo al checklist devuelve el mismo detalle, sin escribir datos.
+SELECT ok(
+  public.validar_ocupacion_inicio_reclamo(
+    (SELECT valor::uuid FROM c25 WHERE clave = 'reclamo_ocup2'),
+    '00000000-0000-4000-8000-0000000c2501'
+  ) LIKE '%C25R-OCUP%No puedes cancelar el trabajo en curso de otro operador%',
+  'La RPC de solo lectura adelanta el aviso de equipo ocupado');
 
 SELECT is((
   SELECT estado_planeacion FROM public.programacion_areas

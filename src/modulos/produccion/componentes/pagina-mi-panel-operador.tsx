@@ -25,6 +25,7 @@ import {
   liberarReclamoAccion,
   moverReclamoAccion,
   reclamarProcesoAccion,
+  validarOcupacionInicioAccion,
 } from '@/modulos/produccion/acciones/espacio-operador';
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
@@ -209,11 +210,18 @@ export function PaginaMiPanelOperador({
       }, 'Reserva liberada');
     },
 
-    iniciar: (proceso) => {
+    iniciar: async (proceso) => {
       if (procesando === null && proceso.reclamadoPorMi) {
         if (proceso.equipoOcupadoPor) {
           setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
           return;
+        }
+        if (proceso.reclamo) {
+          const respuesta = await validarOcupacionInicioAccion({ reclamoId: proceso.reclamo.id });
+          if (respuesta.exito && respuesta.datos?.ocupadoPor) {
+            setEquipoOcupadoMensaje(respuesta.datos.ocupadoPor);
+            return;
+          }
         }
         setInicioPendienteId(proceso.id);
       }

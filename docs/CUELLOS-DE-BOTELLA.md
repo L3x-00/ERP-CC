@@ -576,3 +576,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | Con `LASER-01` ocupado por la sesión de otro operador, el botón «Iniciar proceso» seguía habilitado, se abría el checklist y solo al confirmar aparecía el error de ocupación | El texto exacto se genera dentro de `public.preparar_reclamo_operador` (`c25:395-410`) y solo llega como payload del error de la RPC; el espacio del operador no exponía ese dato antes de abrir el checklist | `espacio-operador-servicio.ts` deriva `equipoOcupadoPor` de los datos que ya trae (sesión activa ajena + `programacion.recursoId`), con `mensajeEquipoOcupado` que replica el formato de la RPC. El botón pasa a «Ocupado · Ver detalles» y, al pulsarlo, se abre `DialogoErrorCierre` con el mensaje exacto, sin llegar al checklist. La RPC sigue siendo la autoridad final por si la máquina se ocupa en el instante del clic. Sin migración |
+
+## 70. El aviso de equipo ocupado no aparecía (segunda corrección)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Tras la corrección anterior seguía abriéndose el checklist y el error de ocupación aparecía al confirmar | `preparar_reclamo_operador` elige la máquina en el arranque, así que el proceso reclamado todavía no tiene `programacion.recursoId`. La detección en cliente por recurso nunca podía emparejar al ocupante | Nueva RPC de solo lectura `validar_ocupacion_inicio_reclamo` (migración `20261124000000`) que replica la parte de elección/ocupación con `privado.grupo_equipo_requerido_operacion`, `privado.obtener_capacidad_efectiva_recurso_turno` y `privado.detalle_ocupacion_recurso`, sin escribir datos. Nueva Server Action `validarOcupacionInicioAccion`; `abrirInicio` espera la validación en `espacio-operador.tsx` y `pagina-mi-panel-operador.tsx` y abre el modal con el mensaje exacto antes del checklist. La RPC de inicio sigue siendo autoridad final |
