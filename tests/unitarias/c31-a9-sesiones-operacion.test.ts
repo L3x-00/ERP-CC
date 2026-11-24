@@ -96,7 +96,7 @@ describe('C31/A9 — derivación visible de la operación posterior', () => {
       motivoNoInicia: 'Sin piezas del proceso anterior',
       motivoBloqueo: null,
     } as never;
-    expect(accionPrincipal(proceso).tipo).toBe('reclamar');
+    expect(accionPrincipal(proceso).tipo).toBe('iniciar');
     expect(proceso).toMatchObject({ puedeIniciar: false });
   });
 });

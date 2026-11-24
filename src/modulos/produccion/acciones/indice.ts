@@ -35,6 +35,7 @@ export { reclamarRecursoAccion } from '@/modulos/produccion/acciones/reclamar-re
 export { reabrirOperacionBloqueadaAccion } from '@/modulos/produccion/acciones/reabrir-operacion-bloqueada';
 export { reasignarPartidaAccion } from '@/modulos/produccion/acciones/reasignar-partida-operador';
 export {
+  iniciarProcesoDirectoAccion,
   iniciarProcesoReclamadoAccion,
   liberarReclamoAccion,
   moverReclamoAccion,

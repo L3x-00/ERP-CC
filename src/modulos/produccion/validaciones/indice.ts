@@ -13,6 +13,7 @@ export {
   esquemaReclamarProceso,
   esquemaMoverReclamo,
   esquemaLiberarReclamo,
+  esquemaIniciarProcesoDirecto,
   esquemaIniciarProcesoReclamado,
 } from '@/modulos/produccion/validaciones/produccion';
 

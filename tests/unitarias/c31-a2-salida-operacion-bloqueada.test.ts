@@ -41,8 +41,8 @@ describe('C31/A2 — salida de operación bloqueada sin sesión', () => {
     expect(accionPrincipal(proceso).etiqueta).toBe('Bloqueado por Planeación');
   });
 
-  it('un proceso sin bloqueo sigue ofreciendo reclamar (sin regresión)', () => {
-    expect(matrizAccionesProceso(procesoBase()).principal).toBe('reclamar');
+  it('un proceso sin bloqueo ofrece iniciar directamente (sin paso de reclamar)', () => {
+    expect(matrizAccionesProceso(procesoBase()).principal).toBe('iniciar');
   });
 
   it('el motivo dice quién debe actuar y no es genérico', () => {

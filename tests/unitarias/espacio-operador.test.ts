@@ -604,11 +604,11 @@ describe('estimarHorasProceso', () => {
 });
 
 describe('accionPrincipal', () => {
-  it('prioriza la sesión activa, luego reanudar, iniciar y reclamar', () => {
+  it('prioriza la sesión activa, luego reanudar e iniciar sin paso de reclamar', () => {
     expect(accionPrincipal(crearProceso({ sesionActiva: {} as never })).tipo).toBe('sesion');
     expect(accionPrincipal(crearProceso({ puedeReanudar: true })).tipo).toBe('reanudar');
     expect(accionPrincipal(crearProceso({ puedeIniciar: true })).tipo).toBe('iniciar');
-    expect(accionPrincipal(crearProceso()).tipo).toBe('reclamar');
+    expect(accionPrincipal(crearProceso()).tipo).toBe('iniciar');
   });
 
   it('bloquea el proceso tomado por otro operador', () => {

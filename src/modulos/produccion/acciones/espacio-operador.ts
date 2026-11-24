@@ -21,6 +21,7 @@ import {
 } from '@/modulos/produccion/servicios/notificaciones-produccion-servicio';
 import type { ReclamoProcesoOperador } from '@/modulos/produccion/tipos/indice';
 import {
+  esquemaIniciarProcesoDirecto,
   esquemaIniciarProcesoReclamado,
   esquemaLiberarReclamo,
   esquemaMoverReclamo,
@@ -220,4 +221,69 @@ export async function validarOcupacionInicioAccion(
     });
   if (error) return { exito: false, error: 'No se pudo verificar la disponibilidad del equipo' };
   return { exito: true, datos: { ocupadoPor: typeof data === 'string' && data.trim() !== '' ? data : null } };
+}
+
+/**
+ * Inicio directo (obs. cliente): el operador no hace el paso de «reclamar».
+ * La reserva se crea aquí con la RPC existente —jornada, área, exclusividad y
+ * propiedad siguen validadas en PostgreSQL— y se libera si el inicio falla.
+ */
+export async function iniciarProcesoDirectoAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<SesionIniciada>> {
+  const analisis = esquemaIniciarProcesoDirecto.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const datos = analisis.data;
+  const operador = await obtenerOperadorParaMutacion('iniciar_proceso_directo', datos.ordenId);
+  if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
+
+  const correlationId = nuevoCorrelationId();
+  const admin = crearClienteSupabaseAdmin();
+  let reclamoId: string | null = null;
+  try {
+    const reclamo = await reclamarProcesoOperadorServicio(admin, {
+      ordenId: datos.ordenId,
+      partidaId: datos.partidaId,
+      metaProcesoId: datos.metaProcesoId,
+      fecha: datos.fecha,
+      turno: datos.turno,
+      operadorId: operador.id,
+    });
+    reclamoId = reclamo.id;
+
+    const sesion = await iniciarProcesoReclamadoServicio(admin, {
+      reclamoId: reclamo.id,
+      operadorId: operador.id,
+      ...(datos.verificacion ? { verificacion: datos.verificacion } : {}),
+      ...(datos.corridaId ? { corridaId: datos.corridaId } : {}),
+    });
+
+    await registrarLog(operador, 'iniciar_proceso_directo', 'produccion', sesion.id, {
+      ordenId: datos.ordenId,
+      partidaId: datos.partidaId,
+      reclamoId: reclamo.id,
+    }, correlationId);
+    await notificarInicioProcesoServicio(admin, {
+      ordenId: sesion.ordenId,
+      partidaId: sesion.partidaId,
+      operadorId: operador.id,
+      operadorNombre: operador.nombreCompleto,
+      reclamoId: reclamo.id,
+    });
+    return { exito: true, datos: sesion };
+  } catch (error) {
+    if (reclamoId) {
+      try {
+        await liberarReclamoOperadorServicio(admin, { reclamoId, operadorId: operador.id });
+      } catch {
+        // La RPC de inicio ya revirtió la preparación; liberar es best-effort.
+      }
+    }
+    await registrarLog(operador, 'inicio_proceso_directo_rechazado', 'produccion', datos.ordenId, {
+      codigo: error instanceof ErrorProduccion ? error.codigo : 'desconocido',
+    }, correlationId);
+    return { exito: false, error: mensajeErrorSesion(error) };
+  }
 }

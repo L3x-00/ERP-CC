@@ -263,7 +263,8 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
     const detalle = page.getByTestId('detalle-proceso');
     await expect(detalle).toBeVisible();
 
-    await detalle.getByTestId('reclamar-detalle').click();
+    // Inicio directo: el paso de reclamo ya no existe.
+    await expect(detalle.getByTestId('reclamar-detalle')).toHaveCount(0);
     await detalle.getByTestId('iniciar-detalle').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByTestId('columna-en_proceso')).toContainText('C20-');
