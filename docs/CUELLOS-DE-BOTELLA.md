@@ -606,3 +606,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | El operador tenía que «reclamar» la orden y después cada operación de cada ítem antes de iniciar, lo que le quitaba tiempo en un entorno de pocos operadores | El reclamo es hoy la única vía para crear la programación `en_preparacion` que exige `iniciar_sesion_trabajo_operador`, y la matriz ofrecía «Reclamar» por defecto; `motivoNoInicia` bloqueaba con «Reclama el proceso para iniciar» | Nueva Server Action `iniciarProcesoDirectoAccion`: crea la reserva con la RPC existente (jornada de 8 h, área, exclusividad CRIT-2), inicia con el checklist y libera la reserva si falla. La matriz ofrece «Iniciar proceso» y `motivoNoInicia` ya no exige reclamo. Se mantiene la notificación de inicio y la auditoría; el operador ve un solo paso. Sin cambios en RPC ni migración |
+
+## 75. Total del egreso calculado
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| En el formulario de egreso el usuario capturaba manualmente el Total además del Subtotal y el IVA, con riesgo de equivocarse | `modal-registrar-gasto.tsx` mantenía `subtotal`, `iva` y `total` como estados independientes y enviaba `Number(total)`; la coherencia se validaba después en tres capas | Se elimina el estado `total`: el campo es de solo lectura y se deriva con `Math.round((subtotal + iva) * 10000) / 10000`, el mismo redondeo que exige la persistencia. El OCR ya no intenta sobreescribirlo. Sin migración |

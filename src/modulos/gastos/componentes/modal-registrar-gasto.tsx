@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
@@ -71,7 +71,12 @@ export function ModalRegistrarGasto({
   const [descripcion, setDescripcion] = useState(gastoEditar?.descripcion ?? '');
   const [subtotal, setSubtotal] = useState(gastoEditar ? String(gastoEditar.montoSubtotal) : '');
   const [iva, setIva] = useState(gastoEditar ? String(gastoEditar.montoIva) : '');
-  const [total, setTotal] = useState(gastoEditar ? String(gastoEditar.montoTotal) : '');
+  // El total nunca se captura: es subtotal + IVA con el redondeo de 4 decimales
+  // que exige la persistencia (gastos.ts / CHECK de la tabla).
+  const totalCalculado = useMemo(() => {
+    const suma = (Number(subtotal) || 0) + (Number(iva) || 0);
+    return Math.round(suma * 10_000) / 10_000;
+  }, [subtotal, iva]);
   const [moneda, setMoneda] = useState<MonedaGasto>(gastoEditar?.moneda ?? 'MXN');
   const [tipoCambio, setTipoCambio] = useState(gastoEditar ? String(gastoEditar.tipoCambio) : '1');
   const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? fechaLocalNegocio());
@@ -127,7 +132,7 @@ export function ModalRegistrarGasto({
       descripcion,
       montoSubtotal: Number(subtotal),
       montoIva: Number(iva),
-      montoTotal: Number(total),
+      montoTotal: totalCalculado,
       moneda,
       tipoCambio: Number(tipoCambio),
       fechaGasto,
@@ -164,7 +169,7 @@ export function ModalRegistrarGasto({
     setFolioComprobante(datos.folioFactura ?? '');
     if (datos.montoSubtotal !== null) setSubtotal(String(datos.montoSubtotal));
     if (datos.montoIva !== null) setIva(String(datos.montoIva));
-    if (datos.montoTotal !== null) setTotal(String(datos.montoTotal));
+    // El total se recalcula solo a partir de los dos importes anteriores.
     if (datos.moneda) {
       setMoneda(datos.moneda);
       if (datos.moneda === 'MXN') setTipoCambio('1');
@@ -320,7 +325,22 @@ export function ModalRegistrarGasto({
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1"><Label htmlFor="gasto-subtotal" obligatorio>Subtotal</Label><Input id="gasto-subtotal" type="number" min="0" step="0.0001" value={subtotal} onChange={(evento) => setSubtotal(evento.target.value)} required /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-iva" obligatorio>IVA</Label><Input id="gasto-iva" type="number" min="0" step="0.0001" value={iva} onChange={(evento) => setIva(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-total" obligatorio>Total</Label><Input id="gasto-total" type="number" min="0" step="0.0001" value={total} onChange={(evento) => setTotal(evento.target.value)} required /></div>
+            <div className="grid gap-1">
+              <Label htmlFor="gasto-total">Total</Label>
+              <Input
+                id="gasto-total"
+                type="number"
+                min="0"
+                step="0.0001"
+                value={String(totalCalculado)}
+                readOnly
+                aria-describedby="gasto-total-ayuda"
+                className="bg-superficie-2"
+              />
+              <span id="gasto-total-ayuda" className="text-[11px] text-texto-secundario">
+                Calculado: subtotal más IVA.
+              </span>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-moneda">Moneda</Label><Select id="gasto-moneda" value={moneda} onChange={(evento) => aplicarMoneda(evento.target.value as MonedaGasto)}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>

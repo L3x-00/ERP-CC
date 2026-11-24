@@ -73,7 +73,8 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
     await dialogo.getByLabel('Descripción').fill('Servicio A19 inicial');
     await dialogo.getByRole('spinbutton', { name: 'Subtotal' }).fill('100');
     await dialogo.getByRole('spinbutton', { name: 'IVA' }).fill('16');
-    await dialogo.getByRole('spinbutton', { name: 'Total', exact: true }).fill('116');
+    // El total se calcula solo y el campo es de solo lectura.
+    await expect(dialogo.getByRole('spinbutton', { name: 'Total', exact: true })).toHaveValue('116');
     await dialogo.getByLabel('Comprobante (opcional)').setInputFiles({ name: 'recibo.png', mimeType: 'image/png', buffer: PNG_MAYOR_1_MIB });
     await expect(dialogo.getByAltText('Vista previa del comprobante seleccionado')).toBeVisible();
     await dialogo.getByRole('button', { name: 'Guardar gasto' }).click();
@@ -144,7 +145,7 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
     await dialogo.getByLabel('Descripción').fill('Servicio A19 corregido');
     await dialogo.getByRole('spinbutton', { name: 'Subtotal' }).fill('200');
     await dialogo.getByRole('spinbutton', { name: 'IVA' }).fill('32');
-    await dialogo.getByRole('spinbutton', { name: 'Total', exact: true }).fill('232');
+    await expect(dialogo.getByRole('spinbutton', { name: 'Total', exact: true })).toHaveValue('232');
     await dialogo.getByLabel('Comprobante (opcional)').setInputFiles({ name: 'recibo-corregido.png', mimeType: 'image/png', buffer: PNG_VALIDO });
     await dialogo.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(dialogo).toHaveCount(0);
