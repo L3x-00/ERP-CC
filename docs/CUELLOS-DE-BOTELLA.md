@@ -612,3 +612,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | En el formulario de egreso el usuario capturaba manualmente el Total además del Subtotal y el IVA, con riesgo de equivocarse | `modal-registrar-gasto.tsx` mantenía `subtotal`, `iva` y `total` como estados independientes y enviaba `Number(total)`; la coherencia se validaba después en tres capas | Se elimina el estado `total`: el campo es de solo lectura y se deriva con `Math.round((subtotal + iva) * 10000) / 10000`, el mismo redondeo que exige la persistencia. El OCR ya no intenta sobreescribirlo. Sin migración |
+
+## 76. Materiales agrupados por tipo
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| En «Materiales y costos» todos los materiales aparecían combinados en una sola tabla | `tabla-materiales-costos.tsx` solo agrupaba por jerarquía `padre_id` y no había ninguna sección por tipo; `catalogo_materiales` no tiene columna de tipo | Clasificación **solo visual** con `tipoMaterialVisual` a partir de nombre y código: `Metales`, `Madera`, `Otros materiales`. La tabla inserta encabezados de sección conservando el orden y la jerarquía dentro de cada grupo; no escribe en la base ni cambia el catálogo. Sin migración |

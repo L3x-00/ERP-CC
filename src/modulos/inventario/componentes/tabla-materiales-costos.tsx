@@ -1,5 +1,7 @@
 'use client';
 
+import { Fragment } from 'react';
+
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -14,7 +16,12 @@ import {
 import { formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import type { MaterialCosto } from '../tipos/materiales-costos';
-import { formatearDimensionesMm, formatearFechaDia } from '../utilidades/materiales-costos';
+import {
+  formatearDimensionesMm,
+  formatearFechaDia,
+  ORDEN_TIPOS_MATERIAL,
+  tipoMaterialVisual,
+} from '../utilidades/materiales-costos';
 
 /**
  * Catálogo canónico con costo vigente (C6.1) y jerarquía de grupos (obs. 8):
@@ -55,6 +62,15 @@ export function TablaMaterialesCostos({
     }
   }
 
+  // Observación cliente: agrupar visualmente por tipo de material. La jerarquía
+  // de grupos (padre_id) se conserva dentro de cada sección.
+  const grupos = ORDEN_TIPOS_MATERIAL
+    .map((tipo) => ({
+      tipo,
+      filas: filas.filter((fila) => tipoMaterialVisual(fila.material) === tipo),
+    }))
+    .filter((grupo) => grupo.filas.length > 0);
+
   return (
     <TablaContenedor>
       <Tabla>
@@ -73,8 +89,15 @@ export function TablaMaterialesCostos({
           </tr>
         </TablaEncabezado>
         <TablaCuerpo>
-          {filas.map(({ material, grupo, subitems }) => (
-            <TablaFila key={material.id} data-testid={`fila-material-${material.codigo}`}>
+          {grupos.map(({ tipo, filas: filasGrupo }) => (
+            <Fragment key={tipo}>
+              <TablaFila data-testid={`grupo-material-${tipo.replace(/\s+/g, '-').toLowerCase()}`}>
+                <TablaCelda colSpan={10} className="bg-superficie-2 font-semibold text-texto-primario">
+                  {tipo} · {filasGrupo.length} material(es)
+                </TablaCelda>
+              </TablaFila>
+              {filasGrupo.map(({ material, grupo, subitems }) => (
+                <TablaFila key={material.id} data-testid={`fila-material-${material.codigo}`}>
               <TablaCelda className="font-mono text-xs">{material.codigo}</TablaCelda>
               <TablaCelda>
                 <span className="flex flex-wrap items-center gap-1.5">
@@ -172,7 +195,9 @@ export function TablaMaterialesCostos({
                   )}
                 </div>
               </TablaCelda>
-            </TablaFila>
+                </TablaFila>
+              ))}
+            </Fragment>
           ))}
         </TablaCuerpo>
       </Tabla>
