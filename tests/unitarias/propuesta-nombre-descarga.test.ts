@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nombreDescargaEfectivo } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
+import { nombreDescargaEfectivo } from '@/modulos/propuestas/utilidades/nombre-descarga';
 
 describe('nombreDescargaEfectivo — nombre legible sin UUID técnico', () => {
   it('usa el nombre guardado cuando la acción no recibe uno explícito', () => {

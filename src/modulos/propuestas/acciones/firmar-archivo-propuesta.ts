@@ -6,7 +6,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
-import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
+import { nombreDescargaEfectivo } from '@/modulos/propuestas/utilidades/nombre-descarga';
 import { esquemaFirmarArchivoPropuesta } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 export type ResultadoFirmarArchivo = { url: string };
@@ -83,15 +83,6 @@ async function archivoPerteneceALaPropuesta(
  * concreta y que el archivo cuelgue de su árbol documental. La vigencia no
  * importa — una versión histórica del linaje se abre igual (CLI-06).
  */
-/** Nombre legible de descarga: el explícito gana; si no, el guardado saneado. */
-export function nombreDescargaEfectivo(
-  descarga: string | undefined,
-  nombreOriginal: string | null | undefined,
-): string | undefined {
-  if (descarga) return sanearNombreArchivo(descarga);
-  return nombreOriginal ? sanearNombreArchivo(nombreOriginal) : undefined;
-}
-
 export async function firmarArchivoPropuestaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ResultadoFirmarArchivo>> {
@@ -100,11 +91,6 @@ export async function firmarArchivoPropuestaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
   const { propuestaId, archivoId } = analisis.data;
-  // El objeto en Storage lleva un UUID para no colisionar; el nombre de descarga
-  // que ve el cliente es el legible que pide el panel (Obs. cliente 2026-11-14).
-  const descarga = analisis.data.descarga
-    ? sanearNombreArchivo(analisis.data.descarga)
-    : undefined;
 
   try {
     const { crearClienteSupabaseServidor } = await import('@/nucleo/supabase/servidor');
@@ -160,7 +146,7 @@ export async function firmarArchivoPropuestaAccion(
 
     // Aunque el botón sea «Ver», el nombre sugerido por el navegador debe ser
     // el legible guardado, nunca el UUID técnico de la ruta de Storage.
-    const descargaEfectiva = nombreDescargaEfectivo(descarga, archivo.nombre_original);
+    const descargaEfectiva = nombreDescargaEfectivo(analisis.data.descarga, archivo.nombre_original);
     const url = descargaEfectiva
       ? await firmarLecturaArchivo(admin, archivoId, 300, descargaEfectiva)
       : await firmarLecturaArchivo(admin, archivoId, 300);
