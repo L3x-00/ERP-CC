@@ -245,7 +245,7 @@ export function TarjetaOrdenMisProcesos({
                     onClick={() => onIniciar(proceso)}
                     className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-acento px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
-                    Iniciar proceso
+                    {proceso.equipoOcupadoPor ? 'Ocupado · Ver detalles' : 'Iniciar proceso'}
                   </button>
                 ) : null}
 

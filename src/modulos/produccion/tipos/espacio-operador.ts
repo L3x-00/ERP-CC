@@ -276,6 +276,8 @@ export interface ProcesoEspacioOperador {
   motivoNoInicia: string | null;
   /** C31/A2: código estable del bloqueo; la UI deriva texto y testid de aquí. */
   motivoBloqueo: CodigoBloqueo | null;
+  /** Corrección obs: el equipo de esta operación ya lo usa otro operador. */
+  equipoOcupadoPor?: string | null;
 }
 
 /** Ítem de la orden con las operaciones visibles de ese ítem. */
@@ -757,6 +759,24 @@ export function construirDiasCalendario(
       procesos: delDia,
     };
   });
+}
+
+/**
+ * Aviso anticipado de ocupación con el mismo formato que la RPC del servidor.
+ * Solo aplica a sesiones activas ajenas; el resto de los casos los resuelve la
+ * validación definitiva al iniciar.
+ */
+export function mensajeEquipoOcupado(
+  ocupante: ProcesoEspacioOperador,
+  operadorId: string,
+): string | null {
+  if (!ocupante.sesionActiva || !ocupante.programacion?.recursoId) return null;
+  if (ocupante.sesionActiva.operadorId === operadorId) return null;
+  const codigo = ocupante.programacion.recursoCodigo ?? 'Equipo';
+  const nombre = ocupante.programacion.recursoNombre ?? 'sin nombre';
+  const folio = ocupante.folioSii?.trim() ? ocupante.folioSii : ocupante.folioOrden;
+  const operador = ocupante.sesionActiva.operadorNombre || 'de piso';
+  return `${codigo} (${nombre}) está ocupado por la orden ${folio} · ${ocupante.codigoPieza} (${ocupante.procesoNombre}), operador ${operador}. No puedes cancelar el trabajo en curso de otro operador desde aquí: pide que lo cierren o lo pausen, o reprograma esta operación.`;
 }
 
 export function resumirEspacioOperador(

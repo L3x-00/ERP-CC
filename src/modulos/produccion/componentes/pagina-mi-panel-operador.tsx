@@ -51,6 +51,7 @@ import {
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { TarjetaOrdenMisProcesos } from './tarjeta-orden-mis-procesos';
 interface PropsPaginaMiPanelOperador {
   nombreOperador: string;
@@ -85,6 +86,7 @@ export function PaginaMiPanelOperador({
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
   const [procesoSeleccionadoId, setProcesoSeleccionadoId] = useState<string | null>(null);
   const [inicioPendienteId, setInicioPendienteId] = useState<string | null>(null);
+  const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
@@ -209,6 +211,10 @@ export function PaginaMiPanelOperador({
 
     iniciar: (proceso) => {
       if (procesando === null && proceso.reclamadoPorMi) {
+        if (proceso.equipoOcupadoPor) {
+          setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
+          return;
+        }
         setInicioPendienteId(proceso.id);
       }
     },
@@ -517,6 +523,17 @@ export function PaginaMiPanelOperador({
           if (!abierto && procesando === null) setInicioPendienteId(null);
         }}
         onConfirmar={confirmarInicio}
+      />
+
+      <DialogoErrorCierre
+        error={equipoOcupadoMensaje ? {
+          titulo: 'Equipo ocupado',
+          mensaje: equipoOcupadoMensaje,
+          etiquetaCerrar: 'Entendido',
+        } : null}
+        descripcion="No se abrió el checklist porque la máquina ya está en uso."
+        testId="error-equipo-ocupado"
+        onCerrar={() => setEquipoOcupadoMensaje(null)}
       />
 
       <p className="text-xs text-texto-secundario">
