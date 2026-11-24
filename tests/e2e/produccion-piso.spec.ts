@@ -458,18 +458,13 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByTestId('area-sin-area')).toBeVisible();
       await page.getByTestId('vista-kanban').click();
 
-      // La tarjeta abre el detalle; desde ahí se reclama y se inicia.
+      // La tarjeta abre el detalle; el operador inicia directamente, sin reclamo.
       await tarjeta.getByTestId(/^abrir-detalle-/u).click();
       const detalle = page.getByTestId('detalle-proceso');
       await expect(detalle).toBeVisible();
-      await detalle.getByTestId('reclamar-detalle').click();
-      await expect(page.getByTestId('aviso-espacio')).toContainText('reservado', { ignoreCase: true });
-      const tarjetaReservada = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
-      await expect(tarjetaReservada).toContainText('Reservado por ti');
+      await expect(detalle.getByTestId('reclamar-detalle')).toHaveCount(0);
 
       // La ficha muestra la ruta, el material y los archivos de la orden.
-      // C29: la ficha ya no repite el banner de reserva; la reserva se confirma
-      // en la tarjeta del proceso («Reservado por ti», arriba).
       await expect(detalle).toContainText('Ruta de fabricación');
       await expect(detalle).toContainText('Fabricación');
       await expect(detalle).toContainText('Planos y archivos');

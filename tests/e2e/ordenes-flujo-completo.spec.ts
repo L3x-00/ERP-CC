@@ -387,8 +387,8 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     const tarjetaProceso = tarjetaOrden.locator('[data-testid^="proceso-"]').first();
     await tarjetaProceso.getByTestId(/^abrir-detalle-/u).click();
     const detalle = page.getByTestId('detalle-proceso');
-    await detalle.getByTestId('reclamar-detalle').click();
-    await expect(page.getByTestId('aviso-espacio')).toContainText('Proceso reservado en tu jornada');
+    // El operador inicia directamente: ya no existe el paso de reclamo.
+    await expect(detalle.getByTestId('reclamar-detalle')).toHaveCount(0);
 
     await detalle.getByTestId('iniciar-detalle').click();
     const checklist = page.getByTestId('checklist-inicio');
