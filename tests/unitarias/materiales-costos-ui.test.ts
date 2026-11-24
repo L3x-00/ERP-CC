@@ -19,6 +19,7 @@ import { TablaPropuestasCosto } from '@/modulos/inventario/componentes/tabla-pro
 import {
   etiquetaFuenteCosto,
   formatearFechaDia,
+  tipoMaterialVisual,
 } from '@/modulos/inventario/utilidades/materiales-costos';
 
 afterEach(cleanup);
@@ -139,6 +140,24 @@ describe('TablaMaterialesCostos (C6.1)', () => {
     expect(onEditar.mock.calls[0]?.[0]).toMatchObject({ id: 'm-2' });
     expect(onHistorial.mock.calls[0]?.[0]).toMatchObject({ id: 'm-1' });
   });
+
+  it('muestra secciones por tipo de material sin ocultar ninguna fila', () => {
+    render(
+      createElement(TablaMaterialesCostos, {
+        materiales: [MATERIAL_CON_COSTO, MATERIAL_SIN_COSTO],
+        puedeGestionar: false,
+        onEditar: vi.fn(),
+        onProponer: vi.fn(),
+        onCostoManual: vi.fn(),
+        onHistorial: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByTestId('grupo-material-metales').textContent).toContain('Metales');
+    expect(screen.getByTestId('grupo-material-madera').textContent).toContain('Madera');
+    expect(screen.getByTestId('fila-material-ACERO')).toBeDefined();
+    expect(screen.getByTestId('fila-material-MDF')).toBeDefined();
+  });
 });
 
 describe('TablaPropuestasCosto (C6.1/DC-13)', () => {
@@ -254,5 +273,12 @@ describe('utilidades de materiales y costos', () => {
     expect(etiquetaFuenteCosto('MANUAL')).toBe('Manual');
     expect(etiquetaFuenteCosto('COMPRA')).toBe('Compra');
     expect(etiquetaFuenteCosto('GASTO')).toBe('Gasto');
+  });
+
+  it('clasifica visualmente el material por su tipo', () => {
+    expect(tipoMaterialVisual(MATERIAL_CON_COSTO)).toBe('Metales');
+    expect(tipoMaterialVisual(MATERIAL_SIN_COSTO)).toBe('Madera');
+    expect(tipoMaterialVisual({ ...MATERIAL_CON_COSTO, codigo: 'PINT-01', nombre: 'Pintura epóxica' }))
+      .toBe('Otros materiales');
   });
 });

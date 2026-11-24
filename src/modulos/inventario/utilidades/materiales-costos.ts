@@ -1,6 +1,28 @@
 import { dimensionMaterialMm } from '@/modulos/catalogos/validaciones/indice';
 
-import type { FuenteCosto } from '../tipos/materiales-costos';
+import type { FuenteCosto, MaterialCosto } from '../tipos/materiales-costos';
+
+export type TipoMaterialVisual = 'Metales' | 'Madera' | 'Otros materiales';
+
+const PALABRAS_MADERA = /madera|mdf|triplay|plywood|tablero/i;
+const PALABRAS_METAL = /acero|inox|lámina|lamina|placa|tubo|ptr|aluminio|galvaniz|hierro|metal|tornill|alambre|disco|perfil|barra|chapa/i;
+
+/**
+ * Clasificación visual del material a partir de su nombre y código. Es solo
+ * presentación: no escribe en la base de datos ni cambia el catálogo.
+ */
+export function tipoMaterialVisual(material: MaterialCosto): TipoMaterialVisual {
+  const texto = `${material.nombre ?? ''} ${material.codigo ?? ''}`;
+  if (PALABRAS_MADERA.test(texto)) return 'Madera';
+  if (PALABRAS_METAL.test(texto)) return 'Metales';
+  return 'Otros materiales';
+}
+
+export const ORDEN_TIPOS_MATERIAL: readonly TipoMaterialVisual[] = [
+  'Metales',
+  'Madera',
+  'Otros materiales',
+];
 
 const ETIQUETAS_FUENTE: Record<FuenteCosto, string> = {
   MANUAL: 'Manual',
