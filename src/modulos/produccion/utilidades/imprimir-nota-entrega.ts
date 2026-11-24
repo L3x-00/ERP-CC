@@ -85,6 +85,7 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
         Entregado por: ${escaparHtml(documento.empresa.razonSocial || documento.empresa.nombre)}
       </div>
     </div>
+    ${documento.nota.firmaImagenUrl ? `<img src="${escaparHtml(documento.nota.firmaImagenUrl)}" alt="Firma de quien recibe" style="max-width:220px;max-height:70px;display:block;margin:8px auto 0;" />` : ''}
     ${documento.nota.firmaClienteUrl ? '<p class="tenue" style="margin-top:8px;">Firma de conformidad registrada electrónicamente.</p>' : ''}`;
 
   return construirHtmlImpresion({

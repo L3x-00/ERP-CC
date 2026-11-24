@@ -6,6 +6,7 @@ import {
   type MarcaDocumento,
 } from '@/compartido/tipos/impresion';
 import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
+import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
 
 /**
  * Documento imprimible de una nota de entrega (OBS-13): conforma el registro
@@ -48,6 +49,8 @@ export interface DocumentoNotaEntrega {
     esParcial: boolean;
     recibidoPor: string;
     firmaClienteUrl: string | null;
+    /** Firma dibujada en pantalla, incrustada en el documento con URL firmada. */
+    firmaImagenUrl: string | null;
     creadoEn: string;
   };
   orden: { folio: string; clienteRazonSocial: string | null; clienteRfc: string | null };
@@ -190,6 +193,27 @@ export async function obtenerDocumentoNotaEntrega(
   }
 
   const lineas = resumirLineasNota(renglones, acumulados);
+
+  // La firma dibujada se guarda como archivo (clase `firma`). Se firma una URL
+  // de lectura al generar el documento para poder incrustarla en HTML y PDF.
+  let firmaImagenUrl: string | null = null;
+  const { data: firmas } = await admin
+    .from('archivos')
+    .select('id')
+    .eq('entidad', 'entrega')
+    .eq('entidad_id', notaId)
+    .eq('clase', 'firma')
+    .eq('vigente', true)
+    .order('version', { ascending: false })
+    .limit(1);
+  if (firmas?.[0]) {
+    try {
+      firmaImagenUrl = await firmarLecturaArchivo(admin, firmas[0].id, 300);
+    } catch {
+      firmaImagenUrl = null;
+    }
+  }
+
   const configuracion = await obtenerConfiguracionGeneral();
   const plantilla = configuracion.plantillasDoc.T1;
   const marca: MarcaDocumento = {
@@ -220,6 +244,7 @@ export async function obtenerDocumentoNotaEntrega(
       esParcial: nota.es_parcial,
       recibidoPor: nota.recibido_por,
       firmaClienteUrl: nota.firma_cliente_url,
+      firmaImagenUrl,
       creadoEn: nota.creado_en,
     },
     orden: {
