@@ -242,11 +242,6 @@ export function DetalleEntrega({
             </Link>
             {orden.clienteNombre ? ` · ${orden.clienteNombre}` : ''} · {formatearFecha(entrega.creadoEn)}
           </p>
-          {entrega.folioSii ? (
-            <p className="text-xs text-texto-tenue" data-testid="detalle-folio-interno">
-              Folio interno de la nota: <span className="font-mono">{entrega.folio}</span>
-            </p>
-          ) : null}
           <p className="text-sm text-texto-secundario" data-testid="detalle-partes">
             Entrega: {detalle.entregadoPorNombre ?? '—'} · Recibe: {entrega.recibidoPor}
           </p>
@@ -339,9 +334,8 @@ export function DetalleEntrega({
         <div>
           <h2 id="titulo-evidencias" className="text-base font-semibold">Evidencia y firma</h2>
           <p className="text-xs text-texto-secundario">
-            Obligatorio: cantidades, quién entrega, quién recibe y fecha. Cliente industrial: hoja
-            impresa con sello, fecha y firma, digitalizada (`firma_escaneada`). Cliente no industrial:
-            firma digital en pantalla (`firma`). La evidencia fotográfica se recomienda en ambos casos.
+            Adjunta la firma de quien recibe. Si la hoja impresa ya está firmada, súmala como
+            documento. La evidencia fotográfica es opcional. La firma se incluirá en la nota de entrega.
           </p>
         </div>
 
@@ -379,7 +373,7 @@ export function DetalleEntrega({
                   value={claseArchivo}
                   onChange={(evento) => setClaseArchivo(evento.target.value as 'evidencia' | 'firma_escaneada')}>
                   <option value="evidencia">Evidencia fotográfica</option>
-                  <option value="firma_escaneada">Firma escaneada (industrial)</option>
+                  <option value="firma_escaneada">Hoja firmada escaneada</option>
                 </Select>
               </label>
               <div className="grid flex-1 gap-1 text-xs font-medium text-texto-secundario">
@@ -394,7 +388,7 @@ export function DetalleEntrega({
               <Button type="button" tamano="sm" disabled={ocupado}
                 data-testid="subir-evidencia-entrega"
                 onClick={() => void enviarSeleccion()}>
-                {ocupado ? 'Subiendo…' : 'Adjuntar'}
+                {ocupado ? 'Subiendo…' : 'Adjuntar evidencia'}
               </Button>
             </div>
 

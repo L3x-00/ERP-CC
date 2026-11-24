@@ -158,6 +158,12 @@ export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoN
         <View style={estilos.firma} wrap={false}>
           <Text style={estilos.bloqueFirma}>Recibido por: {documento.nota.recibidoPor}</Text>
           <Text style={estilos.bloqueFirma}>Entregado por: {nombreEmpresa}</Text>
+          {documento.nota.firmaImagenUrl ? (
+            <Image
+              src={documento.nota.firmaImagenUrl}
+              style={{ width: 180, height: 55, objectFit: 'contain', marginTop: 6 }}
+            />
+          ) : null}
         </View>
         {documento.nota.firmaClienteUrl ? <Text style={[estilos.meta, { marginTop: 8 }]}>Firma de conformidad registrada electrónicamente.</Text> : null}
         <View style={estilos.pie} fixed>

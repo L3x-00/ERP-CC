@@ -19,6 +19,7 @@ const documento: DocumentoNotaEntrega = {
     esParcial: true,
     recibidoPor: 'Almacén E2E',
     firmaClienteUrl: null,
+    firmaImagenUrl: null,
     creadoEn: '2026-11-13T10:00:00.000Z',
   },
   orden: { folio: 'OP-1', clienteRazonSocial: 'Cliente QA', clienteRfc: 'CQA010101AAA' },
@@ -47,6 +48,19 @@ const documento: DocumentoNotaEntrega = {
 };
 
 describe('impresión de la nota de entrega', () => {
+  it('incrusta la firma dibujada en el bloque de confirmación', () => {
+    const html = construirHtmlNotaEntrega({
+      ...documento,
+      nota: {
+        ...documento.nota,
+        firmaImagenUrl: 'https://storage.supabase.co/firma.png?token=abc',
+      },
+    });
+
+    expect(html).toContain('Firma de quien recibe');
+    expect(html).toContain('https://storage.supabase.co/firma.png?token=abc');
+  });
+
   it('compone un documento A4 con la marca y sin el modal del ERP', () => {
     const html = construirHtmlNotaEntrega(documento);
 

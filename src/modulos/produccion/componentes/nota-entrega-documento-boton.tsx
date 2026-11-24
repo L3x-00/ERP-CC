@@ -176,6 +176,14 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                       Recibido por (confirmación)
                     </span>
                     <span className="font-medium">{documento.nota.recibidoPor}</span>
+                    {documento.nota.firmaImagenUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- URL firmada de Storage, no optimizable con next/image
+                      <img
+                        src={documento.nota.firmaImagenUrl}
+                        alt="Firma de quien recibe"
+                        className="mt-2 h-20 w-auto max-w-full object-contain"
+                      />
+                    ) : null}
                     {documento.nota.firmaClienteUrl ? (
                       <a
                         className="text-xs text-enlace underline"
