@@ -34,8 +34,8 @@ const DATOS = {
     { id: C2, codigo: 'DOB01', estado: 'EN_PROCESO' },
   ],
   sesiones_trabajo: [
-    { corrida_id: C1, horas_netas: 1.5, piezas_producidas: 10, costo_hora_interno: 100, sesion_invalida: false },
-    { corrida_id: C1, horas_netas: 2, piezas_producidas: 99, costo_hora_interno: 100, sesion_invalida: true },
+    { id: 's1', corrida_id: C1, horas_netas: 1.5, piezas_producidas: 10, costo_hora_interno: 100, sesion_invalida: false },
+    { id: 's2', corrida_id: C1, horas_netas: 2, piezas_producidas: 99, costo_hora_interno: 100, sesion_invalida: true },
   ],
   registros_consumo_material: [
     { corrida_id: C1, cantidad_usada: 3, cantidad_scrap: 1, costo_unitario_momento: 50 },
@@ -57,6 +57,21 @@ describe('totales de corrida (C4)', () => {
     expect(primera.costoTotalMxn).toBeNull();
     expect(resultado.costoTotalOrdenMxn).toBeNull();
     expect(resultado.corridas[1]!.horasTotales).toBe(0);
+  });
+
+  it('cuenta las piezas por ítem sin duplicar la partida principal', async () => {
+    const datosConItems = {
+      ...DATOS,
+      sesion_item_tiempos: [
+        { sesion_id: 's1', piezas: 6 },
+        { sesion_id: 's1', piezas: 4 },
+      ],
+    };
+    const resultado = await obtenerTotalesCorridasOrdenServicio(admin(datosConItems), {
+      ordenId: ORDEN,
+      incluirCostos: false,
+    });
+    expect(resultado.corridas[0]!.piezasProducidas).toBe(10);
   });
 
   it('calcula costo de material y tiempo solo cuando se permite ver costos', async () => {

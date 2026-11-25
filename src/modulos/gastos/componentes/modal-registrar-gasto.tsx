@@ -8,6 +8,7 @@ import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
+import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { useQuery } from '@tanstack/react-query';
 import { obtenerCuentasGastoAccion } from '@/modulos/gastos/acciones/obtener-cuentas-gasto';
 import { obtenerOrdenesGastoAccion } from '@/modulos/gastos/acciones/obtener-ordenes-gasto';
@@ -94,6 +95,20 @@ export function ModalRegistrarGasto({
     const suma = (Number(subtotal) || 0) + (Number(iva) || 0);
     return Math.round(suma * 10_000) / 10_000;
   }, [subtotal, iva]);
+  // La RPC guarda `Subtotal ÷ cantidad`; mostrarlo evita que el usuario crea
+  // que se guarda el precio que capturó si luego ajustó el subtotal.
+  const unitarioCalculado = useMemo(() => {
+    const cantidad = Number(cantidadMaterial);
+    const subtotalNumero = Number(subtotal);
+    if (!(cantidad > 0) || !Number.isFinite(subtotalNumero)) return null;
+    return Math.round((subtotalNumero / cantidad) * 10_000) / 10_000;
+  }, [cantidadMaterial, subtotal]);
+  const subtotalSugerido = useMemo(() => {
+    const precio = Number(precioMaterial);
+    const cantidad = Number(cantidadMaterial);
+    if (precioMaterial.trim() === '' || !(cantidad > 0) || !Number.isFinite(precio)) return null;
+    return Math.round(precio * cantidad * 10_000) / 10_000;
+  }, [precioMaterial, cantidadMaterial]);
   const [moneda, setMoneda] = useState<MonedaGasto>(gastoEditar?.moneda ?? 'MXN');
   const [tipoCambio, setTipoCambio] = useState(gastoEditar ? String(gastoEditar.tipoCambio) : '1');
   const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? fechaLocalNegocio());
@@ -399,8 +414,16 @@ export function ModalRegistrarGasto({
                   </div>
                 </div>
                 <span className="text-[11px] text-texto-secundario">
-                  Precio y cantidad llenan el Subtotal. Puedes ajustarlo si el gasto incluye otros
-                  conceptos. Afecta solo a órdenes y cotizaciones futuras.
+                  Precio y cantidad llenan el Subtotal; puedes ajustarlo si el gasto incluye otros
+                  conceptos. El costo unitario que se guarda es {unitarioCalculado === null
+                    ? 'el Subtotal dividido entre la cantidad'
+                    : `${formatearNumero(unitarioCalculado, 4)} por unidad base`}.
+                  {subtotalSugerido !== null && Number(subtotal) !== subtotalSugerido
+                    ? ' Ajustaste el Subtotal: se usa el Subtotal final, no el precio capturado.'
+                    : ''}
+                  {gastoEditar
+                    ? ' Editar este gasto no cambia el precio del material.'
+                    : ' Afecta solo a órdenes y cotizaciones futuras.'}
                 </span>
               </>
             ) : null}

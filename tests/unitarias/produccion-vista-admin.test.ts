@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQuery: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';

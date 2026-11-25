@@ -331,7 +331,9 @@ export function PanelRuteoCosteo({
     if (!item?.materialId) return campos;
     const material = catalogos?.materiales.find((opcion) => opcion.id === item.materialId);
     if (material?.costoVigente == null) return campos;
-    campos.material = String(material.costoVigente);
+    campos.material = String(
+      Math.round(material.costoVigente * item.cantidad * 10_000) / 10_000,
+    );
     return campos;
   }
 
@@ -1140,7 +1142,11 @@ export function PanelRuteoCosteo({
                       onClick={() =>
                         setCostosBorrador({
                           ...costosActuales,
-                          material: String(materialSugerencia.costoVigente),
+                          material: String(
+                            Math.round(
+                              materialSugerencia.costoVigente! * (itemCostoSeleccionado?.cantidad ?? 1) * 10_000,
+                            ) / 10_000,
+                          ),
                         })
                       }
                     >

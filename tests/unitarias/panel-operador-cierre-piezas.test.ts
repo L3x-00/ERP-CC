@@ -19,6 +19,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQuery: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock('@/modulos/produccion/acciones/registrar-consumo-piezas', () => ({

@@ -57,21 +57,23 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
       )}
       {sesiones.size > 0 && (
         <ul className="mt-3 flex flex-col gap-2" data-testid="lista-tiempos-integrados">
-          {[...sesiones.entries()].map(([claveCorrida, items]) => (
+          {[...sesiones.entries()].map(([claveCorrida, items]) => {
+            const unicos = [...new Map(items.map((item) => [item.partidaId, item])).values()];
+            return (
             <li key={claveCorrida} className="rounded-md border border-borde p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <strong data-testid={`sesion-corrida-${claveCorrida}`}>
-                    {claveCorrida} · {items.length} ítems en un solo proceso
+                    {claveCorrida} · {unicos.length} ítems en un solo proceso
                   </strong>
-                  {' · '}{items[0]?.operadorNombre}
+                  {' · '}{unicos[0]?.operadorNombre}
                 </span>
                 <span className="text-xs text-texto-secundario">
-                  {items[0] ? `${formatearFecha(items[0].fechaInicio)} ${formatearHora(items[0].fechaInicio)}` : ''}
+                  {unicos[0] ? `${formatearFecha(unicos[0].fechaInicio)} ${formatearHora(unicos[0].fechaInicio)}` : ''}
                 </span>
               </div>
               <ul className="mt-2 flex flex-col gap-1 text-xs text-texto-secundario">
-                {items.map((item) => (
+                {unicos.map((item) => (
                   <li key={item.partidaId}>
                     {item.codigoPieza}:{' '}
                     <strong>{formatearNumero(item.piezas, 0)}</strong> piezas ·{' '}
@@ -82,7 +84,8 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
                 ))}
               </ul>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

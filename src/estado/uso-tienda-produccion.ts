@@ -6,6 +6,8 @@ export interface SesionActivaProduccion {
   ordenId: string;
   partidaId: string;
   programacionId: string;
+  /** C3: ítems del lote a los que aún falta la primera pieza. */
+  primeraPiezaPendientePartidas?: string[];
 }
 
 interface TiendaProduccion {

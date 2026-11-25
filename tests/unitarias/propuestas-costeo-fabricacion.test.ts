@@ -955,7 +955,7 @@ describe('costeo DRAFT: sugerencia del costo vigente del material', () => {
 
     fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
 
-    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('12505');
     const sugerencia = screen.getByTestId('sugerencia-costo-material');
     expect(sugerencia.textContent).toContain('AC-01');
     expect(sugerencia.textContent).toContain('2026-11-20');
@@ -970,7 +970,7 @@ describe('costeo DRAFT: sugerencia del costo vigente del material', () => {
 
     fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
 
-    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('12505');
     const aviso = screen.getByTestId('aviso-moneda-costo-material');
     expect(aviso.textContent).toContain('USD');
     expect(aviso.textContent).toContain('MXN');
@@ -986,7 +986,7 @@ describe('costeo DRAFT: sugerencia del costo vigente del material', () => {
     expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('');
 
     fireEvent.click(screen.getByRole('button', { name: 'Usar costo vigente del material' }));
-    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('12505');
   });
 
   it('sin permiso de costo no expone la sugerencia', () => {
