@@ -107,9 +107,12 @@ export async function verificarSubidaDirecta(
       .list(prefijo.slice(0, -1), { search: archivo, limit: 2 });
     return error ? null : data?.find((item) => item.name === archivo) ?? null;
   };
+  // Storage suele reflejar el objeto en el primer listado. Si no, se reintenta
+  // con esperas cortas: antes había un único sleep fijo de 700 ms.
   let objeto = await buscarObjeto();
-  if (!objeto) {
-    await new Promise((resolver) => setTimeout(resolver, 700));
+  for (const espera of [250, 350]) {
+    if (objeto) break;
+    await new Promise((resolver) => setTimeout(resolver, espera));
     objeto = await buscarObjeto();
   }
   if (!objeto) return { ok: false, error: 'El archivo no se subió completo' };
