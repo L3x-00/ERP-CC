@@ -1,0 +1,127 @@
+---
+title: Clientes
+description: Da de alta a tus clientes, consulta su ficha, registra contactos y documentos, y revisa su historial comercial.
+---
+
+
+En **Clientes** vive la información de cada empresa con la que trabajas: sus datos, sus contactos, sus documentos y todo el historial de cotizaciones, propuestas y órdenes.
+
+## Para qué sirve
+
+La ficha de un cliente reúne:
+
+- Los datos generales y el contacto principal.
+- Las condiciones comerciales y el crédito.
+- Los contactos adicionales y los documentos.
+- El historial de RFQ, propuestas y órdenes, con enlaces a cada una.
+
+No es necesario recordar en qué módulo se creó una cotización: desde la ficha del cliente puedes abrirla.
+
+## Antes de empezar
+
+- Para consultar basta con tener acceso a **Comercial → Clientes**. Para crear, editar o cambiar el estado se necesitan permisos adicionales; si aparece **Sin permiso para crear clientes** o **Sin permiso para editar clientes**, pide apoyo a la persona administradora.
+- Ten a la mano la razón social, el nombre comercial y, si aplica, el RFC, el correo y el teléfono.
+- Si vas a dar de alta un cliente desde un RFQ, puedes hacerlo sin salir de la captura; ese cliente queda como **Prospecto**.
+
+## La lista de clientes
+
+![Lista de clientes con el buscador, los filtros, la tabla de folios y el botón Nuevo cliente](/manual/capturas/clientes-lista.png)
+
+1. En el menú lateral, entra a **Comercial → Clientes**.
+2. Escribe la razón social, el nombre, el folio, el RFC o el correo en el buscador.
+3. Si hace falta, filtra por **Estado**, **Tier**, **Condiciones**, **Moneda** o **Crédito**. Usa **Limpiar** para quitar los filtros.
+4. Haz clic en la razón social para abrir la ficha o en **Editar** para modificar los datos.
+5. Usa **Anterior** y **Siguiente** para cambiar de página. La lista muestra 25 clientes por página.
+
+El botón **Nuevo cliente**, arriba a la derecha, abre el alta.
+
+## Crear un cliente
+
+![Formulario Nuevo cliente con Razón social, Nombre comercial y la sección Contacto principal](/manual/capturas/clientes-nuevo.png)
+
+1. Haz clic en **Nuevo cliente**.
+2. En **General**, escribe **Razón social** y **Nombre comercial**. Son obligatorios.
+3. Si aplica, completa **RFC (opcional)**, **Correo (opcional)** y **Teléfono (opcional)**.
+4. Despliega **Contacto principal** y escribe **Nombre del contacto**. Puedes agregar puesto, correo y teléfono.
+5. Haz clic en **Crear cliente**.
+
+El sistema asigna un folio `CLI-####` y el cliente nace como **Activo**. Las secciones **Comercial** y **Dirección fiscal** son opcionales; puedes completarlas después desde **Editar**.
+
+Si estás capturando un RFQ, el botón **Nuevo cliente** de ese formulario crea el cliente y lo selecciona en la solicitud sin perder lo que llevas capturado. En ese caso queda como **Prospecto** y podrás activarlo desde su ficha.
+
+## Abrir y editar la ficha
+
+![Ficha de un cliente con los botones Editar, Inactivar y Nuevo RFQ y las pestañas Resumen, Contactos, Comercial, Documentos, Historial y Comentarios](/manual/capturas/clientes-ficha.png)
+
+Al hacer clic en la razón social se abre la **Ficha del cliente**. En **Resumen** puedes ver el folio, el nombre comercial, el RFC, el contacto, el correo, el teléfono, la moneda, la fecha de alta y las direcciones.
+
+- **Editar** abre el formulario con los datos actuales. Guarda con **Guardar cambios**.
+- **Activar** se usa cuando el cliente está como **Prospecto** o **Inactivo**.
+- **Inactivar** pide un **Motivo de la inactivación** de al menos tres caracteres y se confirma con **Confirmar inactivación**.
+- **Nuevo RFQ** te lleva a la cola de RFQ. Al capturar la solicitud, elige la empresa en el campo **Cliente (opcional)**.
+
+## Contactos
+
+![Pestaña Contactos con el formulario Agregar contacto y los contactos registrados](/manual/capturas/clientes-contactos.png)
+
+1. Entra a la pestaña **Contactos**.
+2. Escribe el **Nombre del contacto** y, si aplica, **Puesto o área**, **Correo del contacto**, **Teléfono del contacto** y **Notas del contacto**.
+3. Marca **Contacto principal del cliente** si debe ser la persona principal. Solo puede haber un contacto principal activo.
+4. Haz clic en **Agregar contacto**.
+
+En cada contacto puedes usar **Marcar principal**, **Desactivar** o **Reactivar**. Dar de baja un contacto no borra su historial.
+
+## Documentos
+
+![Pestaña Documentos con el tipo Constancia de Situación Fiscal y un documento cargado con sus opciones Ver y Reemplazar](/manual/capturas/clientes-documentos.png)
+
+1. Entra a la pestaña **Documentos**.
+2. Elige el **Tipo**: **Constancia de Situación Fiscal**, **Contrato**, **Identificación**, **Comprobante de domicilio** u **Otro**.
+3. Selecciona un archivo PDF, JPG o PNG y haz clic en **Subir**.
+4. Usa **Ver** para abrirlo o **Reemplazar** para subir una versión nueva. **Historial** muestra las versiones anteriores.
+
+## Historial
+
+![Pestaña Historial con Cotizaciones, Propuestas, Órdenes de producción y Notas de taller](/manual/capturas/clientes-historial.png)
+
+La pestaña **Historial** muestra **Cotizaciones**, **Órdenes de producción** y **Notas de taller**. Si tienes permiso para ver propuestas, aparece también el bloque **Propuestas**. Desde ahí puedes:
+
+- **Ver RFQ** para abrir la solicitud de cotización.
+- **Ver propuesta** para abrir la propuesta y su revisión.
+- **Ver orden** para ir a la orden de producción.
+- **Ver detalle** para desplegar la información de cada registro.
+
+Si un importe aparece como **Precio pendiente**, **Sin importe registrado**, **Importe no disponible** o **Importe no visible para tu rol**, significa que aún no hay un total disponible o que tu rol no puede verlo.
+
+## Estados y acciones
+
+| Estado | Qué significa | Qué puedes hacer |
+| --- | --- | --- |
+| **Prospecto** | El cliente se dio de alta desde una RFQ o aún no se activó. | Activar el cliente o editar sus datos. |
+| **Activo** | El cliente está listo para trabajar. | Editar, inactivar y registrar contactos o documentos. |
+| **Inactivo** | El cliente se pausó, pero conserva su historial. | Activar el cliente. |
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **No se pudieron cargar los clientes.** | Vuelve a cargar la página. Si persiste, revisa tu conexión. |
+| **Ya existe un cliente con los mismos datos (CLI-####)** | Busca al cliente existente antes de darlo de alta otra vez. |
+| **El cliente cambió desde que lo cargaste; actualiza la ficha e inténtalo de nuevo** | Cierra y vuelve a abrir la ficha, luego repite la acción. |
+| **Indica el motivo para inactivar al cliente** | Escribe un motivo de al menos tres caracteres antes de confirmar. |
+
+## Opciones adicionales
+
+La pestaña **Comercial** permite ajustar moneda, crédito, días y límite con **Editar condiciones comerciales**; guarda con **Guardar comercial**. Requiere permisos específicos. El **Tier** se calcula por consumo y solo un administrador puede asignarlo manualmente. La pestaña **Comentarios** sirve para anotar actualizaciones internas del cliente.
+
+## Comprueba que quedó bien
+
+- [ ] El cliente aparece en la lista con su folio y su estado.
+- [ ] La razón social y el contacto principal son correctos.
+- [ ] Los documentos se ven como vigentes.
+- [ ] El historial muestra las cotizaciones, propuestas u órdenes esperadas.
+- [ ] Puedes abrir una RFQ o una propuesta desde el historial.
+
+## Qué sigue
+
+El siguiente módulo del menú es **Materiales y costos**, en el grupo **Operación**. Ahí se administran los materiales, espesores y costos que se usan en las cotizaciones.
