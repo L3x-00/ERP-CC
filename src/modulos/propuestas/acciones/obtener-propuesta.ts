@@ -87,18 +87,22 @@ export async function obtenerPropuestaAccion(
 
   const revisionIds = datos.revisiones.map((revision) => revision.id);
   const itemIds = datos.items.map((item) => item.id);
-  const [utilidadObjetivoPorcentaje, rfqItemIds, canalRfq, fechasRfq, pdfs, archivos] = await Promise.all([
+  // Se resuelve una sola vez y se reutiliza para la consulta de archivos:
+  // antes había dos lecturas de `archivos`, la segunda secuencial.
+  const idsItemsRfq = obtenerIdsItemsRfq(servidor, datos.propuesta.rfqId);
+  const [utilidadObjetivoPorcentaje, canalRfq, fechasRfq, pdfs, archivos] = await Promise.all([
     obtenerUtilidadObjetivoPropuesta(),
-    obtenerIdsItemsRfq(servidor, datos.propuesta.rfqId),
     obtenerCanalRfq(servidor, datos.propuesta.rfqId),
     obtenerFechasRfq(servidor, datos.propuesta.rfqId),
     obtenerPdfsDeRevisiones(servidor, revisionIds),
-    obtenerArchivosDePropuesta(servidor, {
-      revisionIds,
-      itemIds,
-      rfqId: datos.propuesta.rfqId,
-      rfqItemIds: [],
-    }),
+    idsItemsRfq.then((rfqItemIdsResueltos) =>
+      obtenerArchivosDePropuesta(servidor, {
+        revisionIds,
+        itemIds,
+        rfqId: datos.propuesta.rfqId,
+        rfqItemIds: rfqItemIdsResueltos,
+      }),
+    ),
   ]);
 
   const { data: cliente } = await servidor
@@ -106,13 +110,6 @@ export async function obtenerPropuestaAccion(
     .select('estado')
     .eq('id', datos.propuesta.clienteId)
     .maybeSingle();
-
-  const archivosRfqItems = await obtenerArchivosDePropuesta(servidor, {
-    revisionIds: [],
-    itemIds: [],
-    rfqId: datos.propuesta.rfqId,
-    rfqItemIds,
-  });
 
   const revisiones: RevisionConTotales[] = datos.revisiones.map((revision) => {
     const itemsRevision = datos.items.filter((item) => item.revisionId === revision.id);
@@ -157,7 +154,7 @@ export async function obtenerPropuestaAccion(
       ],
       archivosHeredados: [
         ...archivos.filter((archivo) => archivo.entidad === 'rfq'),
-        ...archivosRfqItems.filter((archivo) => archivo.entidad === 'rfq_item'),
+        ...archivos.filter((archivo) => archivo.entidad === 'rfq_item'),
       ],
       canalRfq,
       fechasRfq,
