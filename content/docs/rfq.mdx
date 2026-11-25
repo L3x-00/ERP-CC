@@ -21,7 +21,7 @@ Capturar un RFQ **no crea una propuesta ni envía nada al cliente**. Esa acción
 
 Necesitas:
 
-- Permiso para ver RFQ. Para crear y editar se necesitan permisos adicionales; si los botones no responden o aparece **Sin permiso para esta acción**, pide apoyo a la persona administradora.
+- Permiso para ver RFQ. Para crear y editar se necesitan permisos adicionales; si aparece **Sin permiso para ver / crear / editar RFQ**, pide apoyo a la persona administradora.
 - Un **cliente vigente en el catálogo**. Puedes seleccionarlo durante la captura o crearlo con **Nuevo cliente**. Sin cliente ligado no se puede marcar el RFQ como listo.
 - Los **canales**, **procesos**, **materiales** y **espesores** activos en el catálogo. Los canales se configuran en [Canales RFQ](/es/docs/canales-rfq); los procesos se crean en Configuración → Catálogos → Operativos → Procesos.
 - Los archivos técnicos del trabajo, si los hay. Se aceptan PDF, DXF, DWG, STEP, IGS, imágenes y hojas de cálculo de hasta 20 MiB.
@@ -64,7 +64,7 @@ Al hacer clic en **Nuevo RFQ** se abre una ventana con tres pasos: **Cliente y s
 1. Haz clic en **Agregar ítem**.
 2. Escribe la **Descripción** de la pieza y la **Cantidad**.
 3. Elige el **Material** y, después, el **Espesor**.
-4. Marca las **Operaciones solicitadas** que necesita la pieza, por ejemplo **CORTE LASER** y **DOB**.
+4. Marca las **Operaciones solicitadas** que necesita la pieza. Las opciones salen del catálogo de procesos de tu empresa.
 5. Haz clic en **Guardar ítem**. Repite si la solicitud tiene más piezas.
 6. Haz clic en **Continuar con archivos**.
 
@@ -78,10 +78,10 @@ El código de cada ítem (`IT01`, `IT02`, …) se asigna solo y nunca se reutili
 2. En **¿A qué pertenece?**, elige **General del RFQ** o el ítem al que corresponde el archivo.
 3. Selecciona el archivo y haz clic en **Subir archivo**. Espera a que aparezca en la lista con el texto **Vigente**.
 4. Haz clic en **Finalizar captura**.
-5. En **Próxima acción**, elige **Acción a seguir**, escribe el detalle si aplica y señala la **Fecha de la acción**.
+5. En **Próxima acción**, elige **Acción a seguir**. Si elegiste **Otro**, escribe el **Detalle de la acción** y señala la **Fecha de la acción**.
 6. Haz clic en **Guardar y finalizar**.
 
-Si aún no tienes todo listo, usa **Finalizar más tarde**. El RFQ queda guardado como Incompleto y podrás seguir después desde la cola.
+Si aún no tienes todo listo, usa **Finalizar más tarde** y confirma con **Guardar y finalizar más tarde**. El RFQ queda guardado como Incompleto y podrás seguir después desde la cola.
 
 ## Continuar una captura
 
@@ -97,12 +97,12 @@ Cuando un RFQ quedó incompleto, su fila muestra **Continuar captura** en lugar 
 
 1. Abre el RFQ y entra a la pestaña **Revisar**.
 2. Mira las cinco secciones: **Cliente**, **General**, **Ítems**, **Archivos** y **Seguimiento**. Si alguna muestra pendientes, usa **Corregir en Resumen**, **Ir a Ítems** o **Ir a Archivos**.
-3. Cuando todas digan **Sin faltantes**, haz clic en **Marcar listo**.
+3. Cuando todas digan **Sin faltantes**, usa la barra de acciones de arriba y haz clic en **Marcar listo**.
 4. Lee el aviso y confirma con **Confirmar y marcar listo**.
 
 ![Diálogo Marcar listo para propuesta con el mensaje El RFQ cumple todos los requisitos y el botón Confirmar y marcar listo](/manual/capturas/rfq-marcar-listo.png)
 
-Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí aparece la opción de crear la propuesta; todavía no se ha enviado nada al cliente.
+Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí, en la pestaña **Propuestas**, aparece **Crear propuesta**. Todavía no se ha enviado nada al cliente.
 
 > **Nota:** el texto verde **Listo para validar** no es un estado. Indica que la captura está completa, pero el RFQ sigue **Incompleto** hasta que confirmas **Marcar listo**.
 
@@ -110,7 +110,7 @@ Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí aparece l
 
 | Estado | Qué significa | Qué puedes hacer |
 | --- | --- | --- |
-| **Nuevo** | La solicitud se creó pero aún no se capturó. | Continuar la captura. |
+| **Nuevo** | La solicitud existe pero aún no tiene captura. | Ábrela con **Abrir** para capturarla. |
 | **Incompleto** | Faltan datos o se guardó para terminar después. | Continuar captura o ponerlo en espera. |
 | **En espera del cliente** | Se detiene mientras el cliente responde. | Marcar listo cuando esté completo. |
 | **En espera técnica** | Se detiene mientras llega un archivo o una especificación. | Marcar listo cuando esté completo. |
@@ -119,15 +119,15 @@ Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí aparece l
 | **Cerrado** | La solicitud terminó sin cotizarse. | Solo consultar. |
 | **Cancelado** | La solicitud se canceló. | Solo consultar. |
 
-**Cerrar** y **Cancelar** piden un motivo de al menos tres caracteres. En los estados **Convertido**, **Cerrado** y **Cancelado** ya no hay acciones disponibles.
+**Cerrar** y **Cancelar** piden un motivo de al menos tres letras. En los estados **Convertido**, **Cerrado** y **Cancelado** ya no hay acciones disponibles.
 
 ## Si algo no sale
 
 | Mensaje | Qué hacer |
 | --- | --- |
-| **Faltan requisitos para marcar el RFQ como listo** | Revisa la pestaña **Revisar** y corrige las secciones con pendientes. |
+| **Faltan requisitos para marcar listo:** | Revisa la pestaña **Revisar** y corrige las secciones con pendientes antes de confirmar. |
 | **El RFQ cambió; recarga antes de reintentar** | Actualiza la página y vuelve a intentar. Otra persona modificó la solicitud. |
-| **Sin permiso para esta acción** | Tu usuario solo puede consultar. Pide el permiso de edición a la persona administradora. |
+| **Sin permiso para crear / editar / ver RFQ** | Tu usuario no tiene ese permiso. Pide acceso a la persona administradora. |
 | **La fecha de la próxima acción no puede estar en el pasado** | Elige una fecha de hoy en adelante. |
 
 ## Comprueba que quedó bien
@@ -141,4 +141,4 @@ Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí aparece l
 
 ## Qué sigue
 
-Cuando el RFQ esté en **Listo para propuesta**, el siguiente paso es crear la propuesta. Ese flujo se explica en el capítulo de **Propuestas**.
+Cuando el RFQ esté en **Listo para propuesta**, abre la pestaña **Propuestas** y usa **Crear propuesta**. El capítulo del manual dedicado a Propuestas está en preparación.
