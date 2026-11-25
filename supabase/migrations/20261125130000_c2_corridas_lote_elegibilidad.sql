@@ -164,8 +164,18 @@ BEGIN
         SELECT meta.nombre INTO v_proceso_inicial
         FROM public.metas_proceso_partida AS meta
         WHERE meta.partida_id = v_partida.id AND meta.secuencia = 1;
-        IF v_proceso_inicial IS NULL
-           OR lower(btrim(v_proceso_inicial)) NOT IN (lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))) THEN
+        -- Solo se exige correspondencia cuando la etiqueta del meta existe en
+        -- el catálogo. Ordenes con etiquetas genericas no se rechazan por un
+        -- dato que el operador no puede corregir desde la ficha.
+        IF v_proceso_inicial IS NOT NULL
+           AND EXISTS (
+             SELECT 1 FROM public.catalogo_procesos AS cp
+             WHERE cp.activo = true
+               AND lower(btrim(cp.nombre)) = lower(btrim(v_proceso_inicial))
+           )
+           AND lower(btrim(v_proceso_inicial)) NOT IN (
+             lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))
+           ) THEN
           RAISE EXCEPTION 'corrida_proceso_inicial_incompatible' USING ERRCODE = '23514';
         END IF;
       ELSIF v_partida.procesos IS NOT NULL AND cardinality(v_partida.procesos) > 0 THEN
