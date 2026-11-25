@@ -105,7 +105,9 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
       if (!respuesta.exito || !respuesta.datos) throw new Error(respuesta.exito ? 'Sin notificaciones' : respuesta.error);
       return respuesta.datos;
     },
-    staleTime: 0,
+    // Realtime ya invalida la clave cuando cambia una notificación. Mantener
+    // el dato fresco 30 s evita una Server Action por cada navegación.
+    staleTime: 30_000,
   });
 
   useEffect(() => {

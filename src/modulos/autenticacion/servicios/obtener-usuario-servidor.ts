@@ -1,3 +1,5 @@
+import { cache } from 'react';
+
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { PERMISOS } from '@/compartido/constantes/indice';
 import {
@@ -25,7 +27,7 @@ const COLUMNAS_USUARIO =
  *
  * @returns El usuario autenticado con permisos, o `null` si no hay sesión.
  */
-export async function obtenerUsuarioServidor(): Promise<UsuarioAutenticado | null> {
+async function resolverUsuarioServidor(): Promise<UsuarioAutenticado | null> {
   const cliente = await crearClienteSupabaseServidor();
 
   const { data: datosAuth, error: errorAuth } = await cliente.auth.getUser();
@@ -70,3 +72,11 @@ export async function obtenerUsuarioServidor(): Promise<UsuarioAutenticado | nul
 
   return { ...usuario, permisos };
 }
+
+/**
+ * `cache` deduplica la lectura dentro de una misma petición (layout + página,
+ * o varias acciones encadenadas en el mismo render). No comparte resultado
+ * entre peticiones, así que sesión, permisos y auditoría se siguen revalidando
+ * en cada Server Action.
+ */
+export const obtenerUsuarioServidor = cache(resolverUsuarioServidor);
