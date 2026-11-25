@@ -43,6 +43,10 @@ import {
   tiempoAcumuladoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
 import { resumirJornadaDiaria } from '@/modulos/produccion/utilidades/mi-panel-operador';
+import {
+  motivoNoAgrupable,
+  sugerenciasDeAgrupacion,
+} from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -139,6 +143,16 @@ export function EspacioOperador({
     ? procesos.find((proceso) => proceso.id === detalle.id) ?? detalle
     : null;
   const gruposOrden = useMemo(() => agruparProcesosPorOrden(procesos), [procesos]);
+  const sugerenciasCorrida = useMemo(() => sugerenciasDeAgrupacion(procesos), [procesos]);
+  const motivosSinAgrupacion = useMemo(() => {
+    if (sugerenciasCorrida.length > 0) return [];
+    return [...new Set(
+      procesos
+        .filter((proceso) => proceso.secuencia === 1)
+        .map((proceso) => motivoNoAgrupable(proceso))
+        .filter((motivo): motivo is string => motivo !== null),
+    )];
+  }, [procesos, sugerenciasCorrida]);
   const ordenAbierta: GrupoOrdenEspacioOperador | null = ordenAbiertaId
     ? gruposOrden.find((grupo) => grupo.ordenId === ordenAbiertaId) ?? null
     : null;
@@ -589,6 +603,29 @@ export function EspacioOperador({
           ) : null}
         </div>
       </header>
+
+      {sugerenciasCorrida.length > 0 ? (
+        <div
+          className="flex flex-col gap-2 rounded-lg border border-acento/40 bg-acento-suave p-3"
+          data-testid="sugerencias-corridas"
+        >
+          <p className="text-xs font-semibold text-texto-primario">Posibles corridas conjuntas</p>
+          {sugerenciasCorrida.map((sugerencia) => (
+            <p
+              key={sugerencia.clave}
+              role="status"
+              data-testid={`sugerencia-corrida-${sugerencia.clave}`}
+              className="text-sm text-texto-primario"
+            >
+              {sugerencia.mensaje}
+            </p>
+          ))}
+        </div>
+      ) : motivosSinAgrupacion.length > 0 ? (
+        <p data-testid="sin-sugerencias-corridas" className="text-xs text-texto-secundario">
+          No se sugieren lotes: {motivosSinAgrupacion.join(' · ')}.
+        </p>
+      ) : null}
 
       {aviso ? (
         <p

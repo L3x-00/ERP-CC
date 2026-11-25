@@ -642,3 +642,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | El modal de gasto tenía 13 bloques, textos repetidos y un «Vencimiento» que el usuario no necesitaba; al vincular material no había campo para capturar el precio | El precio del material solo se derivaba en SQL de `subtotal ÷ cantidad`, y la explicación ocupaba más espacio que los campos | Se quita **solo el control visual** de Vencimiento: el estado y el payload se conservan, así que editar un gasto no borra su vencimiento (sin RPC ni esquema nuevos). Al vincular material aparece «Precio por {unidad}», que llena el Subtotal con `precio × cantidad` a 4 decimales; el Subtotal sigue siendo editable y es la fuente que usa la RPC para el unitario. Se acortan los textos redundantes y se elimina la ayuda repetida del Total. Sin migración ni cambios de permisos; se conservan las etiquetas que fijan las E2E. Segunda pasada visual: se elimina el campo de búsqueda de orden (queda solo el selector) y «Categoría» pasa a una columna más estrecha al compartir fila con «Tipo de gasto» |
+
+## 81. C1 — sugerencia de corridas conjuntas
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El operador no veía que dos ítems de una orden podían trabajarse en una sola corrida, aunque compartieran material y proceso | El tablero traía material con ancho/largo pero sin calibre, y no existía ningún helper que cruzara material, calibre, proceso inicial y disponibilidad | `MaterialProceso` incorpora `espesorMm`, resuelto solo cuando el material tiene **un** espesor activo (con varios, queda null y se explica). El helper puro `agrupacion-corridas` sugiere agrupar ítems de la misma orden con `secuencia = 1`, mismo `materialId`, mismo calibre y mismo proceso, sin sesión activa, reclamo ni piezas completadas. El aviso aparece en el espacio del operador con el texto concreto; no escribe en la base ni cambia reglas de inicio/cierre |

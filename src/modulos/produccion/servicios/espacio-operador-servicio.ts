@@ -684,17 +684,44 @@ export async function obtenerEspacioOperadorServicio(
   ];
   const materialesPorId = new Map<string, MaterialProceso>();
   if (idsMateriales.length > 0) {
-    const materiales = await obtenerFilasEnLotes<Pick<Tables<'catalogo_materiales'>, 'id' | 'codigo' | 'nombre' | 'unidad_base' | 'ancho_mm' | 'largo_mm'>>(
-      idsMateriales,
-      async (lote) => {
-        const { data, error } = await cliente
-          .from('catalogo_materiales')
-          .select('id, codigo, nombre, unidad_base, ancho_mm, largo_mm')
-          .in('id', lote);
-        return { data, error };
-      },
-    );
+    const [materiales, espesores] = await Promise.all([
+      obtenerFilasEnLotes<Pick<Tables<'catalogo_materiales'>, 'id' | 'codigo' | 'nombre' | 'unidad_base' | 'ancho_mm' | 'largo_mm'>>(
+        idsMateriales,
+        async (lote) => {
+          const { data, error } = await cliente
+            .from('catalogo_materiales')
+            .select('id, codigo, nombre, unidad_base, ancho_mm, largo_mm')
+            .in('id', lote);
+          return { data, error };
+        },
+      ),
+      obtenerFilasEnLotes<Pick<Tables<'catalogo_espesores'>, 'material_id' | 'espesor_mm'>>(
+        idsMateriales,
+        async (lote) => {
+          const { data, error } = await cliente
+            .from('catalogo_espesores')
+            .select('material_id, espesor_mm')
+            .in('material_id', lote)
+            .eq('activo', true);
+          return { data, error };
+        },
+      ),
+    ]);
+    // Solo se considera calibre cuando el material tiene un único espesor: con
+    // varios no se puede saber qué calibre usa cada ítem desde esta pantalla.
+    const espesoresPorMaterial = new Map<string, number>();
+    const materialesConVariosEspesores = new Set<string>();
+    for (const espesor of espesores) {
+      if (espesoresPorMaterial.has(espesor.material_id)) {
+        materialesConVariosEspesores.add(espesor.material_id);
+      } else {
+        espesoresPorMaterial.set(espesor.material_id, Number(espesor.espesor_mm));
+      }
+    }
     for (const material of materiales) {
+      const espesorMm = materialesConVariosEspesores.has(material.id)
+        ? null
+        : espesoresPorMaterial.get(material.id) ?? null;
       materialesPorId.set(material.id, {
         id: material.id,
         codigo: material.codigo,
@@ -702,6 +729,7 @@ export async function obtenerEspacioOperadorServicio(
         unidadBase: material.unidad_base,
         anchoMm: material.ancho_mm === null ? null : Number(material.ancho_mm),
         largoMm: material.largo_mm === null ? null : Number(material.largo_mm),
+        espesorMm,
       });
     }
   }

@@ -113,3 +113,52 @@ describe('A19 — tablero alineado y ordenado', () => {
     expect(urgentes.getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+describe('C1 — sugerencia de corrida conjunta en el tablero', () => {
+  it('muestra el aviso cuando dos ítems comparten material, calibre y proceso inicial', () => {
+    const material = {
+      id: 'material-1',
+      codigo: 'LAM-CR-14',
+      nombre: 'Acero calibre 14',
+      unidadBase: 'm2',
+      anchoMm: null,
+      largoMm: null,
+      espesorMm: 1.4,
+    };
+    const primero = {
+      ...PROCESO,
+      id: 'proceso-1',
+      ordenId: 'orden-1',
+      codigoPieza: 'IT01',
+      descripcion: 'Pieza A',
+      procesoNombre: 'Corte Láser',
+      secuencia: 1,
+      material,
+      pendientePiezas: 10,
+      procesoCompleto: false,
+    } as unknown as ProcesoEspacioOperador;
+    const segundo = { ...primero, id: 'proceso-2', codigoPieza: 'IT02', descripcion: 'Pieza B' };
+
+    render(createElement(EspacioOperador, {
+      procesos: [primero, segundo],
+      areas: [],
+      resumen: RESUMEN,
+      motivosPausa: [],
+      hoy: '2026-11-20',
+      dias: [],
+      cargasEquipos: [],
+      recursosEquipos: [],
+      operadorId: 'operador-1',
+      soloLectura: false,
+      nombreOperador: 'Jorge Ramírez Ortega',
+      materiales: [],
+      consumos: [],
+    }));
+
+    const aviso = screen.getByTestId('sugerencias-corridas');
+    expect(aviso.textContent).toContain('IT01 (Pieza A)');
+    expect(aviso.textContent).toContain('IT02 (Pieza B)');
+    expect(aviso.textContent).toContain('Corte Láser');
+    expect(aviso.textContent).toContain('Puede iniciarlos en una misma corrida');
+  });
+});
