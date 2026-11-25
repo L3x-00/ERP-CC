@@ -1,0 +1,158 @@
+---
+title: Propuestas
+description: Convierte un RFQ listo en una propuesta, prepara la revisión, genera el PDF, envíala y registra la aceptación.
+---
+
+
+Una propuesta es la cotización formal que se prepara a partir de un RFQ listo. Aquí se ajustan precios, se define el ruteo, se genera el documento y se registra lo que responde el cliente.
+
+## Para qué sirve
+
+Una propuesta reúne:
+
+- Los ítems con precio unitario, subtotal, IVA y total para el cliente.
+- El ruteo y el costo estimado de fabricación, que son internos.
+- Los archivos de la revisión y el PDF de la propuesta.
+- El seguimiento de envío y la aceptación, que da origen a una orden.
+
+**No se envía nada al cliente hasta que confirmes el envío.** Crear la propuesta o recorrer sus pestañas no genera ningún envío.
+
+## Antes de empezar
+
+Necesitas:
+
+- Un RFQ en estado **Listo para propuesta**.
+- Procesos, grupos de equipo, tarifas, materiales y espesores activos en los catálogos.
+- Permisos: ventas puede crear, editar, validar y enviar; gerencia y administración también pueden aceptar y cerrar. Contabilidad solo consulta.
+
+## La cola de propuestas
+
+![Cola de propuestas con las columnas Folio, RFQ, Cliente, Estado, Revisión, Próxima acción y Actualizada](/manual/capturas/propuestas-cola.png)
+
+1. En el menú lateral, entra a **Comercial → Propuestas**.
+2. Para localizar una propuesta, escribe el nombre del cliente en **Buscar** o filtra por **Estado** y **Responsable**.
+3. En la tabla, revisa **Folio**, **RFQ**, **Cliente**, **Estado**, **Revisión** y **Próxima acción**.
+4. Haz clic en el folio para abrir la ficha. La columna **RFQ** enlaza con la solicitud de origen.
+
+La cola muestra hasta 200 propuestas, ordenadas por **Actualizada**. Si no encuentras una, afina la búsqueda en lugar de recorrer la lista.
+
+## Crear la propuesta desde un RFQ
+
+1. Abre el RFQ desde **Comercial → RFQ** o desde la columna **RFQ** de la cola de propuestas.
+2. Entra a la pestaña **Propuestas**.
+3. Haz clic en **Crear propuesta**.
+
+Se abre la ficha con la **Revisión A** en estado **Borrador**. Los ítems se heredan del RFQ. El RFQ queda **Convertido** y congelado: sus datos ya no se editan desde ahí.
+
+Si el RFQ no está listo, el botón **Crear propuesta** no aparece. Capturar ítems o archivos en el RFQ no crea una propuesta.
+
+## Preparar la revisión
+
+### Ítems
+
+![Pestaña Ítems de una propuesta con el precio unitario, el subtotal, el IVA y el total cliente](/manual/capturas/propuestas-items.png)
+
+1. Entra a la pestaña **Ítems**.
+2. En cada ítem heredado, revisa la **Cantidad** y captura el **Precio unitario**.
+3. Haz clic en **Guardar** en cada fila.
+4. Comprueba el **Subtotal de venta**, el **IVA (16%)** y el **Total cliente**.
+
+Si falta una pieza, usa **Nuevo ítem**: escribe **Descripción** y **Cantidad** y, si aplica, elige **Material**, **Espesor** y captura el **Precio unitario** (opcional). Luego haz clic en **Agregar ítem**. El código `ITxx` se asigna solo y el RFQ de origen no se modifica.
+
+### Ruteo y costeo
+
+![Pestaña Ruteo/Costeo con los procesos, horas, tarifa y el botón Guardar ruteo](/manual/capturas/propuestas-ruteo.png)
+
+1. Entra a la pestaña **Ruteo/Costeo**.
+2. En cada fila, elige el **Proceso** y el **Grupo de equipo**.
+3. Captura las horas de **Preparación** y **Operación**. El **Total** se calcula solo.
+4. Haz clic en **Guardar ruteo**.
+5. Haz clic en **Costear ruteo**. Aparece el **Costo total estimado de fabricación**.
+
+El grupo de equipo es el que define la tarifa de cada operación. Si no aparece una opción o la tarifa no se calcula, pide a la persona administradora que revise los catálogos y las tarifas.
+
+### Archivos
+
+1. Entra a la pestaña **Archivos**. Los archivos del RFQ aparecen en **Heredados del RFQ**.
+2. Si falta un plano, elige **Destino**, **Tipo** y el archivo, y haz clic en **Subir archivos**.
+3. Comprueba que quede al menos un archivo **Vigente**.
+
+## Corregir lo que falta
+
+El panel superior indica **Faltan N datos para validar**. Haz clic en **Ir a lo que falta** para saltar a la sección correspondiente: precio de ítems, ruteo o costeo, o archivos. El botón **Validar** se habilita cuando ya no hay faltantes.
+
+## Validar y generar el PDF
+
+![Diálogo Validar propuesta con Acción, Fecha, Canal opcional y Nota opcional](/manual/capturas/propuestas-validar.png)
+
+1. Haz clic en **Validar**.
+2. En **Acción**, elige el seguimiento que corresponde; la **Fecha** no puede ser anterior a hoy. **Canal** y **Nota** son opcionales.
+3. Haz clic en **Registrar y validar**. El estado pasa a **Lista para enviar**.
+4. Haz clic en **Generar PDF**.
+5. En la pestaña **PDFs**, usa **Descargar** si necesitas el archivo.
+
+![Pestaña PDFs con la propuesta generada, su versión vigente y el botón Descargar](/manual/capturas/propuestas-pdf.png)
+
+El PDF contiene solo información comercial: folio, cliente, ítems, subtotal, IVA y total. **Nunca incluye costos, horas, ruteo ni notas internas.**
+
+## Enviar y dar seguimiento
+
+![Formulario de envío con Canal, Destino y el botón Confirmar envío](/manual/capturas/propuestas-enviar.png)
+
+1. Haz clic en **Enviar**.
+2. Elige el **Canal** y escribe el **Destino**: un correo o un teléfono, según el canal.
+3. Haz clic en **Confirmar envío**. El estado pasa a **Enviada**.
+4. Más adelante, en la pestaña **Seguimiento**, usa **Registrar seguimiento** para anotar nuevas acciones. La propuesta pasa a **Seguimiento**.
+
+![Propuesta en estado Enviada con las opciones Aceptar revisión, Rechazar y Cerrar](/manual/capturas/propuestas-enviada.png)
+
+## Aceptar la revisión
+
+Cuando el cliente acepta:
+
+1. En la ficha de una propuesta **Enviada** o en **Seguimiento**, captura la **Fecha compromiso comercial**. Si quieres apoyarte en la capacidad del taller, usa **Consultar disponibilidad**, despliega **Ver disponibilidad por día** y elige **Usar este día**.
+2. Haz clic en **Aceptar revisión**. El estado pasa a **Aceptada** y el sistema intenta crear la orden. Si aparece **Orden pendiente**, usa **Crear orden** o **Reintentar**. Cuando la venta queda registrada, el estado cambia a **Venta confirmada**; también puedes usar **Confirmar venta** cuando el botón esté disponible.
+3. Si el cliente pide cambios antes de aceptar, usa **Crear nueva versión**: escribe el **Motivo de la nueva versión** y haz clic en **Crear versión**. Se copia la revisión a la letra siguiente (B, C, …) y la anterior queda solo para consulta.
+
+## Estados y acciones
+
+| Estado | Qué significa | Qué puedes hacer |
+| --- | --- | --- |
+| **Borrador** | La revisión se está preparando. | Editar ítems, ruteo y archivos; validar. |
+| **Lista para enviar** | Está validada. | Generar el PDF y enviar, o editar antes de enviar. |
+| **Enviada** | Se envió al cliente. | Registrar seguimiento o aceptar la revisión. |
+| **Seguimiento** | Hay una acción de seguimiento anotada. | Seguir anotando o aceptar la revisión. |
+| **Aceptada** | El cliente aceptó esta revisión. | Crear la orden si hace falta o confirmar la venta. |
+| **Venta confirmada** | La orden quedó registrada. | Solo consultar. |
+| **Rechazada** | El cliente rechazó la propuesta. | Solo consultar. |
+| **Cerrada** | La propuesta se cerró sin venta. | Solo consultar. |
+
+**Aprobación interna** y **Pendiente financiero** aparecen en el filtro de estados, pero en el flujo actual no hay acciones que los generen. Si ves una propuesta con ese estado, consulta a la persona administradora.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Falta 1 dato para validar» / «Faltan N datos para validar»** | Usa **Ir a lo que falta** y corrige las secciones marcadas. |
+| **«Genera el PDF vigente antes de enviar»** | Haz clic en **Generar PDF** y vuelve a intentar el envío. |
+| **«Registra la próxima acción antes de enviar»** | Valida la revisión registrando una acción de seguimiento. |
+| **«La revisión cambió desde que la cargaste; actualízala e inténtalo de nuevo»** | Actualiza la página y vuelve a intentar. Otra persona editó la propuesta. |
+
+## Opciones adicionales
+
+El apartado **Costeo interno** permite capturar material y otros costos por ítem. Solo lo edita gerencia o administración y no es necesario para el flujo básico: el costo principal sale del ruteo costeado.
+
+Si aparece el aviso **Configuración pendiente para costear correctamente**, significa que algún proceso aún no tiene área de trabajo o tarifa. Puedes seguir con la captura, pero el costo no será confiable hasta que se corrija en los catálogos.
+
+## Comprueba que quedó bien
+
+- [ ] La propuesta tiene un folio y la revisión correcta.
+- [ ] Cada ítem activo tiene precio unitario.
+- [ ] El ruteo está guardado y costeado.
+- [ ] Hay al menos un archivo vigente.
+- [ ] El PDF aparece como vigente en **PDFs**.
+- [ ] El estado es **Enviada** o posterior.
+
+## Qué sigue
+
+Al aceptar la revisión se crea una orden en **Operación → Órdenes**. El capítulo de Órdenes está en preparación.
