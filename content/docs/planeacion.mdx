@@ -1,0 +1,101 @@
+---
+title: Planeación
+description: Programa cada operación en un recurso, una fecha y un turno, y revisa la capacidad disponible antes de guardar.
+---
+
+
+En **Planeación** se decide dónde y cuándo se hará cada operación de una orden. El calendario se actualiza cuando otro usuario hace cambios y la capacidad se valida antes de guardar.
+
+## Para qué sirve
+
+Aquí puedes:
+
+- Ver el trabajo programado en vista **Día**, **Semana** o **Mes**.
+- Asignar una operación a una máquina, una fecha, un turno y un número de horas.
+- Cambiar una programación existente, indicando el motivo.
+- Consultar la carga libre por equipo y la capacidad instalada.
+
+La planeación fija el estimado y el recurso. Las horas reales las registra Producción cuando la operación se ejecuta.
+
+## Antes de empezar
+
+- Necesitas permiso para ver planeación. Para programar o reprogramar se requiere permiso de gestión; gerencia y administración lo tienen.
+- La orden debe tener partidas con ruteo. Si el proceso no tiene grupo de equipo, el sistema lo avisa y no puede validar la máquina.
+- La capacidad se calcula como **equipos × jornada**: lunes a viernes 8 h, sábado 4 h y domingo cerrado. **Matutino** y **Vespertino** son etiquetas visuales: no reparten las horas ni hay que registrarlas para que aparezca capacidad.
+
+## El calendario
+
+![Calendario de Planeación en vista Semana con la carga semanal, las tarjetas de operaciones y los botones Día, Semana y Mes](/manual/capturas/planeacion-calendario.png)
+
+1. En el menú lateral, entra a **Operación → Planeación**.
+2. Revisa la **Carga semanal**: muestra las horas ocupadas y libres de cada equipo por día.
+3. Elige **Día**, **Semana** o **Mes**. La vista inicial es **Semana**.
+4. Usa **Anterior**, **Hoy** y **Siguiente** para moverte entre fechas.
+5. Haz clic en una tarjeta de orden para ver el resumen rápido de la programación o en **Abrir orden** para ir a la ficha completa.
+
+Los colores de carga indican si un recurso está **Disponible**, **Cerca del límite**, **Saturado** o **Sobrecargado**. Si no hay trabajo asignado, la vista **Día** muestra **Sin programaciones para este día.** y la vista **Semana** muestra **Sin programaciones**.
+
+## Programar una operación
+
+![Panel Programar operación con partida, operación, recurso, fecha, turno, horas y la capacidad resultante](/manual/capturas/planeacion-programar.png)
+
+1. Haz clic en **Programar operación**.
+2. En **Opciones avanzadas (prioridad)**, elige la **Partida**. Después selecciona la **Operación** del ruteo.
+3. Revisa el **Recurso** sugerido. Debe pertenecer al grupo de equipo de la operación.
+4. Captura la **Fecha programada**, el **Turno** y las **Horas estimadas**. El **Responsable** puede quedar en **Quien sea que reclame**.
+5. Comprueba **Capacidad del turno** y **Capacidad tras guardar**. Si no hay espacio, usa **Buscar hueco** > **Usar esta fecha**.
+6. Haz clic en **Programar**.
+
+El sistema valida permiso, capacidad y disponibilidad del recurso. La operación queda como **Programada** y aparece en el calendario.
+
+Si aparece **Esa máquina no puede hacer esta operación**, elige un recurso del grupo indicado en el ruteo o revisa el grupo del proceso en la propuesta. La fecha no puede ser domingo y las horas deben ser mayores que cero.
+
+## Reprogramar una operación
+
+1. Haz clic en la fila de la operación dentro de una tarjeta del calendario; por ejemplo **1. Fabricación**.
+2. Se abre **Reprogramar operación** con los datos actuales.
+3. Cambia recurso, fecha, turno u horas según necesites.
+4. Escribe el **Motivo de la reprogramación** y haz clic en **Reprogramar**.
+
+También puedes arrastrar una operación a otro día en las vistas **Semana** o **Mes**: aparece el diálogo **Reprogramar por arrastre**, donde confirmas con **Reprogramar a la fecha elegida**. En vista **Día** el arrastre no está disponible.
+
+No se puede reprogramar una operación que ya está en proceso ni un día adicional de una operación repartida en varios días. Si necesitas detener una operación en marcha, un **Administrador** puede usar **Pausar operación (administrativa)** en el panel de la operación.
+
+## Estados de la operación
+
+| Estado | Qué significa |
+| --- | --- |
+| **Programada** | Tiene recurso, fecha y horas asignados. |
+| **En preparación** | Alguien pulsó **Iniciar preparación**; el operador todavía no inició su sesión. |
+| **En proceso** | El operador inició una sesión de trabajo. |
+| **Bloqueada** | La operación está pausada. |
+| **Completada** | Se terminaron las piezas previstas. |
+| **Cancelada** | La programación se canceló. |
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Esa máquina no puede hacer esta operación»** | Elige una máquina del grupo de equipo del ruteo. |
+| **«No hay capacidad en ese turno»** | Usa **Buscar hueco** o elige otra fecha. |
+| **«Indica el motivo de la reprogramación»** | Escribe el motivo antes de guardar. |
+| **«Los datos cambiaron mientras programabas»** | Actualiza la página y vuelve a intentarlo; otra persona modificó la programación. |
+
+## Opciones adicionales
+
+- **Trabajo por liberar:** muestra operaciones sin planear y sugerencias con hueco disponible. Usa **Asignar aquí** para programar la sugerencia de inmediato; si ya no cabe, el sistema lo avisa.
+- **Operaciones largas:** si no caben en un turno, usa **Recomendar días** y **Programar en N días**. Cada día reserva su capacidad.
+- **Filtros avanzados:** en **Filtros** puedes acotar por rango de fechas, área, turnos y estados. Para el uso diario basta con la vista y la navegación del calendario.
+- **Capacidad instalada:** en cada recurso puedes ajustar el número de equipos y la jornada. Si falta configuración, el botón **¿Cómo lo configuro?** aparece junto al aviso del panel de programación; también puedes ir a Configuración → Tarifas y costos.
+
+## Comprueba que quedó bien
+
+- [ ] La operación aparece en el día y el recurso elegidos.
+- [ ] Las horas estimadas son mayores que cero.
+- [ ] La capacidad del turno no quedó excedida.
+- [ ] El estado de la operación es **Programada**.
+- [ ] La tarjeta muestra la pieza y el proceso correctos.
+
+## Qué sigue
+
+El siguiente módulo del menú es **Producción**, donde el operador ejecuta las operaciones programadas y registra las horas reales. Ese capítulo está en preparación; mientras tanto, vuelve a [Órdenes](/es/docs/ordenes).
