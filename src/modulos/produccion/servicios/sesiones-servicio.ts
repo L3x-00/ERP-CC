@@ -708,6 +708,9 @@ export function mensajeErrorSesion(error: unknown): string {
     }
     const probableCodigo = /^[a-z][a-z0-9_]*$/u.test(causa) ? causa : null;
     if (probableCodigo) return describirErrorProduccion(probableCodigo).mensaje;
+    if (esTextoTecnico(causa)) {
+      return 'La operación no se pudo completar. Actualiza la ficha y vuelve a intentarlo; si continúa, pide a administración que revise la orden.';
+    }
     return `${causa}. Revisa el dato indicado y vuelve a intentarlo.`;
   }
 
@@ -977,6 +980,11 @@ export function mensajeErrorSesion(error: unknown): string {
   }
 }
 
+/** Evita que un error de base de datos o de red llegue al operador como texto técnico. */
+function esTextoTecnico(texto: string): boolean {
+  return /[0-9]{5}|ERROR:|CONTEXT:|SQL STATE|does not exist|function |syntax error|invalid input|fetch failed|ECONN|timeout/u.test(texto);
+}
+
 /**
  * C24: los RPC lanzan `codigo: detalle legible`. El detalle manda sobre el
  * texto fijo para que el operador sepa qué corregir y no quede sin salida.
@@ -986,7 +994,7 @@ function detalleDelMensaje(error: ErrorProduccion): string | null {
   const separador = mensaje.indexOf(':');
   if (separador < 0) return null;
   const detalle = mensaje.slice(separador + 1).trim();
-  if (detalle.length === 0 || detalle === error.codigo) return null;
+  if (detalle.length === 0 || detalle === error.codigo || esTextoTecnico(detalle)) return null;
   return detalle.charAt(0).toUpperCase() + detalle.slice(1);
 }
 

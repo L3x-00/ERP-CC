@@ -38,7 +38,7 @@ export async function obtenerTotalesCorridasOrdenServicio(
     ids.length > 0
       ? admin
           .from('sesiones_trabajo')
-          .select('corrida_id, horas_netas, piezas_producidas, costo_hora_interno, sesion_invalida')
+          .select('id, corrida_id, horas_netas, piezas_producidas, costo_hora_interno, sesion_invalida')
           .in('corrida_id', ids)
       : Promise.resolve({ data: [] as never[], error: null }),
     ids.length > 0
@@ -50,6 +50,19 @@ export async function obtenerTotalesCorridasOrdenServicio(
   ]);
   if (sesiones.error) throw new Error(sesiones.error.message);
   if (consumos.error) throw new Error(consumos.error.message);
+
+  const idsSesiones = (sesiones.data ?? []).map((sesion) => sesion.id);
+  const { data: filasItem, error: errorItem } = idsSesiones.length > 0
+    ? await admin
+        .from('sesion_item_tiempos')
+        .select('sesion_id, piezas')
+        .in('sesion_id', idsSesiones)
+    : { data: [] as never[], error: null };
+  if (errorItem) throw new Error(errorItem.message);
+  const piezasPorSesion = new Map<string, number>();
+  for (const fila of filasItem ?? []) {
+    piezasPorSesion.set(fila.sesion_id, (piezasPorSesion.get(fila.sesion_id) ?? 0) + numero(fila.piezas));
+  }
 
   const acumulados = new Map<string, TotalesCorrida>();
   for (const corrida of corridas ?? []) {
@@ -70,7 +83,11 @@ export async function obtenerTotalesCorridasOrdenServicio(
     const total = acumulados.get(sesion.corrida_id ?? '');
     if (!total || sesion.sesion_invalida) continue;
     total.horasTotales = redondear(total.horasTotales + numero(sesion.horas_netas));
-    total.piezasProducidas += numero(sesion.piezas_producidas);
+    // En lotes integrados las piezas por ítem ya incluyen la partida principal;
+    // sumar también la sesión duplicaría ese ítem.
+    total.piezasProducidas += piezasPorSesion.has(sesion.id)
+      ? piezasPorSesion.get(sesion.id)!
+      : numero(sesion.piezas_producidas);
     if (entrada.incluirCostos) {
       total.costoTiempoMxn = redondear(
         (total.costoTiempoMxn ?? 0) + numero(sesion.horas_netas) * numero(sesion.costo_hora_interno),

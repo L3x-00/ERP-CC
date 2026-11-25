@@ -12,7 +12,10 @@ export type OrdenGastoOpcion = {
   etiqueta: string;
 };
 
-const LIMITE = 20;
+// Sin campo de búsqueda, el selector debe alcanzar también órdenes antiguas:
+// 20 solo mostraba las más recientes e impedía vincular un gasto a una orden
+// anterior. La búsqueda por folio/cliente sigue acotando el resultado.
+const LIMITE = 500;
 const SELECCION = 'id, folio, estado, clientes(razon_social, nombre_comercial)';
 
 function etiquetaDeOrden(orden: {

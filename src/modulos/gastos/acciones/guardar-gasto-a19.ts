@@ -41,6 +41,18 @@ function mensajeError(mensaje: string): string {
   if (mensaje.includes('material_desactualizado')) {
     return 'El material cambió en otra pantalla. Vuelve a abrir el gasto y vuelve a vincularlo.';
   }
+  if (mensaje.includes('propuesta_costo_no_coincide') || mensaje.includes('confirmacion_costo_invalida')) {
+    return 'El precio del material cambió mientras capturabas. Vuelve a abrir el gasto y confirma el precio antes de guardar.';
+  }
+  if (mensaje.includes('costo_requiere_confirmacion')) {
+    return 'El precio del material aún no está confirmado. Pide a administración que lo confirme o registra el gasto sin vincular.';
+  }
+  if (mensaje.includes('ruta_comprobante_invalida')) {
+    return 'El comprobante seleccionado no es válido. Elige una imagen o PDF de hasta 10 MiB.';
+  }
+  if (mensaje.includes('gasto_inexistente') || mensaje.includes('datos_gasto_invalidos')) {
+    return 'El gasto ya no existe o cambió en otra pantalla. Actualiza la lista y vuelve a abrirlo.';
+  }
   return 'No se pudo guardar el gasto';
 }
 
@@ -58,7 +70,19 @@ export async function guardarGastoA19Accion(formulario: FormData): Promise<Respu
   }
   const { modo, gastoId, actualizadoEn, tipoGasto, comprobanteRuta, ...campos } = entrada as Record<string, unknown>;
   const meta = esquemaGuardarGastoA19.safeParse({ modo, gastoId, actualizadoEn, tipoGasto });
-  const datos = esquemaRegistrarGasto.safeParse({ ...campos, tipoGasto });
+  // Un gasto histórico puede tener vencimiento anterior a la fecha corregida.
+  // El campo ya no se muestra, así que se conserva tal cual al editar en vez de
+  // bloquear al usuario con una regla que no puede corregir en pantalla.
+  const vencimientoOriginal = typeof campos.fechaVencimiento === 'string'
+    ? campos.fechaVencimiento
+    : undefined;
+  let datos = esquemaRegistrarGasto.safeParse({ ...campos, tipoGasto });
+  if (!datos.success && vencimientoOriginal && typeof campos.fechaGasto === 'string'
+      && vencimientoOriginal < campos.fechaGasto) {
+    const sinVencimiento = { ...campos } as Record<string, unknown>;
+    delete sinVencimiento.fechaVencimiento;
+    datos = esquemaRegistrarGasto.safeParse({ ...sinVencimiento, tipoGasto });
+  }
   if (!meta.success || !datos.success) {
     return { exito: false, error: meta.error?.issues[0]?.message ?? datos.error?.issues[0]?.message ?? 'Datos inválidos' };
   }
@@ -102,7 +126,12 @@ export async function guardarGastoA19Accion(formulario: FormData): Promise<Respu
   }
 
   try {
-    const payload = { ...datos.data, tipoGasto: meta.data.tipoGasto, ...(ruta ? { comprobanteRuta: ruta } : {}) };
+    const payload = {
+      ...datos.data,
+      ...(vencimientoOriginal ? { fechaVencimiento: vencimientoOriginal } : {}),
+      tipoGasto: meta.data.tipoGasto,
+      ...(ruta ? { comprobanteRuta: ruta } : {}),
+    };
     const { data, error } = meta.data.modo === 'crear'
       ? await admin.rpc('registrar_gasto_a19', { p_datos: payload as Json, p_usuario_id: usuario.id })
       : await admin.rpc('editar_gasto_a19', {

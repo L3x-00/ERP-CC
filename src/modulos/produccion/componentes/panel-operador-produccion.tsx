@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
@@ -42,6 +42,7 @@ import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
 import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
+import { obtenerItemsCorridaAccion } from '../acciones/corrida-integrada';
 import { registrarConsumoPiezasAccion } from '../acciones/registrar-consumo-piezas';
 
 type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string; codigo?: string };
@@ -222,6 +223,7 @@ export function PanelOperadorProduccion({
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
   const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  const [itemPrimeraPieza, setItemPrimeraPieza] = useState('');
   const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
   const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
@@ -238,6 +240,16 @@ export function PanelOperadorProduccion({
   } | null>(null);
   const [errorCierre, setErrorCierre] = useState<DatosErrorCierre | null>(null);
 
+  // C3: un lote puede tener varios ítems; la primera pieza se elige por ítem.
+  const itemsCorrida = useQuery({
+    queryKey: ['produccion', 'items-corrida', corridaId ?? 'sin-corrida'],
+    queryFn: async () => {
+      if (!corridaId) return [];
+      const respuesta = await obtenerItemsCorridaAccion({ corridaId });
+      return respuesta.exito ? respuesta.datos ?? [] : [];
+    },
+    enabled: primeraPiezaAbierta && corridaId !== null,
+  });
   const sesionesEnPiso = useMemo(
     () => [...(orden?.sesiones ?? [])]
       .filter((sesion) => sesion.estadoSesion === 'activa' || sesion.estadoSesion === 'pausada')
@@ -265,6 +277,10 @@ export function PanelOperadorProduccion({
   const partidaSesionActiva = sesionActiva
     ? orden?.partidas.find((partida) => partida.id === sesionActiva.partidaId) ?? null
     : null;
+  const partidasPendientesPrimeraPieza = sesionActiva?.primeraPiezaPendientePartidas ?? [];
+  const opcionesPrimeraPieza: { partidaId: string; codigoPieza: string }[] = (itemsCorrida.data ?? []).length > 0
+    ? itemsCorrida.data ?? []
+    : [{ partidaId: sesionActiva?.partidaId ?? '', codigoPieza: partidaSesionActiva?.codigoPieza ?? 'Ítem' }];
   const metasSesion = partidaSesionActiva?.metasProceso ?? [];
   const programacionSesionActiva = sesionActiva
     ? partidaSesionActiva?.programaciones.find(
@@ -726,8 +742,9 @@ export function PanelOperadorProduccion({
       const respuesta = await registrarInspeccionAccion({
         ordenId: orden.id,
         corridaId: corridaId ?? null,
-        partidaId: sesionActiva.partidaId,
-        codigoItem: partidaSesionActiva?.codigoPieza ?? '',
+        partidaId: itemPrimeraPieza || sesionActiva.partidaId,
+        codigoItem: opcionesPrimeraPieza.find((item) => item.partidaId === itemPrimeraPieza)?.codigoPieza
+          ?? partidaSesionActiva?.codigoPieza ?? '',
         tipo: 'PRIMERA_PIEZA',
         resultado: resultadoPrimeraPieza,
         cantidadInspeccionada: 1,
@@ -745,7 +762,9 @@ export function PanelOperadorProduccion({
       setMensajePrimeraPieza({
         tipo: 'ok',
         texto: aprobada
-          ? 'Primera pieza liberada. Ya puedes cerrar la sesión.'
+          ? partidasPendientesPrimeraPieza.length > 1
+            ? 'Primera pieza liberada para este ítem. Vuelve a abrir para liberar los demás ítems del lote.'
+            : 'Primera pieza liberada. Ya puedes cerrar la sesión.'
           : 'Primera pieza rechazada: corrige la pieza y vuelve a liberarla.',
       });
       setPrimeraPiezaAbierta(false);
@@ -1244,6 +1263,7 @@ export function PanelOperadorProduccion({
                   tamano="sm"
                   onClick={() => {
                     setMensajePrimeraPieza(null);
+                    setItemPrimeraPieza(partidasPendientesPrimeraPieza[0] ?? sesionActiva?.partidaId ?? '');
                     setPrimeraPiezaAbierta(true);
                   }}
                   data-testid="abrir-liberar-primera-pieza"
@@ -1422,6 +1442,18 @@ export function PanelOperadorProduccion({
             </DialogDescription>
           </DialogHeader>
           <form className="grid gap-3" onSubmit={(evento) => void liberarPrimeraPieza(evento)}>
+            <label className={CLASE_ETIQUETA}>
+              Ítem de la primera pieza
+              <Select
+                value={itemPrimeraPieza || sesionActiva?.partidaId || ''}
+                onChange={(evento) => setItemPrimeraPieza(evento.target.value)}
+                data-testid="item-primera-pieza-panel"
+              >
+                {opcionesPrimeraPieza.map((item) => (
+                  <option key={item.partidaId} value={item.partidaId}>{item.codigoPieza}</option>
+                ))}
+              </Select>
+            </label>
             <label className={CLASE_ETIQUETA}>
               Resultado de la revisión
               <Select
