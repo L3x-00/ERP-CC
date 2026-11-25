@@ -43,11 +43,17 @@ export async function obtenerRfqConItems(
   }
   if (!fila) return null;
 
-  const { data: filasItems, error: errorItems } = await cliente
-    .from('rfq_items')
-    .select(COLUMNAS_ITEM)
-    .eq('rfq_id', rfqId)
-    .order('numero');
+  const filaTipada = fila as unknown as FilaRfq;
+  // Ítems y nombres dependen solo de la fila: se piden en paralelo. Las
+  // operaciones siguen después porque necesitan los ids de los ítems.
+  const [{ data: filasItems, error: errorItems }, resueltos] = await Promise.all([
+    cliente
+      .from('rfq_items')
+      .select(COLUMNAS_ITEM)
+      .eq('rfq_id', rfqId)
+      .order('numero'),
+    resolverNombresRfq(cliente, filaTipada),
+  ]);
 
   if (errorItems) {
     console.error('[RFQ] Error al obtener los ítems:', errorItems.message);
@@ -79,9 +85,6 @@ export async function obtenerRfqConItems(
   const items = (filasItems ?? []).map((item) =>
     filaARfqItem(item as FilaRfqItem, operacionesPorItem.get(item.id) ?? []),
   );
-
-  const filaTipada = fila as unknown as FilaRfq;
-  const resueltos = await resolverNombresRfq(cliente, filaTipada);
 
   return filaARfq(filaTipada, items, resueltos);
 }

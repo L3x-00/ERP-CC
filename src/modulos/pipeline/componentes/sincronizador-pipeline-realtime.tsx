@@ -65,8 +65,9 @@ export function SincronizadorPipelineRealtime() {
       canalRef.current = canal;
       canal.subscribe((estado) => {
         if (desmontado || canalRef.current !== canal) return;
+        // La consulta inicial ya trajo los datos: suscribirse no debe provocar
+        // un refetch inmediato. Solo reaccionamos a cambios posteriores.
         setConectado(estado === 'SUBSCRIBED');
-        if (estado === 'SUBSCRIBED') invalidar();
       });
     }
 
