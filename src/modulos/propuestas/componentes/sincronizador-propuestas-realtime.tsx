@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
-import { RAIZ_PROPUESTA, RAIZ_PROPUESTAS } from './claves-consulta';
+import { RAIZ_LISTA_PROPUESTAS, RAIZ_PROPUESTA, RAIZ_PROPUESTAS } from './claves-consulta';
 
 /**
  * Señal de refetch para propuestas y revisiones: los eventos disparan una
@@ -23,7 +23,9 @@ export function SincronizadorPropuestasRealtime() {
       if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
       temporizadorRef.current = setTimeout(() => {
         temporizadorRef.current = null;
-        void consultas.invalidateQueries({ queryKey: [RAIZ_PROPUESTAS] });
+        // Solo detalle y listados: invalidar la raíz también recargaba los
+        // catálogos en cada guardado, con ~10 consultas innecesarias.
+        void consultas.invalidateQueries({ queryKey: [RAIZ_PROPUESTAS, RAIZ_LISTA_PROPUESTAS] });
         void consultas.invalidateQueries({ queryKey: [RAIZ_PROPUESTA] });
       }, 300);
     }

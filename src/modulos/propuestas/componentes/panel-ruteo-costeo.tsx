@@ -536,11 +536,11 @@ export function PanelRuteoCosteo({
     setMensaje(null);
     try {
       const respuesta = await costearRuteoRevisionAccion({ revisionId: revision.id });
-      await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
       if (!respuesta.exito) {
         setMensaje({ texto: respuesta.error, tono: 'error' });
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
       setMensaje({
         texto: `Ruteo costeado correctamente: ${respuesta.datos?.renglones ?? 0} renglón(es).`,
         tono: 'exito',
