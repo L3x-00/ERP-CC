@@ -22,6 +22,7 @@ import {
   type TipoGasto,
 } from '@/modulos/gastos/tipos/indice';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
+import { subtotalDesdePrecio } from '@/modulos/gastos/utilidades/precio-material';
 import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 
@@ -81,6 +82,11 @@ export function ModalRegistrarGasto({
   const [cantidadMaterial, setCantidadMaterial] = useState(
     gastoEditar?.cantidadMaterial == null ? '' : String(gastoEditar.cantidadMaterial),
   );
+  // Precio por unidad base: solo facilita la captura. El Subtotal sigue siendo
+  // editable y es la fuente que usa la RPC para calcular el costo unitario.
+  const [precioMaterial, setPrecioMaterial] = useState(
+    gastoEditar?.costoUnitarioMaterial == null ? '' : String(gastoEditar.costoUnitarioMaterial),
+  );
   const [categoria, setCategoria] = useState<string>(gastoEditar?.categoria ?? CATEGORIAS_GASTO[0]);
   const [descripcion, setDescripcion] = useState(gastoEditar?.descripcion ?? '');
   const [subtotal, setSubtotal] = useState(gastoEditar ? String(gastoEditar.montoSubtotal) : '');
@@ -94,7 +100,9 @@ export function ModalRegistrarGasto({
   const [moneda, setMoneda] = useState<MonedaGasto>(gastoEditar?.moneda ?? 'MXN');
   const [tipoCambio, setTipoCambio] = useState(gastoEditar ? String(gastoEditar.tipoCambio) : '1');
   const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? fechaLocalNegocio());
-  const [fechaVencimiento, setFechaVencimiento] = useState(gastoEditar?.fechaVencimiento?.slice(0, 10) ?? '');
+  // El campo ya no se muestra, pero el valor se conserva para que la edición
+  // no borre el vencimiento de un gasto existente.
+  const [fechaVencimiento] = useState(gastoEditar?.fechaVencimiento?.slice(0, 10) ?? '');
   const [folioComprobante, setFolioComprobante] = useState(gastoEditar?.folioComprobante ?? '');
   const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO_GASTO)[number] | ''>(gastoEditar ? gastoEditar.metodoPago ?? '' : 'transferencia');
   // OBS-28: cuenta bancaria de salida (opcional). El catálogo llega enmascarado.
@@ -131,6 +139,22 @@ export function ModalRegistrarGasto({
           ? String(tipoCambioVigente)
           : '',
     );
+  }
+
+  /** Subtotal = precio × cantidad, sin bloquear el ajuste manual del usuario. */
+  function sincronizarSubtotal(precio: string, cantidad: string): void {
+    const calculado = subtotalDesdePrecio(precio, cantidad);
+    if (calculado !== null) setSubtotal(calculado);
+  }
+
+  function aplicarPrecioMaterial(valor: string): void {
+    setPrecioMaterial(valor);
+    sincronizarSubtotal(valor, cantidadMaterial);
+  }
+
+  function aplicarCantidadMaterial(valor: string): void {
+    setCantidadMaterial(valor);
+    sincronizarSubtotal(precioMaterial, valor);
   }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -213,7 +237,7 @@ export function ModalRegistrarGasto({
       <DialogContent aria-describedby="descripcion-registro-gasto">
         <DialogHeader>
           <DialogTitle>{gastoEditar ? `Editar ${gastoEditar.folio}` : 'Registrar gasto'}</DialogTitle>
-          <DialogDescription id="descripcion-registro-gasto">Los importes se validan y guardan en su moneda original. Solo los pendientes admiten corrección.</DialogDescription>
+          <DialogDescription id="descripcion-registro-gasto">Los importes se guardan en la moneda capturada. Los gastos pendientes se pueden corregir.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-3" onSubmit={(evento) => void enviar(evento)}>
           <div
@@ -224,7 +248,7 @@ export function ModalRegistrarGasto({
           >
             <div className="grid gap-1">
               <Label htmlFor="gasto-comprobante">Comprobante (opcional)</Label>
-              <p className="text-xs text-texto-secundario">Imagen o PDF hasta 10 MiB. El OCR admite imágenes hasta 5 MiB; guardar no requiere escanear.</p>
+              <p className="text-xs text-texto-secundario">Imagen o PDF hasta 10 MiB. El escaneo con IA es opcional.</p>
             </div>
             <CampoArchivo id="gasto-comprobante" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" mostrarNombre={false} onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
             {archivo ? <p className="text-xs text-texto-secundario" aria-live="polite">Archivo seleccionado: <span className="font-medium text-texto-primario">{archivo.name}</span></p> : null}
@@ -298,15 +322,7 @@ export function ModalRegistrarGasto({
                   </option>
                 ))}
               </Select>
-              <span className="text-xs text-texto-secundario">
-                Con Orden: costo directo de esa Orden. Sin Orden: gasto indirecto, no se reparte
-                entre órdenes.
-              </span>
-              {ordenId ? (
-                <span className="text-xs text-texto-secundario">
-                  Si este costo ya está en una Compra de esta Orden, no lo captures de nuevo.
-                </span>
-              ) : null}
+              <span className="text-xs text-texto-secundario">Sin orden: gasto indirecto.</span>
               {ordenesOpciones.isError ? (
                 <span role="alert" className="text-xs text-peligro-texto">
                   No se pudieron cargar las órdenes.
@@ -337,7 +353,7 @@ export function ModalRegistrarGasto({
               <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar las cuentas.</span>
             ) : null}
           </div>
-          <div className="grid gap-3 rounded-lg border border-borde p-3 sm:grid-cols-2">
+          <div className="grid gap-3 rounded-lg border border-borde p-3">
             <div className="grid gap-1">
               <Label htmlFor="gasto-material">Vincular a material (compra de material)</Label>
               <Select
@@ -360,26 +376,44 @@ export function ModalRegistrarGasto({
               ) : null}
             </div>
             {materialId ? (
-              <div className="grid gap-1">
-                <Label htmlFor="gasto-cantidad-material" obligatorio>
-                  Cantidad comprada ({materiales.data?.find((item) => item.id === materialId)?.unidadBase ?? 'unidad'})
-                </Label>
-                <Input
-                  id="gasto-cantidad-material"
-                  data-testid="gasto-cantidad-material"
-                  type="number"
-                  min="0.0001"
-                  step="0.0001"
-                  value={cantidadMaterial}
-                  onChange={(evento) => setCantidadMaterial(evento.target.value)}
-                  placeholder="0.0000"
-                />
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1">
+                    <Label htmlFor="gasto-cantidad-material" obligatorio>
+                      Cantidad comprada ({materiales.data?.find((item) => item.id === materialId)?.unidadBase ?? 'unidad'})
+                    </Label>
+                    <Input
+                      id="gasto-cantidad-material"
+                      data-testid="gasto-cantidad-material"
+                      type="number"
+                      min="0.0001"
+                      step="0.0001"
+                      value={cantidadMaterial}
+                      onChange={(evento) => aplicarCantidadMaterial(evento.target.value)}
+                      placeholder="0.0000"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label htmlFor="gasto-precio-material">
+                      Precio por {materiales.data?.find((item) => item.id === materialId)?.unidadBase ?? 'unidad'}
+                    </Label>
+                    <Input
+                      id="gasto-precio-material"
+                      data-testid="gasto-precio-material"
+                      type="number"
+                      min="0"
+                      step="0.0001"
+                      value={precioMaterial}
+                      onChange={(evento) => aplicarPrecioMaterial(evento.target.value)}
+                      placeholder="0.0000"
+                    />
+                  </div>
+                </div>
                 <span className="text-[11px] text-texto-secundario">
-                  El costo unitario se calcula como Subtotal ÷ cantidad, en la moneda del material.
-                  Afecta solo a órdenes y cotizaciones futuras; las ya cotizadas, aceptadas o en
-                  proceso conservan su precio.
+                  Precio y cantidad llenan el Subtotal. Puedes ajustarlo si el gasto incluye otros
+                  conceptos. Afecta solo a órdenes y cotizaciones futuras.
                 </span>
-              </div>
+              </>
             ) : null}
           </div>
           <div className="grid gap-1"><Label htmlFor="gasto-descripcion" obligatorio>Descripción</Label><Input id="gasto-descripcion" value={descripcion} onChange={(evento) => setDescripcion(evento.target.value)} required /></div>
@@ -395,22 +429,15 @@ export function ModalRegistrarGasto({
                 step="0.0001"
                 value={String(totalCalculado)}
                 readOnly
-                aria-describedby="gasto-total-ayuda"
                 className="bg-superficie-2"
               />
-              <span id="gasto-total-ayuda" className="text-[11px] text-texto-secundario">
-                Calculado: subtotal más IVA.
-              </span>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-moneda">Moneda</Label><Select id="gasto-moneda" value={moneda} onChange={(evento) => aplicarMoneda(evento.target.value as MonedaGasto)}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>
             <div className="grid gap-1"><Label htmlFor="gasto-tipo-cambio" obligatorio>Tipo de cambio (MXN)</Label><Input id="gasto-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required /></div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="gasto-fecha" obligatorio>Fecha de gasto</Label><Input id="gasto-fecha" type="date" value={fechaGasto} onChange={(evento) => setFechaGasto(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-vencimiento">Vencimiento</Label><Input id="gasto-vencimiento" type="date" value={fechaVencimiento} onChange={(evento) => setFechaVencimiento(evento.target.value)} /></div>
-          </div>
+          <div className="grid gap-1"><Label htmlFor="gasto-fecha" obligatorio>Fecha de gasto</Label><Input id="gasto-fecha" type="date" value={fechaGasto} onChange={(evento) => setFechaGasto(evento.target.value)} required /></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-folio">Folio de comprobante</Label><Input id="gasto-folio" value={folioComprobante} onChange={(evento) => setFolioComprobante(evento.target.value)} /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-metodo">Método de pago</Label><Select id="gasto-metodo" value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value as typeof metodoPago)}><option value="">Sin especificar</option>{METODOS_PAGO_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
