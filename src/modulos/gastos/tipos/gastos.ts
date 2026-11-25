@@ -48,6 +48,10 @@ export interface Gasto {
   proveedorId: string | null;
   proveedorNombre: string | null;
   cuentaBancariaId: string | null;
+  /** Compra de material vinculada: permite fijar el costo unitario del catálogo. */
+  materialId?: string | null;
+  cantidadMaterial?: number | null;
+  costoUnitarioMaterial?: number | null;
   tipoGasto: TipoGasto | null;
   categoria: CategoriaGasto;
   descripcion: string;
@@ -77,6 +81,9 @@ export interface FilaGasto {
   orden_id: string | null;
   proveedor_id: string | null;
   cuenta_bancaria_id?: string | null;
+  material_id?: string | null;
+  cantidad_material?: number | string | null;
+  costo_unitario_material?: number | string | null;
   tipo_gasto?: string | null;
   comprobante_ruta?: string | null;
   categoria: string;
@@ -232,6 +239,11 @@ export function filaAGasto(fila: FilaGasto): Gasto {
     proveedorId: fila.proveedor_id,
     proveedorNombre: null,
     cuentaBancariaId: fila.cuenta_bancaria_id ?? null,
+    materialId: fila.material_id ?? null,
+    cantidadMaterial: fila.cantidad_material == null ? null : numeroDeFila(fila.cantidad_material, 'cantidad_material'),
+    costoUnitarioMaterial: fila.costo_unitario_material == null
+      ? null
+      : numeroDeFila(fila.costo_unitario_material, 'costo_unitario_material'),
     tipoGasto: fila.tipo_gasto === 'fijo' || fila.tipo_gasto === 'variable' ? fila.tipo_gasto : null,
     categoria: FORMATO_CATEGORIA_GASTO.test(fila.categoria) ? fila.categoria : 'otros',
     descripcion: fila.descripcion,

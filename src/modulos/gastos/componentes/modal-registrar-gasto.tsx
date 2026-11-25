@@ -11,6 +11,7 @@ import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { useQuery } from '@tanstack/react-query';
 import { obtenerCuentasGastoAccion } from '@/modulos/gastos/acciones/obtener-cuentas-gasto';
 import { obtenerOrdenesGastoAccion } from '@/modulos/gastos/acciones/obtener-ordenes-gasto';
+import { listarMaterialesGastoAccion } from '@/modulos/gastos/acciones/listar-materiales-gasto';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import {
   CATEGORIAS_GASTO,
@@ -67,6 +68,19 @@ export function ModalRegistrarGasto({
     enabled: abierto,
     staleTime: 30_000,
   });
+  const materiales = useQuery({
+    queryKey: ['gastos', 'materiales-vinculables'],
+    queryFn: async () => {
+      const respuesta = await listarMaterialesGastoAccion();
+      return respuesta.exito ? (respuesta.datos ?? []) : [];
+    },
+    enabled: abierto,
+    staleTime: 5 * 60_000,
+  });
+  const [materialId, setMaterialId] = useState(gastoEditar?.materialId ?? '');
+  const [cantidadMaterial, setCantidadMaterial] = useState(
+    gastoEditar?.cantidadMaterial == null ? '' : String(gastoEditar.cantidadMaterial),
+  );
   const [categoria, setCategoria] = useState<string>(gastoEditar?.categoria ?? CATEGORIAS_GASTO[0]);
   const [descripcion, setDescripcion] = useState(gastoEditar?.descripcion ?? '');
   const [subtotal, setSubtotal] = useState(gastoEditar ? String(gastoEditar.montoSubtotal) : '');
@@ -130,6 +144,8 @@ export function ModalRegistrarGasto({
       proveedorId: proveedorId || undefined,
       categoria,
       descripcion,
+      materialId: materialId || undefined,
+      cantidadMaterial: cantidadMaterial === '' ? undefined : Number(cantidadMaterial),
       montoSubtotal: Number(subtotal),
       montoIva: Number(iva),
       montoTotal: totalCalculado,
@@ -319,6 +335,51 @@ export function ModalRegistrarGasto({
             </Select>
             {cuentasBancarias.isError ? (
               <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar las cuentas.</span>
+            ) : null}
+          </div>
+          <div className="grid gap-3 rounded-lg border border-borde p-3 sm:grid-cols-2">
+            <div className="grid gap-1">
+              <Label htmlFor="gasto-material">Vincular a material (compra de material)</Label>
+              <Select
+                id="gasto-material"
+                data-testid="gasto-material"
+                value={materialId}
+                onChange={(evento) => setMaterialId(evento.target.value)}
+                disabled={materiales.isPending}
+              >
+                <option value="">Sin vincular — gasto indirecto</option>
+                {materialId && !(materiales.data ?? []).some((item) => item.id === materialId) ? (
+                  <option value={materialId}>Material seleccionado (no disponible)</option>
+                ) : null}
+                {(materiales.data ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>{item.codigo} · {item.nombre}</option>
+                ))}
+              </Select>
+              {materiales.isError ? (
+                <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar los materiales.</span>
+              ) : null}
+            </div>
+            {materialId ? (
+              <div className="grid gap-1">
+                <Label htmlFor="gasto-cantidad-material" obligatorio>
+                  Cantidad comprada ({materiales.data?.find((item) => item.id === materialId)?.unidadBase ?? 'unidad'})
+                </Label>
+                <Input
+                  id="gasto-cantidad-material"
+                  data-testid="gasto-cantidad-material"
+                  type="number"
+                  min="0.0001"
+                  step="0.0001"
+                  value={cantidadMaterial}
+                  onChange={(evento) => setCantidadMaterial(evento.target.value)}
+                  placeholder="0.0000"
+                />
+                <span className="text-[11px] text-texto-secundario">
+                  El costo unitario se calcula como Subtotal ÷ cantidad, en la moneda del material.
+                  Afecta solo a órdenes y cotizaciones futuras; las ya cotizadas, aceptadas o en
+                  proceso conservan su precio.
+                </span>
+              </div>
             ) : null}
           </div>
           <div className="grid gap-1"><Label htmlFor="gasto-descripcion" obligatorio>Descripción</Label><Input id="gasto-descripcion" value={descripcion} onChange={(evento) => setDescripcion(evento.target.value)} required /></div>
