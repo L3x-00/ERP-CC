@@ -1,0 +1,123 @@
+---
+title: Materiales y costos
+description: Da de alta materiales, fija su costo por unidad, revisa propuestas de costo y consulta el historial de cambios.
+---
+
+
+En **Materiales y costos** se mantiene el catálogo de materiales que se usan en las cotizaciones y en la producción. Cada material tiene un costo por unidad y un historial de ese costo.
+
+## Para qué sirve
+
+Aquí se administra:
+
+- El catálogo de materiales: código, nombre, unidad, espesor y dimensiones.
+- El **costo vigente por unidad base** de cada material.
+- Las propuestas de costo que llegan desde una compra o un gasto.
+- El historial de cambios de costo.
+
+Esta pantalla **no administra existencias ni kardex**: no hay entradas, salidas ni saldos. El consumo se registra en las órdenes y su costo queda congelado ahí.
+
+> **Importante:** el costo del material es por unidad (m2, kg, pieza…). La tarifa por hora de una máquina se configura en Configuración → Tarifas y costos → Tarifario del ruteo.
+
+## Antes de empezar
+
+- Para ver la pantalla se necesita acceso a **Operación → Materiales y costos**. Para crear materiales o cambiar costos se requiere el permiso de gestión. Sin él, en **Materiales** no verás los botones de acción y en **Propuestas pendientes** aparecerá **Solo lectura**; pide apoyo a la persona administradora.
+- Ten a la mano el código, el nombre y la unidad en que se compra o consume el material.
+- Recuerda la regla principal: **un material es una sola medida**. Para otra lámina del mismo tipo con distinto calibre, crea otro material con otro código (por ejemplo `CRS-18` y `CRS-16`) para que cada uno tenga su propio precio.
+
+## La pantalla
+
+![Catálogo de materiales con las pestañas Materiales, Propuestas pendientes e Historial de costos y la tabla de costos vigentes](/manual/capturas/inventario-materiales.png)
+
+1. En el menú lateral, entra a **Operación → Materiales y costos**.
+2. En la pestaña **Materiales**, revisa el código, el nombre, la unidad, las dimensiones, el espesor y el **Costo vigente**.
+3. Arriba se muestra el resumen: cuántos materiales hay, cuántos tienen costo confirmado y cuántas propuestas están pendientes.
+4. La tabla agrupa visualmente los materiales en **Metales**, **Madera** y **Otros materiales**. Las variantes aparecen con `↳` y la línea **Grupo: …**; la fila padre muestra la etiqueta **Grupo · n subíitems**.
+5. Usa **Nuevo material** para dar de alta uno, o los botones de cada fila: **Historial**, **Editar**, **Fijar costo unitario** y **Proponer**.
+
+## Crear un material
+
+![Formulario Nuevo material con código, nombre, espesor, unidad base y dimensiones](/manual/capturas/inventario-nuevo-material.png)
+
+1. Haz clic en **Nuevo material**.
+2. Captura **Código**, **Nombre** y **Unidad base**. Son obligatorios. El código se guarda en mayúsculas y admite letras, números, guion y guion bajo.
+3. Si el material tiene calibre, escribe la etiqueta en **Espesor** y la medida real en **Espesor en mm**. Debes completar ambos o dejar ambos vacíos; un material admite un solo espesor.
+4. Si aplica, elige un **Grupo (opcional)** y captura **Ancho (mm)** y **Largo (mm)**. El ancho y el largo admiten hasta tres decimales; déjalos vacíos si el material no se vende por medida.
+5. Deja **Activo** marcado y define el **Orden** para colocarlo en la lista.
+6. Haz clic en **Crear material**.
+
+El material se crea **Sin costo**. El costo se captura en el paso siguiente.
+
+### Grupos de materiales
+
+Los grupos sirven para juntar variantes del mismo material y admiten **solo dos niveles**: un grupo con subíitems no puede meterse dentro de otro grupo.
+
+1. Crea primero un material sin espesor que servirá de padre; por ejemplo `LAM-CR` con nombre `Lámina de acero al carbón`.
+2. Crea cada variante con su propio código y espesor, y selecciona el padre en **Grupo (opcional)**.
+3. En la tabla, las variantes aparecen indentadas bajo **Grupo: …** con la etiqueta **Grupo · n subíitems**.
+
+Un material que ya tiene subíitems no puede cambiarse de grupo. Para inactivar un material, edítalo y desmarca **Activo**; no hay botón de borrado.
+
+## Fijar el costo unitario
+
+![Formulario Fijar costo unitario con costo por m2, moneda, fecha efectiva y referencia](/manual/capturas/inventario-fijar-costo.png)
+
+1. En la fila del material, haz clic en **Fijar costo unitario**.
+2. Captura el **costo por unidad base** (por ejemplo, por m2 o por kg), elige la **Moneda** y la **Fecha efectiva**.
+3. Si quieres, escribe una **Referencia (opcional)**, por ejemplo el folio de la factura o del proveedor.
+4. Haz clic en **Confirmar costo**.
+
+El valor queda vigente de inmediato, se muestra en la columna **Costo vigente**, se registra quién lo confirmó y se agrega al historial. Este costo es el que se usa al registrar consumos en las órdenes.
+
+## Cuando el costo viene de una compra o gasto
+
+1. En la fila del material, haz clic en **Proponer**.
+2. Captura **Costo propuesto**, **Moneda**, **Fecha efectiva**, **Origen** (**Compra** o **Gasto**) y **Referencia**.
+3. Haz clic en **Proponer costo**. El catálogo no cambia todavía y la propuesta aparece en la pestaña **Propuestas pendientes (n)**.
+
+![Pestaña Propuestas pendientes sin propuestas y con el texto Una compra o un gasto puede proponer el costo de un material](/manual/capturas/inventario-propuestas.png)
+
+4. En **Propuestas pendientes**, revisa **Material**, **Costo propuesto**, **Fecha efectiva**, **Fuente**, **Referencia** y **Propuesta por**.
+5. Haz clic en **Confirmar** y revisa el resumen. Confirma con **Confirmar propuesta**.
+
+El costo vigente cambia y la propuesta pasa a confirmada. El historial conserva el registro anterior.
+
+## Historial de costos
+
+![Pestaña Historial de costos con material, cambio, fecha efectiva, fuente, referencia y quién confirmó](/manual/capturas/inventario-historial.png)
+
+1. Entra a la pestaña **Historial de costos**.
+2. Para ver solo un material, haz clic en **Historial** en su fila. El encabezado muestra el texto **Historial de** seguido del código y el nombre del material.
+3. Usa **Ver todo el historial** para quitar el filtro.
+4. Cada fila indica el cambio, por ejemplo **Sin costo anterior → $512.00**, la fecha efectiva, la fuente (**Manual**, **Compra** o **Gasto**), la referencia y quién confirmó.
+
+El historial es de solo lectura: no se edita ni se borra.
+
+## Opciones adicionales
+
+- **Recosteo:** al fijar o confirmar un costo puedes marcar **Sustituir el costo de los consumos ya registrados**. Actualiza el costo congelado de consumos y retrabajos sin duplicarlos, pide un **Motivo del recosteo** de al menos tres caracteres y deja auditoría. Si el recosteo falla pero el costo quedó confirmado, usa **Reintentar recosteo**.
+- **Clasificación visual:** la tabla separa los materiales en **Metales**, **Madera** y **Otros materiales** según su código y nombre. Es solo una ayuda visual.
+- **Validaciones de dimensión:** el ancho y el largo deben ser mayores que cero y no superar el máximo soportado; el espesor en mm también debe ser mayor que cero. El código no puede repetirse.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Sin permiso para gestionar materiales» / «Sin permiso para gestionar costos de materiales»** | Pide permiso de gestión a la persona administradora. |
+| **«Ya existe un material con ese código»** | Usa otro código o edita el material existente. |
+| **«El código no es válido (mayúsculas, números, guion y guion bajo)»** | Corrige el código: solo letras mayúsculas, números, `-` y `_`. |
+| **«Completa la etiqueta y los mm del espesor, o deja ambos vacíos»** | Captura los dos campos de espesor o borra ambos. |
+| **«La propuesta ya fue confirmada o sus datos cambiaron; recarga la lista»** | Actualiza la pestaña de propuestas y revisa el estado. |
+| **«El material cambió desde que se abrió; recarga e intenta de nuevo»** | Cierra el formulario, vuelve a abrirlo y repite la acción. |
+
+## Comprueba que quedó bien
+
+- [ ] El material aparece en la lista con su código, nombre y unidad base.
+- [ ] El espesor y las dimensiones son correctos, si aplica.
+- [ ] La columna **Costo vigente** muestra el monto y **Vigente desde** la fecha correctos.
+- [ ] El cambio aparece en **Historial de costos**.
+- [ ] No hay propuestas pendientes sin atender.
+
+## Qué sigue
+
+El siguiente módulo del menú es **Órdenes**, en el grupo **Operación**. Ahí se usan los materiales y sus costos al registrar consumos.
