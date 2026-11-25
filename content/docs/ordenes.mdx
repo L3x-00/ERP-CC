@@ -1,0 +1,130 @@
+---
+title: Órdenes
+description: Consulta las órdenes de producción, revisa su avance, libera una orden planificada y cierra o cancela cuando corresponda.
+---
+
+
+Las órdenes nacen al aceptar una propuesta y se siguen aquí por estado y proceso. El trabajo interno se registra con **Nueva orden interna** y no es cobrable.
+
+## Para qué sirve
+
+En **Órdenes** puedes:
+
+- Ver el estado, la prioridad, el compromiso y el avance de cada orden.
+- Abrir un resumen rápido sin salir de la cola y saltar al RFQ o a la propuesta de origen.
+- Revisar las partidas, la ruta, los archivos, las entregas y la actividad.
+- Imprimir la orden de servicio y, cuando corresponda, liberarla, cerrarla o cancelarla.
+
+> **Importante:** aquí no hay un botón **Aprobar** ni **Iniciar**. La aprobación ocurre al aceptar la revisión en Propuestas y el estado de la orden avanza solo según el trabajo registrado.
+
+## Antes de empezar
+
+- Necesitas permiso para ver órdenes. Liberar, cerrar, cancelar y crear órdenes internas son acciones de gerencia o administración.
+- Para liberar una orden, debe estar **Planificada** y tener programación, ruteo y archivos vivos. Si falta algo, el sistema lo indica.
+
+## La cola de órdenes
+
+![Cola de órdenes con filtros por máquina y estado, columnas Folio, Estado, Prioridad, Compromiso, Partidas y Avance](/manual/capturas/ordenes-cola.png)
+
+1. En el menú lateral, entra a **Operación → Órdenes**.
+2. Arriba se muestran los totales, entre ellos órdenes no canceladas, en proceso, atrasadas y entregadas.
+3. Filtra por **Máquina** o por **Estado** si buscas un grupo concreto. Usa **Limpiar filtros** para volver a ver todas.
+4. En la tabla revisa **Folio**, **Estado**, **Prioridad**, **Compromiso**, **Partidas** y **Avance**.
+5. La columna **Acciones** muestra **Abrir** y, solo en una orden planificada con permiso, **Liberar**.
+
+Las órdenes entregadas aparecen marcadas como **Archivada <fecha>**. La cola no tiene paginación: usa los filtros para localizar una orden.
+
+## Ver el resumen rápido
+
+![Resumen de una orden con fecha requerida, horas estimadas, el estado Sin origen comercial y sus partidas](/manual/capturas/ordenes-resumen.png)
+
+Haz clic en el **folio** de la tabla. Se abre un resumen sin salir de la cola con:
+
+- Fecha requerida, fecha de aprobación, horas estimadas y reales, eficiencia y sesiones.
+- El **origen comercial**, con enlaces **Ver RFQ** y **Ver propuesta** cuando existen y tu rol puede ver RFQ y propuestas.
+- Las **Partidas**, los **Documentos** y el **Historial de sesiones**.
+- Los botones **Orden de servicio**, **Nota de entrega** y **Cerrar**.
+
+Si no hay origen comercial aparece **Sin origen comercial (orden interna o histórica)**.
+
+## Recorrer la ficha
+
+![Ficha de una orden en la pestaña Resumen con las pestañas Ítems, Ruta, Archivos, Entregas, Actividad, Documento, Costos y Comentarios](/manual/capturas/ordenes-ficha.png)
+
+El botón **Abrir** de la cola lleva a la ficha. En el encabezado ves el cliente y la prioridad. En **Resumen** consultas el **Estado SII**, la fecha operativa, el compromiso y los totales cuando están disponibles.
+
+### Ítems / Partidas
+
+![Pestaña Ítems / Partidas con el índice, descripción, solicitado, producido, scrap y procesos](/manual/capturas/ordenes-partidas.png)
+
+Muestra qué hay que fabricar: **Ítem**, **Descripción**, **Solicitado**, **Producido**, **Scrap** y **Procesos**.
+
+### Ruta / Operaciones
+
+![Pestaña Ruta / Operaciones con el estado vacío Sin ruta registrada y Sin operaciones registradas](/manual/capturas/ordenes-ruta.png)
+
+Muestra cómo se hará el trabajo: número, **Proceso**, **Prep. estimada**, **Operación estimada** y **Estado** de cada operación. Si aún no hay datos aparece **Sin ruta registrada.**
+
+### Archivos vivos y Entregas
+
+**Archivos vivos** lista los planos y documentos congelados en la orden. **Entregas** indica **Entregado X de Y; faltan Z por entregar** y permite **Preparar entrega** cuando la orden está en producción. Solo se entregan piezas conformes.
+
+### Actividad y Documento
+
+**Actividad** registra los hechos de la orden: creación, liberación, planeación, inicio y fin de producción, entregas y cierre. En **Documento** usa **Imprimir orden** para obtener la hoja de trabajo. La pestaña **Costos** solo aparece si tu rol puede ver finanzas.
+
+## Liberar una orden
+
+![Fila de una orden Planificada en la cola con el botón Liberar en la columna Acciones](/manual/capturas/ordenes-liberar.png)
+
+1. Filtra por el estado **Planificada**.
+2. En la fila de la orden, haz clic en **Liberar**. El botón también está en la ficha.
+3. El sistema valida que haya programación, ruteo y archivos vivos. Si todo está listo, la orden pasa a **Lista** y podrá iniciar producción.
+
+Si aparece **Faltan programación, ruteo o archivos vivos para liberar**, revisa esos tres puntos antes de intentarlo de nuevo. **Solo se libera una orden planificada.**
+
+## Estados y avance
+
+| Estado | Qué significa |
+| --- | --- |
+| **Confirmada** | La orden acaba de crearse. |
+| **Planificada** | Todas las partidas tienen programación. Aquí puedes liberarla. |
+| **Lista** | Liberada y lista para producción. |
+| **En producción** | Hay sesiones de trabajo registradas. |
+| **Producción completada** | Se cumplieron las metas de todas las partidas. |
+| **Cerrada** | La entrega total la cerró automáticamente o se registró el cierre administrativo. |
+| **Cancelada** | La orden se canceló con motivo. |
+
+El paso a **En producción** y a **Producción completada** es automático: no hay botones para forzarlo.
+
+## Cerrar o cancelar
+
+- **Cerrar administrativa** aparece cuando la producción está completada. Confirma con **Confirmar cierre**. Si la entrega total ya cerró la orden pero falta el registro, usa **Completar cierre administrativo**. Requiere el 100 % de las cantidades entregadas.
+- **Cancelar** pide un **Motivo (mínimo 3 caracteres)** y se confirma con **Confirmar cancelación**. La cancelación es definitiva y queda auditada. No se puede cancelar si hay cobranza registrada o trabajo en ejecución.
+
+## Opciones adicionales
+
+- **Nueva orden interna:** para trabajo propio no cobrable. Pide fecha compromiso, prioridad, **Motivo de la autorización (3 a 300 caracteres)** y al menos una partida con descripción y cantidad mayor a cero. La descripción **¿Qué se va a hacer? (opcional)** no es obligatoria. Confirma con **Crear orden interna**. Solo la pueden autorizar gerencia o administración.
+- **Nueva basada en esta:** desde una orden en **Producción completada** o **Cerrada**. Copia solo datos técnicos a una orden nueva con folio propio; no copia precios ni cuentas por cobrar.
+- **Adjuntos** (solo en órdenes migradas y con permiso de aprobación): abre los archivos privados heredados y permite subir nuevos, de hasta 20 MiB. Los planos del RFQ y el PDF de la propuesta se consultan en **Documentos** del resumen rápido.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Faltan programación, ruteo o archivos vivos para liberar.»** | Completa la programación, el ruteo y los archivos antes de liberar. |
+| **«Solo se libera una orden planificada.»** | Espera a que la orden esté en **Planificada**. |
+| **«El motivo de cancelación es obligatorio (mínimo 3 caracteres).»** | Escribe el motivo antes de confirmar la cancelación. |
+| **«Se requiere el 100 % de las cantidades entregadas.»** | Registra las entregas pendientes antes de cerrar. |
+
+## Comprueba que quedó bien
+
+- [ ] La orden aparece en la cola con el estado y el compromiso esperados.
+- [ ] El resumen muestra el origen comercial, si lo tiene.
+- [ ] Las partidas y la ruta coinciden con lo cotizado.
+- [ ] Los archivos vivos están disponibles.
+- [ ] El avance y las entregas están actualizados.
+
+## Qué sigue
+
+El siguiente módulo del menú es **Planeación**, donde se organiza la programación de las operaciones de estas órdenes.
