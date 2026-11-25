@@ -27,9 +27,10 @@ export default async function PaginaInventario() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-texto-primario">Materiales y costos</h1>
         <p className="text-sm text-texto-secundario">
-          Catálogo maestro de materiales con unidad base, grupos, espesores, costo vigente e
-          historial de costos. El consumo se registra en las órdenes y su costo queda congelado
-          ahí; no se administran existencias ni kardex.
+          Catálogo maestro de materiales con unidad base, grupos, espesores, costo unitario vigente
+          e historial. El consumo se registra en las órdenes y su costo queda congelado ahí; no se
+          administran existencias ni kardex. La tarifa por hora de máquina del ruteo se configura en
+          Configuración → Tarifas y costos → Tarifario del ruteo.
         </p>
       </header>
       <PanelInventario />

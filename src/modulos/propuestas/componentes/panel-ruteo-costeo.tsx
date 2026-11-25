@@ -343,6 +343,10 @@ export function PanelRuteoCosteo({
     return base;
   }, [costosGuardados, filasDelCosteo, costosBorrador]);
 
+  // El material se muestra separado de los otros costos capturados a mano:
+  // es un insumo por unidad, no una tarifa ni un gasto diverso.
+  const costoMaterial = costosParaTotales.material ?? 0;
+
   const totales = useMemo(
     () =>
       calcularTotalesPropuesta({
@@ -964,7 +968,9 @@ export function PanelRuteoCosteo({
         <div className="flex flex-wrap items-center justify-between gap-2" data-testid="costeo-ruteo">
           <p className="text-sm text-texto-secundario">
             Costo del ruteo: {formatearMoneda(totales.costoRuteo, totales.moneda)}
-            {totales.costoRuteo > 0 ? ' · sustituye al costo manual de máquina' : ' · sin costear'}
+            {totales.costoRuteo > 0
+              ? ' · sustituye al costo de máquina capturado a mano en la propuesta (no al costo de material)'
+              : ' · sin costear'}
           </p>
           {esBorrador && permisos.editarCosto && (
             <Button
@@ -1180,6 +1186,7 @@ export function PanelRuteoCosteo({
         items={itemsRevision}
         catalogos={catalogos}
         totales={totales}
+        costoMaterial={costoMaterial}
       />
 
       <PanelMaterialClientePropuesta
@@ -1223,11 +1230,13 @@ function DesgloseFabricacion({
   items,
   catalogos,
   totales,
+  costoMaterial,
 }: {
   filas: RuteoItemPropuesta[];
   items: PropuestaItem[];
   catalogos: CatalogosPropuesta | null;
   totales: TotalesPropuesta;
+  costoMaterial: number;
 }) {
   const nombreProceso = (procesoId: string): string =>
     catalogos?.procesos.find((proceso) => proceso.id === procesoId)?.nombre ?? 'Proceso';
@@ -1350,10 +1359,18 @@ function DesgloseFabricacion({
             </tr>
             <tr>
               <td colSpan={8} className="px-3 py-2 text-right text-texto-secundario">
+                Material (capturado en la propuesta, por unidad)
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-texto-secundario">
+                {formatearMoneda(costoMaterial, totales.moneda)}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={8} className="px-3 py-2 text-right text-texto-secundario">
                 Otros costos manuales
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-texto-secundario">
-                {formatearMoneda(totales.costoManual, totales.moneda)}
+                {formatearMoneda(totales.costoManual - costoMaterial, totales.moneda)}
               </td>
             </tr>
             <tr>

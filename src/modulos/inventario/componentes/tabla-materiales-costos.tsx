@@ -186,7 +186,7 @@ export function TablaMaterialesCostos({
                         tamano="sm"
                         onClick={() => onCostoManual(material)}
                       >
-                        Costo manual
+                        Fijar costo unitario
                       </Button>
                       <Button type="button" tamano="sm" onClick={() => onProponer(material)}>
                         Proponer

@@ -618,3 +618,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | En «Materiales y costos» todos los materiales aparecían combinados en una sola tabla | `tabla-materiales-costos.tsx` solo agrupaba por jerarquía `padre_id` y no había ninguna sección por tipo; `catalogo_materiales` no tiene columna de tipo | Clasificación **solo visual** con `tipoMaterialVisual` a partir de nombre y código: `Metales`, `Madera`, `Otros materiales`. La tabla inserta encabezados de sección conservando el orden y la jerarquía dentro de cada grupo; no escribe en la base ni cambia el catálogo. Sin migración |
+
+## 77. Costo unitario de material vs tarifa por hora
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El usuario comparaba el «Costo manual» del catálogo de materiales con la tarifa por hora del ruteo y no entendía por qué no coincidían | Son magnitudes distintas que se suman en el costeo de propuestas (`calcular-totales-propuesta.ts:130-148`), pero la palabra «costo manual» se usaba para material y para máquina capturada a mano, y ninguna pantalla explicaba la otra | Etiquetas y textos de ayuda: «Fijar costo unitario», campo «Costo por {unidadBase}» y aviso de que no es tarifa por hora; referencias cruzadas entre Materiales y costos y Tarifas y costos; en la tabla consolidada se separa «Material» de «Otros costos manuales». Sin cambios de reglas ni esquema |

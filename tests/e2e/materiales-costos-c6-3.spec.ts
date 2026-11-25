@@ -161,9 +161,9 @@ test.describe('Materiales y costos — grupos y costos (obs. 8)', () => {
       materialId = creado.data!.id;
 
       // El alta ya no captura costo: cada espesor es un material y su precio
-      // se confirma desde la fila con «Costo manual».
+      // se confirma desde la fila con «Fijar costo unitario».
       const filaMaterial = page.getByTestId(`fila-material-${codigoMaterial}`);
-      await filaMaterial.getByRole('button', { name: 'Costo manual' }).click();
+      await filaMaterial.getByRole('button', { name: 'Fijar costo unitario' }).click();
       await page.locator('#costo-manual').fill('12.5');
       await page.getByRole('button', { name: 'Confirmar costo' }).click();
       await expect(page.locator('#costo-manual')).toHaveCount(0);
