@@ -185,7 +185,10 @@ export function PanelAccionesPropuesta({
     await queryClient.invalidateQueries({ queryKey: ['propuestas'] });
   }
 
-  async function ejecutar(accion: () => Promise<{ exito: boolean; error?: string }>): Promise<void> {
+  async function ejecutar(
+    accion: () => Promise<{ exito: boolean; error?: string }>,
+    { actualizarPlaneacion = false }: { actualizarPlaneacion?: boolean } = {},
+  ): Promise<void> {
     setProcesando(true);
     setMensaje(null);
     try {
@@ -199,9 +202,11 @@ export function PanelAccionesPropuesta({
       setDestino('');
       setDestinoManual(false);
       await refrescar();
-      // Obs 5: aprobar una propuesta crea una orden que debe verse en Planeación
-      // aunque esa pestaña ya tenga cacheada la vista Semana.
-      await queryClient.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION });
+      // Obs 5: solo aprobar crea la orden que debe verse en Planeación. El resto
+      // de acciones (enviar, generar PDF, costear...) no deben recargar calendario.
+      if (actualizarPlaneacion) {
+        await queryClient.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION });
+      }
     } catch {
       setMensaje('No se pudo completar la acción. Revisa la conexión e inténtalo de nuevo.');
     } finally {
@@ -375,7 +380,7 @@ export function PanelAccionesPropuesta({
                 revisionId: revision.id,
                 actualizadoEn: revision.actualizadoEn,
                 fechaCompromisoComercial: fechaCompromiso,
-              }))}
+              }), { actualizarPlaneacion: true })}
               disabled={procesando || !fechaCompromiso || fechaInvalida}
               title={
                 !fechaCompromiso

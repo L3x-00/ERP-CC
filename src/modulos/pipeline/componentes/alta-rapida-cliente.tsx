@@ -79,7 +79,9 @@ export function AltaRapidaCliente({
         return;
       }
 
-      await clienteConsultas.invalidateQueries({ queryKey: ['clientes'] });
+      // El cliente ya existe y se devuelve al selector; el catálogo se refresca
+      // en background para no retener el diálogo.
+      void clienteConsultas.invalidateQueries({ queryKey: ['clientes'] });
       onCreado(
         clienteRfqDesdeAlta(respuesta.datos.id, {
           razonSocial,

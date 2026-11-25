@@ -123,16 +123,9 @@ export async function generarPdfRevisionAccion(
     })),
   });
 
-  let bytes: Buffer;
-  try {
-    bytes = await generarPdfPropuestaProfesional(documento);
-  } catch (error) {
-    console.error('[PROPUESTAS] No se pudo componer el PDF:', error);
-    return { exito: false, error: 'No se pudo generar el PDF de la propuesta' };
-  }
+  // Idempotencia por contenido: el hash sale del documento, no de los bytes,
+  // así que se puede consultar antes de pagar el render del PDF.
   const hash = hashContenidoDocumento(documento);
-
-  // Idempotencia por contenido: si ya existe el mismo PDF, no se regenera.
   const { data: existente } = await admin
     .from('propuesta_pdfs')
     .select('id, archivo_id, version, vigente')
@@ -166,6 +159,14 @@ export async function generarPdfRevisionAccion(
         yaExistia: true,
       },
     };
+  }
+
+  let bytes: Buffer;
+  try {
+    bytes = await generarPdfPropuestaProfesional(documento);
+  } catch (error) {
+    console.error('[PROPUESTAS] No se pudo componer el PDF:', error);
+    return { exito: false, error: 'No se pudo generar el PDF de la propuesta' };
   }
 
   const nombreArchivo = `Propuesta ${revision.folio_revision}.pdf`;

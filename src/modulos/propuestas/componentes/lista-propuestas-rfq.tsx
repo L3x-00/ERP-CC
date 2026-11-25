@@ -49,7 +49,9 @@ export function ListaPropuestasRfq({
       setMensaje(respuesta.error);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['propuestas'] });
+    // La navegación no depende del refetch: se invalida en background y la
+    // ficha destino carga su propio detalle.
+    void queryClient.invalidateQueries({ queryKey: ['propuestas'] });
     const propuestaId = respuesta.datos?.propuestaId;
     if (propuestaId) {
       router.push(`/propuestas?propuesta=${propuestaId}`);
