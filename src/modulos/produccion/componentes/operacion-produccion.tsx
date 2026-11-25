@@ -40,6 +40,7 @@ import { ResumenAdministrativoOrden } from '@/modulos/produccion/componentes/res
 import { PanelRetrabajosProduccion } from '@/modulos/produccion/componentes/panel-retrabajos-produccion';
 import { PanelMaterialClienteProduccion } from '@/modulos/produccion/componentes/panel-material-cliente-produccion';
 import { PanelTiemposIntegrados } from '@/modulos/produccion/componentes/panel-tiempos-integrados';
+import { PanelTotalesCorrida } from '@/modulos/produccion/componentes/panel-totales-corrida';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
@@ -429,22 +430,34 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                   onPausarAdministrativa={cerrarComoSupervisor}
                 />
 
+                <details
+                  className="rounded-base border border-borde p-3"
+                  data-testid="corridas-orden"
+                  open
+                >
+                  <summary className="cursor-pointer text-sm font-medium text-texto-primario">
+                    Corridas
+                  </summary>
+                  <div className="mt-3">
+                    <PanelCorridasProduccion
+                      orden={ordenSeleccionada}
+                      catalogos={catalogosPiso}
+                      corridaSeleccionadaId={corridaSeleccionadaId}
+                      onSeleccionarCorrida={setCorridaSeleccionadaId}
+                      onOperarCorrida={desplazarAPanelOperador}
+                    />
+                  </div>
+                </details>
+
                 <section aria-labelledby="titulo-operacion-piso" className="flex flex-col gap-3">
                   <div>
                     <h3 id="titulo-operacion-piso" className="text-sm font-semibold text-texto-primario">
                       Operación en piso
                     </h3>
                     <p className="text-xs text-texto-secundario">
-                      Corridas y sesión del operador de esta orden.
+                      Sesión del operador de esta orden.
                     </p>
                   </div>
-                  <PanelCorridasProduccion
-                    orden={ordenSeleccionada}
-                    catalogos={catalogosPiso}
-                    corridaSeleccionadaId={corridaSeleccionadaId}
-                    onSeleccionarCorrida={setCorridaSeleccionadaId}
-                    onOperarCorrida={desplazarAPanelOperador}
-                  />
                   <PanelOperadorProduccion
                     orden={ordenSeleccionada}
                     sesionActiva={sesionActiva}
@@ -508,6 +521,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                     <PanelRetrabajosProduccion orden={ordenSeleccionada} />
                     <PanelMaterialClienteProduccion orden={ordenSeleccionada} />
                     <PanelTiemposIntegrados orden={ordenSeleccionada} />
+                    <PanelTotalesCorrida orden={ordenSeleccionada} />
                   </div>
                 </details>
               </>

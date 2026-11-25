@@ -56,7 +56,7 @@ export async function obtenerTiemposIntegradosOrdenServicio(
   });
   if (error) lanzarErrorProduccion(error.message);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((fila) => ({
+  const tiempos: TiempoItemIntegrado[] = ((data ?? []) as Record<string, unknown>[]).map((fila) => ({
     sesionId: texto(fila.sesion_id),
     fechaInicio: texto(fila.fecha_inicio),
     operadorNombre: texto(fila.operador_nombre),
@@ -65,4 +65,36 @@ export async function obtenerTiemposIntegradosOrdenServicio(
     piezas: numero(fila.piezas),
     minutos: numeroONull(fila.minutos),
   }));
+
+  // C5: el RPC no expone el código de corrida; se enriquece con dos lecturas
+  // acotadas a las sesiones ya obtenidas, sin cambiar la firma de la RPC.
+  const idsSesiones = [...new Set(tiempos.map((tiempo) => tiempo.sesionId))];
+  if (idsSesiones.length === 0) return tiempos;
+  const { data: sesiones, error: errorSesiones } = await admin
+    .from('sesiones_trabajo')
+    .select('id, corrida_id')
+    .in('id', idsSesiones);
+  if (errorSesiones) lanzarErrorProduccion(errorSesiones.message);
+  const idsCorridas = [...new Set(
+    (sesiones ?? []).map((sesion) => sesion.corrida_id).filter((id): id is string => id !== null),
+  )];
+  if (idsCorridas.length === 0) {
+    for (const tiempo of tiempos) tiempo.corridaCodigo = null;
+    return tiempos;
+  }
+  const { data: corridas, error: errorCorridas } = await admin
+    .from('corridas')
+    .select('id, codigo')
+    .in('id', idsCorridas);
+  if (errorCorridas) lanzarErrorProduccion(errorCorridas.message);
+  const codigoPorSesion = new Map<string, string>();
+  const codigoPorCorrida = new Map((corridas ?? []).map((corrida) => [corrida.id, corrida.codigo] as const));
+  for (const sesion of sesiones ?? []) {
+    const codigo = sesion.corrida_id ? codigoPorCorrida.get(sesion.corrida_id) : null;
+    if (codigo) codigoPorSesion.set(sesion.id, codigo);
+  }
+  for (const tiempo of tiempos) {
+    tiempo.corridaCodigo = codigoPorSesion.get(tiempo.sesionId) ?? null;
+  }
+  return tiempos;
 }

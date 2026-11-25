@@ -10,8 +10,8 @@ import { obtenerTiemposIntegradosAccion } from '../acciones/indice';
 import { CLAVE_TIEMPOS_INTEGRADOS_ORDEN } from './claves-consulta';
 
 /**
- * C13.4: sesiones donde el operador trabajó varios ítems en una sola corrida.
- * Muestra el avance y los minutos declarados por ítem.
+ * C5: sesiones de corrida donde el operador trabajó varios ítems juntos.
+ * Se agrupan por código de corrida y muestran el avance por ítem.
  */
 export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccion | null }) {
   const consulta = useQuery({
@@ -29,17 +29,18 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
   const tiempos = consulta.data ?? [];
   const sesiones = new Map<string, typeof tiempos>();
   for (const tiempo of tiempos) {
-    const lista = sesiones.get(tiempo.sesionId) ?? [];
+    const clave = tiempo.corridaCodigo ?? tiempo.sesionId;
+    const lista = sesiones.get(clave) ?? [];
     lista.push(tiempo);
-    sesiones.set(tiempo.sesionId, lista);
+    sesiones.set(clave, lista);
   }
 
   return (
     <section className="rounded-lg border border-borde bg-superficie p-4" data-testid="panel-tiempos-integrados">
       <div>
-        <h2 className="text-base font-semibold text-texto-primario">Corridas integradas</h2>
+        <h2 className="text-base font-semibold text-texto-primario">Sesiones de Corrida</h2>
         <p className="mt-1 text-xs text-texto-secundario">
-          Sesiones donde se trabajaron varios ítems juntos, con su avance y minutos por ítem cuando fueron identificables.
+          Agrupa el tiempo y la auditoría de las piezas trabajadas juntas en cada corrida.
         </p>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
@@ -50,17 +51,19 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
       )}
       {orden && !consulta.isLoading && tiempos.length === 0 && (
         <EstadoVacio
-          titulo="Sin corridas integradas"
+          titulo="Sin sesiones de corrida"
           descripcion="Esta orden no tiene sesiones con varios ítems trabajados juntos."
         />
       )}
       {sesiones.size > 0 && (
         <ul className="mt-3 flex flex-col gap-2" data-testid="lista-tiempos-integrados">
-          {[...sesiones.entries()].map(([sesionId, items]) => (
-            <li key={sesionId} className="rounded-md border border-borde p-3 text-sm">
+          {[...sesiones.entries()].map(([claveCorrida, items]) => (
+            <li key={claveCorrida} className="rounded-md border border-borde p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  <strong>{items.length} ítems en un solo proceso</strong>
+                  <strong data-testid={`sesion-corrida-${claveCorrida}`}>
+                    {claveCorrida} · {items.length} ítems en un solo proceso
+                  </strong>
                   {' · '}{items[0]?.operadorNombre}
                 </span>
                 <span className="text-xs text-texto-secundario">
