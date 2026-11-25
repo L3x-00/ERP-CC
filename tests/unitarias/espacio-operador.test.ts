@@ -332,7 +332,7 @@ describe('agruparProcesosPorOrdenYColumna', () => {
         corridaId: null,
       } as unknown as Parameters<typeof sesionResumen>[0],
       {},
-      new Set(),
+      new Map(),
     );
     expect(resumen.horasBrutas).toBe(0.55);
   });

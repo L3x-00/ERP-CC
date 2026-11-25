@@ -173,6 +173,13 @@ export const esquemaRegistrarInspeccion = z
   })
   .strict()
   .superRefine((valor, contexto) => {
+    if (valor.tipo === 'PRIMERA_PIEZA' && !valor.partidaId) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['partidaId'],
+        message: 'Indica el ítem al que pertenece la primera pieza',
+      });
+    }
     if (valor.tipo === 'REFERENCIA_LOTE' && (valor.referencia ?? 0) <= 0) {
       contexto.addIssue({
         code: 'custom',

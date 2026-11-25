@@ -126,8 +126,10 @@ export interface SesionProceso {
   /** C31/A16: tiempo que duró el bloque antes de descontar la comida. */
   horasBrutas: number;
   horasNetas: number;
-  /** true si la corrida exige primera pieza y aún no hay una aprobada. */
+  /** true si la corrida exige primera pieza y aún faltan ítems por aprobar. */
   primeraPiezaPendiente?: boolean;
+  /** Ítems de la corrida a los que les falta la primera pieza. */
+  primeraPiezaPendientePartidas?: string[];
   motivoPausa: string | null;
   motivoPausaNota: string | null;
   /** C31/A12: motivo y detalle cuando la sesión superó el estimado. */

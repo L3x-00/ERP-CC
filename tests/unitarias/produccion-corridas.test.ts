@@ -203,6 +203,16 @@ describe('esquemas B6', () => {
       referencia: 3,
     }).success).toBe(true);
     expect(esquemaRegistrarInspeccion.safeParse({ ...base, cantidadOk: -1 }).success).toBe(false);
+    const primeraSinItem = esquemaRegistrarInspeccion.safeParse({
+      ...base,
+      tipo: 'PRIMERA_PIEZA',
+    });
+    expect(primeraSinItem.success).toBe(false);
+    expect(esquemaRegistrarInspeccion.safeParse({
+      ...base,
+      tipo: 'PRIMERA_PIEZA',
+      partidaId: UUID,
+    }).success).toBe(true);
   });
 
   it('las consultas B6 exigen UUID de orden', () => {
