@@ -129,45 +129,49 @@ BEGIN
       END IF;
     END IF;
 
-    -- Calibre: solo es comparable si el material tiene un único espesor activo.
-    v_material_actual := v_partida.material_id;
-    IF v_material_actual IS NULL THEN
-      RAISE EXCEPTION 'corrida_calibre_no_confirmable' USING ERRCODE = '23514';
-    END IF;
-    SELECT count(*) INTO v_cantidad_acumulada
-    FROM public.catalogo_espesores AS espesor
-    WHERE espesor.material_id = v_material_actual AND espesor.activo = true;
-    IF v_cantidad_acumulada <> 1 THEN
-      RAISE EXCEPTION 'corrida_calibre_no_confirmable' USING ERRCODE = '23514';
-    END IF;
-    SELECT espesor.espesor_mm INTO v_espesor_actual
-    FROM public.catalogo_espesores AS espesor
-    WHERE espesor.material_id = v_material_actual AND espesor.activo = true;
-    IF v_material_referencia IS NULL THEN
-      v_material_referencia := v_material_actual;
-      v_espesor_referencia := v_espesor_actual;
-    ELSIF v_material_referencia <> v_material_actual
-       OR v_espesor_referencia IS DISTINCT FROM v_espesor_actual THEN
-      RAISE EXCEPTION 'corrida_material_incompatible' USING ERRCODE = '23514';
-    END IF;
-
-    -- Proceso inicial: con ruteo se exige la meta de secuencia 1; sin ruteo se
-    -- conserva el primer proceso declarado por la partida (compatibilidad).
-    SELECT EXISTS (
-      SELECT 1 FROM public.metas_proceso_partida AS meta
-      WHERE meta.partida_id = v_partida.id
-    ) INTO v_tiene_metas;
-    IF v_tiene_metas THEN
-      SELECT meta.nombre INTO v_proceso_inicial
-      FROM public.metas_proceso_partida AS meta
-      WHERE meta.partida_id = v_partida.id AND meta.secuencia = 1;
-      IF v_proceso_inicial IS NULL
-         OR lower(btrim(v_proceso_inicial)) NOT IN (lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))) THEN
-        RAISE EXCEPTION 'corrida_proceso_inicial_incompatible' USING ERRCODE = '23514';
+    -- La compatibilidad reforzada aplica solo a lotes de dos o más ítems. Una
+    -- corrida de un solo ítem conserva el comportamiento histórico.
+    IF cardinality(v_ids) >= 2 THEN
+      -- Calibre: solo es comparable si el material tiene un único espesor activo.
+      v_material_actual := v_partida.material_id;
+      IF v_material_actual IS NULL THEN
+        RAISE EXCEPTION 'corrida_calibre_no_confirmable' USING ERRCODE = '23514';
       END IF;
-    ELSIF v_partida.procesos IS NOT NULL AND cardinality(v_partida.procesos) > 0 THEN
-      IF lower(btrim(v_partida.procesos[1])) NOT IN (lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))) THEN
-        RAISE EXCEPTION 'corrida_proceso_inicial_incompatible' USING ERRCODE = '23514';
+      SELECT count(*) INTO v_cantidad_acumulada
+      FROM public.catalogo_espesores AS espesor
+      WHERE espesor.material_id = v_material_actual AND espesor.activo = true;
+      IF v_cantidad_acumulada <> 1 THEN
+        RAISE EXCEPTION 'corrida_calibre_no_confirmable' USING ERRCODE = '23514';
+      END IF;
+      SELECT espesor.espesor_mm INTO v_espesor_actual
+      FROM public.catalogo_espesores AS espesor
+      WHERE espesor.material_id = v_material_actual AND espesor.activo = true;
+      IF v_material_referencia IS NULL THEN
+        v_material_referencia := v_material_actual;
+        v_espesor_referencia := v_espesor_actual;
+      ELSIF v_material_referencia <> v_material_actual
+         OR v_espesor_referencia IS DISTINCT FROM v_espesor_actual THEN
+        RAISE EXCEPTION 'corrida_material_incompatible' USING ERRCODE = '23514';
+      END IF;
+
+      -- Proceso inicial: con ruteo se exige la meta de secuencia 1; sin ruteo se
+      -- conserva el primer proceso declarado por la partida (compatibilidad).
+      SELECT EXISTS (
+        SELECT 1 FROM public.metas_proceso_partida AS meta
+        WHERE meta.partida_id = v_partida.id
+      ) INTO v_tiene_metas;
+      IF v_tiene_metas THEN
+        SELECT meta.nombre INTO v_proceso_inicial
+        FROM public.metas_proceso_partida AS meta
+        WHERE meta.partida_id = v_partida.id AND meta.secuencia = 1;
+        IF v_proceso_inicial IS NULL
+           OR lower(btrim(v_proceso_inicial)) NOT IN (lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))) THEN
+          RAISE EXCEPTION 'corrida_proceso_inicial_incompatible' USING ERRCODE = '23514';
+        END IF;
+      ELSIF v_partida.procesos IS NOT NULL AND cardinality(v_partida.procesos) > 0 THEN
+        IF lower(btrim(v_partida.procesos[1])) NOT IN (lower(btrim(v_proceso.nombre)), lower(btrim(v_proceso.codigo))) THEN
+          RAISE EXCEPTION 'corrida_proceso_inicial_incompatible' USING ERRCODE = '23514';
+        END IF;
       END IF;
     END IF;
   END LOOP;
