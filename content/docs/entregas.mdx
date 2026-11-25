@@ -1,0 +1,96 @@
+---
+title: Entregas
+description: Registra entregas parciales o totales con folio NE, captura quién recibe y adjunta la firma o la evidencia de cada nota.
+---
+
+
+En **Entregas** se registran las piezas conformes que salen del taller. Cada entrega genera una nota con folio **NE**, indicando quién entrega y quién recibe.
+
+## Para qué sirve
+
+- Consultar las órdenes con piezas pendientes de entrega.
+- Registrar entregas parciales o totales sin entregar más de lo producido.
+- Adjuntar la firma de quien recibe, una hoja firmada escaneada o una foto.
+- Consultar el historial de notas de una orden.
+
+## Antes de empezar
+
+- Necesitas permiso para generar entregas. Para ver la cola basta con tener acceso a entregas, órdenes o finanzas; si el botón **Preparar entrega** no aparece, pide permiso.
+- Solo se pueden entregar piezas producidas y conformes. La columna **Disponible** de la cola indica cuántas piezas puedes entregar.
+- El destinatario se captura en **Recibido por**; debe tener al menos tres caracteres.
+
+## La cola de entregas
+
+![Cola de entregas con las vistas Pendientes por entregar y Notas registradas](/manual/capturas/entregas-cola.png)
+
+1. En el menú lateral, entra a **Operación → Entregas**.
+2. En **Pendientes por entregar (N)** revisa la orden, el cliente, el estado, las piezas **Pendiente** y **Disponible**.
+3. Haz clic en **Preparar entrega** en la orden correspondiente. Si no hay piezas producidas, verás **Sin piezas producidas**.
+4. Para consultar notas ya registradas, abre **Notas registradas (N entregas en M órdenes)**. Puedes filtrar por **Estado** (**Todas**, **Parciales**, **Finales**) y usar **Buscar (folio, orden o cliente)**.
+5. El botón **Historial** despliega las notas de una orden y **Abrir** muestra el detalle.
+
+## Preparar una entrega
+
+![Modal Preparar entrega con cantidades a entregar por pieza y el campo Recibido por](/manual/capturas/entregas-preparar.png)
+
+1. Se abre **Preparar entrega** con las piezas pendientes agrupadas por ítem `ITxx`.
+2. En **Cantidades a entregar**, escribe la cantidad junto a cada pieza. El límite es lo disponible; también puedes usar **Entregar todo lo disponible**.
+3. Confirma **Recibido por** y, si aplica, elige el **Contacto del cliente (opcional)**.
+4. Haz clic en **Registrar entrega**.
+
+Aparece **Nota NE-… registrada** con el enlace **Abrir nota para evidencia y firma**. El número de folio lo asigna el sistema.
+
+No es necesario indicar si la entrega es parcial o final: el sistema lo decide según queden piezas por entregar.
+
+## Firma y evidencia
+
+![Detalle de una nota con el estado Parcial, los ítems entregados y la sección Evidencia y firma](/manual/capturas/entregas-detalle.png)
+
+En el detalle de la nota, revisa el folio, la orden, la fecha y la tabla **Ítems entregados (ITxx)** con lo solicitado y lo entregado.
+
+En la sección **Evidencia y firma** tienes tres opciones:
+
+- **Firma digital en pantalla:** dibuja la firma en el área y haz clic en **Adjuntar firma**.
+- **Hoja firmada escaneada:** elige esa clase en **Clase**, selecciona el archivo y haz clic en **Adjuntar evidencia**.
+- **Evidencia fotográfica:** elige esa clase en **Clase** y adjunta la imagen o el PDF.
+
+![Nota con la firma digital adjuntada como versión 1](/manual/capturas/entregas-firma.png)
+
+La evidencia queda ligada a esa nota y versionada. Si vuelves a subir el mismo archivo, se crea una versión nueva sin borrar la anterior. Los archivos aceptados son imágenes o PDF de hasta 10 MB.
+
+## Parcial o final
+
+| Clasificación | Cuándo aparece |
+| --- | --- |
+| **Parcial** | Después de la nota todavía faltan piezas por entregar. |
+| **Final · 80 de 200** | La nota completa la cantidad solicitada de la orden; el ejemplo indica 80 piezas en esta nota de un total de 200. En la ficha de la orden aparece como **Entrega total**. |
+
+Al completar el 100 % de las piezas, la orden se archiva y su avance llega al 100 %.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Captura al menos una cantidad a entregar»** | Escribe la cantidad de alguna pieza antes de registrar. |
+| **«Indica quién recibe (mínimo 3 caracteres)»** | Completa **Recibido por**. |
+| **«No se puede entregar más de lo producido»** | Revisa la columna **Disponible** y baja la cantidad. |
+| **«La entrega cambió; recarga antes de editarla»** | Actualiza la página y vuelve a intentar. |
+
+## Opciones adicionales
+
+- **Imprimir o descargar:** en el detalle de la orden, el historial de entregas ofrece **Imprimir**. En la nota abierta puedes **Descargar PDF** o imprimirla.
+- **Corregir la fecha:** en el detalle de la nota, usa **Nueva fecha** y **Actualizar fecha**. La fecha no puede ser anterior al día de generación ni futura.
+- **Anular nota:** solo un administrador con permiso para generar entregas puede hacerlo desde **Anular nota**, con un motivo de 3 a 500 caracteres. La nota no se elimina: queda marcada como **ANULADA** y sus piezas dejan de contar como entregadas. Si la nota tiene cobranza asociada, la anulación se bloquea.
+- **Otras rutas:** desde la ficha de una orden, la pestaña **Entregas** y el botón **Preparar entrega** llevan a este módulo. En Producción, el panel **Nota de entrega** ofrece **Generar nota de entrega**.
+
+## Comprueba que quedó bien
+
+- [ ] La nota tiene folio **NE** y la orden correcta.
+- [ ] Las cantidades entregadas coinciden con lo que salió del taller.
+- [ ] **Recibido por** muestra quién aceptó las piezas.
+- [ ] La firma o la evidencia aparece en el detalle.
+- [ ] La clasificación **Parcial** o **Final** corresponde al avance de la orden.
+
+## Qué sigue
+
+Puedes volver a [Producción](/es/docs/produccion) o consultar [Órdenes](/es/docs/ordenes). El grupo **Finanzas** está en preparación.
