@@ -80,6 +80,8 @@ export interface MaterialProceso {
   unidadBase: string;
   anchoMm: number | null;
   largoMm: number | null;
+  /** Calibre del material cuando el catálogo tiene un solo espesor; si no, null. */
+  espesorMm: number | null;
 }
 
 export interface ArchivoProceso {
