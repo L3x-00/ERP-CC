@@ -57,13 +57,10 @@ export function ModalRegistrarGasto({
   const [ordenId, setOrdenId] = useState(gastoEditar?.ordenId ?? ordenIdInicial ?? '');
   const [proveedorId, setProveedorId] = useState(gastoEditar?.proveedorId ?? '');
   const [tipoGasto, setTipoGasto] = useState<TipoGasto>(gastoEditar?.tipoGasto ?? 'variable');
-  const [busquedaOrden, setBusquedaOrden] = useState('');
   const ordenesOpciones = useQuery({
-    queryKey: ['gastos', 'ordenes', busquedaOrden],
+    queryKey: ['gastos', 'ordenes'],
     queryFn: async () => {
-      const respuesta = await obtenerOrdenesGastoAccion(
-        busquedaOrden.trim() ? { busqueda: busquedaOrden.trim() } : {},
-      );
+      const respuesta = await obtenerOrdenesGastoAccion({});
       return respuesta.exito ? (respuesta.datos ?? []) : [];
     },
     enabled: abierto,
@@ -295,16 +292,9 @@ export function ModalRegistrarGasto({
               </div>
             ) : null}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1">
-              <Label htmlFor="gasto-orden-busqueda">Orden vinculada (opcional)</Label>
-              <Input
-                id="gasto-orden-busqueda"
-                data-testid="gasto-orden-busqueda"
-                value={busquedaOrden}
-                onChange={(evento) => setBusquedaOrden(evento.target.value)}
-                placeholder="Busca por folio (OP-…) o cliente"
-              />
+              <Label htmlFor="gasto-orden">Orden vinculada (opcional)</Label>
               <Select
                 id="gasto-orden"
                 data-testid="gasto-orden"
@@ -322,7 +312,6 @@ export function ModalRegistrarGasto({
                   </option>
                 ))}
               </Select>
-              <span className="text-xs text-texto-secundario">Sin orden: gasto indirecto.</span>
               {ordenesOpciones.isError ? (
                 <span role="alert" className="text-xs text-peligro-texto">
                   No se pudieron cargar las órdenes.
@@ -330,28 +319,28 @@ export function ModalRegistrarGasto({
               ) : null}
             </div>
             <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value)}>{categoria && !categoriasGasto.includes(categoria) ? <option value={categoria}>{categoria} (histórica)</option> : null}{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-tipo">Tipo de gasto</Label><Select id="gasto-tipo" value={tipoGasto} onChange={(evento) => setTipoGasto(evento.target.value as TipoGasto)}><option value="fijo">Fijo</option><option value="variable">Variable</option></Select></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="gasto-tipo">Tipo de gasto</Label><Select id="gasto-tipo" value={tipoGasto} onChange={(evento) => setTipoGasto(evento.target.value as TipoGasto)}><option value="fijo">Fijo</option><option value="variable">Variable</option></Select></div>
             <div className="grid gap-1"><Label htmlFor="gasto-proveedor">Proveedor (opcional)</Label><Select id="gasto-proveedor" value={proveedorId} onChange={(evento) => setProveedorId(evento.target.value)}><option value="">Sin proveedor</option>{proveedorId && !proveedores.some((item) => item.id === proveedorId) ? <option value={proveedorId}>{gastoEditar?.proveedorNombre ?? 'Proveedor seleccionado'}</option> : null}{proveedores.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</Select></div>
-          </div>
-          <div className="grid gap-1">
-            <Label htmlFor="gasto-cuenta">Cuenta de salida (opcional)</Label>
-            <Select
-              id="gasto-cuenta"
-              value={cuentaBancariaId}
-              onChange={(evento) => setCuentaBancariaId(evento.target.value)}
-              disabled={cuentasBancarias.isPending}
-            >
-              <option value="">Sin especificar</option>
-              {cuentaBancariaId && !(cuentasBancarias.data ?? []).some((cuenta) => cuenta.id === cuentaBancariaId) ? <option value={cuentaBancariaId}>Cuenta actual (no disponible)</option> : null}
-              {(cuentasBancarias.data ?? []).map((cuenta) => (
-                <option key={cuenta.id} value={cuenta.id}>{cuenta.etiqueta}</option>
-              ))}
-            </Select>
-            {cuentasBancarias.isError ? (
-              <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar las cuentas.</span>
-            ) : null}
+            <div className="grid gap-1">
+              <Label htmlFor="gasto-cuenta">Cuenta de salida (opcional)</Label>
+              <Select
+                id="gasto-cuenta"
+                value={cuentaBancariaId}
+                onChange={(evento) => setCuentaBancariaId(evento.target.value)}
+                disabled={cuentasBancarias.isPending}
+              >
+                <option value="">Sin especificar</option>
+                {cuentaBancariaId && !(cuentasBancarias.data ?? []).some((cuenta) => cuenta.id === cuentaBancariaId) ? <option value={cuentaBancariaId}>Cuenta actual (no disponible)</option> : null}
+                {(cuentasBancarias.data ?? []).map((cuenta) => (
+                  <option key={cuenta.id} value={cuenta.id}>{cuenta.etiqueta}</option>
+                ))}
+              </Select>
+              {cuentasBancarias.isError ? (
+                <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar las cuentas.</span>
+              ) : null}
+            </div>
           </div>
           <div className="grid gap-3 rounded-lg border border-borde p-3">
             <div className="grid gap-1">

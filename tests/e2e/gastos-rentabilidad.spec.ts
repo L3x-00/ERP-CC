@@ -318,7 +318,6 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await page.goto('/gastos');
     await expect(page.getByTestId('pagina-egresos')).toBeVisible();
     await page.getByRole('button', { name: 'Registrar gasto' }).click();
-    await page.getByTestId('gasto-orden-busqueda').fill(datos.folioOrden);
     await page.getByTestId('gasto-orden').selectOption(datos.ordenId);
     await page.getByLabel('Descripción').fill('Gasto E2E de consumibles');
     await page.getByLabel('Subtotal').fill('1000');
