@@ -926,3 +926,77 @@ describe('costeo interno: varios costeos por ítem', () => {
     expect(await screen.findByText('Costeo eliminado.')).toBeDefined();
   });
 });
+
+describe('costeo DRAFT: sugerencia del costo vigente del material', () => {
+  const MATERIAL_ID = '11111111-1111-4111-8111-111111111111';
+  const itemConMaterial = { ...ITEM, materialId: MATERIAL_ID } as PropuestaItem;
+
+  function catalogoConCosto(
+    parcial: Partial<CatalogosPropuesta['materiales'][number]> = {},
+  ): CatalogosPropuesta {
+    return {
+      ...CATALOGOS,
+      materiales: [
+        {
+          id: MATERIAL_ID,
+          codigo: 'AC-01',
+          nombre: 'Acero',
+          costoVigente: 1250.5,
+          monedaCosto: 'MXN',
+          fechaVigenciaCosto: '2026-11-20',
+          ...parcial,
+        },
+      ],
+    };
+  }
+
+  it('precarga el costo vigente al elegir un ítem con material y muestra su origen', () => {
+    montar({ catalogos: catalogoConCosto(), items: [itemConMaterial] });
+
+    fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
+
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+    const sugerencia = screen.getByTestId('sugerencia-costo-material');
+    expect(sugerencia.textContent).toContain('AC-01');
+    expect(sugerencia.textContent).toContain('2026-11-20');
+    expect(sugerencia.textContent).toContain('Puedes cambiarlo');
+  });
+
+  it('avisa de la moneda distinta sin convertir el monto sugerido', () => {
+    montar({
+      catalogos: catalogoConCosto({ monedaCosto: 'USD' }),
+      items: [itemConMaterial],
+    });
+
+    fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
+
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+    const aviso = screen.getByTestId('aviso-moneda-costo-material');
+    expect(aviso.textContent).toContain('USD');
+    expect(aviso.textContent).toContain('MXN');
+    expect(aviso.textContent).toContain('sin');
+    expect(aviso.textContent).toContain('conversión automática');
+  });
+
+  it('permite volver a aplicar la sugerencia si el usuario limpió el campo', () => {
+    montar({ catalogos: catalogoConCosto(), items: [itemConMaterial] });
+
+    fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
+    fireEvent.change(screen.getByLabelText('Costo Material'), { target: { value: '' } });
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usar costo vigente del material' }));
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('1250.5');
+  });
+
+  it('sin permiso de costo no expone la sugerencia', () => {
+    montar({
+      catalogos: catalogoConCosto(),
+      items: [itemConMaterial],
+      permisos: { ...PERMISOS, editarCosto: false },
+    });
+
+    expect(screen.queryByTestId('sugerencia-costo-material')).toBeNull();
+    expect(screen.getByTestId('item-costo').hasAttribute('disabled')).toBe(true);
+  });
+});

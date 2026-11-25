@@ -120,6 +120,21 @@ export function PanelRuteoCosteo({
   );
   const itemsActivos = useMemo(() => itemsRevision.filter((item) => item.activo), [itemsRevision]);
 
+  /**
+   * Sugerencia para el costeo del ítem seleccionado: el precio unitario vigente
+   * del material tal como está en el catálogo. Solo se ofrece en DRAFT y a quien
+   * puede editar el costo. No se convierte de moneda ni se escribe en la base:
+   * el usuario la acepta o la cambia y se guarda con «Guardar costos».
+   */
+  const itemCostoSeleccionado = itemsRevision.find((item) => item.id === itemCosto) ?? null;
+  const materialSugerencia = useMemo(() => {
+    if (!esBorrador || !permisos.editarCosto || !itemCostoSeleccionado?.materialId) return null;
+    const material = catalogos?.materiales.find(
+      (opcion) => opcion.id === itemCostoSeleccionado.materialId,
+    );
+    return material?.costoVigente != null ? material : null;
+  }, [esBorrador, permisos.editarCosto, itemCostoSeleccionado, catalogos]);
+
   const catalogoProcesos = catalogos?.procesos ?? [];
 
   /**
@@ -306,6 +321,18 @@ export function PanelRuteoCosteo({
 
   function montoDe(categoria: CategoriaCosto): number | null {
     return montoDeTexto(costosActuales[categoria]);
+  }
+
+  /** Al cambiar de ítem se limpia la captura y se sugiere el costo del material. */
+  function camposParaItem(itemId: string): Record<CategoriaCosto, string> {
+    const campos = camposVacios();
+    if (!esBorrador || !permisos.editarCosto) return campos;
+    const item = itemsRevision.find((i) => i.id === itemId);
+    if (!item?.materialId) return campos;
+    const material = catalogos?.materiales.find((opcion) => opcion.id === item.materialId);
+    if (material?.costoVigente == null) return campos;
+    campos.material = String(material.costoVigente);
+    return campos;
   }
 
   // C3.3: el ruteo costeado sustituye al costo manual de máquina y alimenta el
@@ -1036,7 +1063,7 @@ export function PanelRuteoCosteo({
             value={itemCosto}
             onChange={(evento) => {
               setItemCosto(evento.target.value);
-              setCostosBorrador(camposVacios());
+              setCostosBorrador(camposParaItem(evento.target.value));
               setNotasBorrador(camposVacios());
             }}
             disabled={!esBorrador || !permisos.editarCosto}
@@ -1094,6 +1121,46 @@ export function PanelRuteoCosteo({
                   disabled={!esBorrador || !permisos.editarCosto}
                   aria-label={`Detalle de ${etiqueta}`}
                 />
+                {categoria === 'material' && materialSugerencia ? (
+                  <div className="flex flex-col gap-1" data-testid="sugerencia-costo-material">
+                    <span className="text-[11px] text-texto-secundario">
+                      Costo vigente de {materialSugerencia.codigo}:{' '}
+                      {formatearMoneda(
+                        materialSugerencia.costoVigente!,
+                        materialSugerencia.monedaCosto ?? 'MXN',
+                      )}
+                      {materialSugerencia.fechaVigenciaCosto
+                        ? ` · vigente desde ${materialSugerencia.fechaVigenciaCosto}`
+                        : ''}
+                      . Puedes cambiarlo; no se guarda hasta que guardes los costos.
+                    </span>
+                    <button
+                      type="button"
+                      className="self-start text-xs text-texto-secundario underline"
+                      onClick={() =>
+                        setCostosBorrador({
+                          ...costosActuales,
+                          material: String(materialSugerencia.costoVigente),
+                        })
+                      }
+                    >
+                      Usar costo vigente del material
+                    </button>
+                    {materialSugerencia.monedaCosto &&
+                    materialSugerencia.monedaCosto !== revision.snapshotCabecera.moneda ? (
+                      <span
+                        role="status"
+                        data-testid="aviso-moneda-costo-material"
+                        className="text-[11px] text-advertencia-texto"
+                      >
+                        El material está en {materialSugerencia.monedaCosto} y la cotización en{' '}
+                        {revision.snapshotCabecera.moneda}. El monto se captura tal cual, sin
+                        conversión automática. Ajusta el valor si la cotización debe expresarse en
+                        otra moneda.
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             );
           })}
