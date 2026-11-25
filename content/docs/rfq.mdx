@@ -1,0 +1,144 @@
+---
+title: RFQ
+description: Registra una solicitud de cotización, completa sus ítems y archivos y prepárala para convertirla en propuesta.
+---
+
+
+En **RFQ** se concentra cada solicitud de cotización que recibe el taller. Ahí se captura lo que pide el cliente, se agregan las piezas y los planos, y se decide cuándo está lista para cotizarse.
+
+## Para qué sirve
+
+Un RFQ es el punto de partida de una cotización. Guarda en un solo lugar:
+
+- El cliente, el contacto y la descripción del trabajo.
+- Los ítems solicitados, con material, espesor y operaciones.
+- Los planos, dibujos o especificaciones.
+- La próxima acción de seguimiento.
+
+Capturar un RFQ **no crea una propuesta ni envía nada al cliente**. Esa acción se hace después, de forma explícita, desde el propio RFQ.
+
+## Antes de empezar
+
+Necesitas:
+
+- Permiso para ver RFQ. Para crear y editar se necesitan permisos adicionales; si los botones no responden o aparece **Sin permiso para esta acción**, pide apoyo a la persona administradora.
+- Un **cliente vigente en el catálogo**. Puedes seleccionarlo durante la captura o crearlo con **Nuevo cliente**. Sin cliente ligado no se puede marcar el RFQ como listo.
+- Los **canales**, **procesos**, **materiales** y **espesores** activos en el catálogo. Los canales se configuran en [Canales RFQ](/es/docs/canales-rfq); los procesos se crean en Configuración → Catálogos → Operativos → Procesos.
+- Los archivos técnicos del trabajo, si los hay. Se aceptan PDF, DXF, DWG, STEP, IGS, imágenes y hojas de cálculo de hasta 20 MiB.
+
+## La cola de RFQ
+
+![Cola de RFQ con los filtros por estado, la tabla de solicitudes y los botones Abrir y Continuar captura](/manual/capturas/rfq-cola.png)
+
+1. En el menú lateral, entra a **Comercial → RFQ**.
+2. En la parte superior, los botones con el estado permiten ver solo un grupo: **Nuevo**, **Incompleto**, **En espera del cliente**, **En espera técnica**, **Listo para propuesta**, **Convertido**, **Cerrado** o **Cancelado**.
+3. Para buscar una solicitud, abre **Filtros** y escribe el folio, la empresa o el contacto en **Buscar**.
+4. En la tabla, identifica la solicitud por **Folio**, **Empresa**, **Estado** y **Próxima acción**.
+5. Haz clic en **Abrir** para consultarla o en **Continuar captura** si está incompleta.
+
+La tabla muestra 15 RFQ por página. El botón **Nuevo RFQ**, arriba a la derecha, inicia una solicitud.
+
+> **Consejo:** si solo quieres localizar una solicitud, usa el estado y **Buscar**. Los demás filtros sirven para revisar varias cosas a la vez y no son necesarios en la captura diaria.
+
+## Crear un RFQ
+
+Al hacer clic en **Nuevo RFQ** se abre una ventana con tres pasos: **Cliente y solicitud**, **Ítems** y **Archivos**. El RFQ se guarda como **Incompleto** mientras lo capturas, así que puedes dejarlo y retomarlo después.
+
+### 1. Cliente y solicitud
+
+![Formulario de Nuevo RFQ con el cliente seleccionado, moneda, prioridad, canal y descripción de la solicitud](/manual/capturas/rfq-alta-solicitud.png)
+
+1. En **Cliente (opcional)**, escribe el nombre del cliente y elige la opción correcta del catálogo. Si no está, haz clic en **Nuevo cliente**.
+2. Comprueba **Contacto del cliente**, **Nombre del contacto**, **Empresa**, **Correo (opcional)** y **Teléfono**.
+3. En **Solicitud**, elige **Moneda**, **Prioridad** y **Canal**. Si el canal es **Otro**, escribe el detalle.
+4. Escribe en **Descripción** qué trabajo solicita el cliente.
+5. Si aplica, completa **Fecha requerida por el cliente (opcional)** y **Plazo comercial (opcional)**.
+6. Haz clic en **Continuar con ítems**.
+
+**Fecha de registro** y **Responsable** se llenan automáticamente. **Condiciones de pago** se heredan del cliente, pero puedes cambiarlas para esta solicitud.
+
+### 2. Ítems
+
+![Ficha de RFQ en la pestaña Ítems con el ítem IT01, su cantidad, material, espesor y operaciones](/manual/capturas/rfq-alta-items.png)
+
+1. Haz clic en **Agregar ítem**.
+2. Escribe la **Descripción** de la pieza y la **Cantidad**.
+3. Elige el **Material** y, después, el **Espesor**.
+4. Marca las **Operaciones solicitadas** que necesita la pieza, por ejemplo **CORTE LASER** y **DOB**.
+5. Haz clic en **Guardar ítem**. Repite si la solicitud tiene más piezas.
+6. Haz clic en **Continuar con archivos**.
+
+El código de cada ítem (`IT01`, `IT02`, …) se asigna solo y nunca se reutiliza. Si no aparecen operaciones, significa que aún no hay procesos activos: pide a la persona administradora que los configure en Configuración.
+
+### 3. Archivos y cierre
+
+![Pestaña Archivos de un RFQ con el tipo CAD, el destino General del RFQ y el plano cargado](/manual/capturas/rfq-archivos.png)
+
+1. En **Tipo**, elige **CAD**, **DIBUJO** o **ESPECIFICACIONES** si es un plano técnico; si no, elige **IMAGEN** u **OTROS**.
+2. En **¿A qué pertenece?**, elige **General del RFQ** o el ítem al que corresponde el archivo.
+3. Selecciona el archivo y haz clic en **Subir archivo**. Espera a que aparezca en la lista con el texto **Vigente**.
+4. Haz clic en **Finalizar captura**.
+5. En **Próxima acción**, elige **Acción a seguir**, escribe el detalle si aplica y señala la **Fecha de la acción**.
+6. Haz clic en **Guardar y finalizar**.
+
+Si aún no tienes todo listo, usa **Finalizar más tarde**. El RFQ queda guardado como Incompleto y podrás seguir después desde la cola.
+
+## Continuar una captura
+
+Cuando un RFQ quedó incompleto, su fila muestra **Continuar captura** en lugar de **Abrir**. Al hacer clic:
+
+- Se abre la misma ficha y el mismo folio; no se crea una solicitud nueva.
+- La barra **Cliente → Solicitud → Ítems → Archivos → Revisar** muestra los pasos terminados con una marca de verificación.
+- Puedes entrar al paso que falta o a la pestaña correspondiente y seguir capturando.
+
+## Revisar y marcar listo
+
+![Pestaña Revisar con las cinco secciones sin faltantes y el mensaje de que el RFQ está completo](/manual/capturas/rfq-revision.png)
+
+1. Abre el RFQ y entra a la pestaña **Revisar**.
+2. Mira las cinco secciones: **Cliente**, **General**, **Ítems**, **Archivos** y **Seguimiento**. Si alguna muestra pendientes, usa **Corregir en Resumen**, **Ir a Ítems** o **Ir a Archivos**.
+3. Cuando todas digan **Sin faltantes**, haz clic en **Marcar listo**.
+4. Lee el aviso y confirma con **Confirmar y marcar listo**.
+
+![Diálogo Marcar listo para propuesta con el mensaje El RFQ cumple todos los requisitos y el botón Confirmar y marcar listo](/manual/capturas/rfq-marcar-listo.png)
+
+Al terminar, el estado cambia a **Listo para propuesta**. Recién ahí aparece la opción de crear la propuesta; todavía no se ha enviado nada al cliente.
+
+> **Nota:** el texto verde **Listo para validar** no es un estado. Indica que la captura está completa, pero el RFQ sigue **Incompleto** hasta que confirmas **Marcar listo**.
+
+## Estados y acciones
+
+| Estado | Qué significa | Qué puedes hacer |
+| --- | --- | --- |
+| **Nuevo** | La solicitud se creó pero aún no se capturó. | Continuar la captura. |
+| **Incompleto** | Faltan datos o se guardó para terminar después. | Continuar captura o ponerlo en espera. |
+| **En espera del cliente** | Se detiene mientras el cliente responde. | Marcar listo cuando esté completo. |
+| **En espera técnica** | Se detiene mientras llega un archivo o una especificación. | Marcar listo cuando esté completo. |
+| **Listo para propuesta** | La captura está completa y validada. | Crear la propuesta o marcarlo incompleto si cambió algo. |
+| **Convertido** | Ya se creó la propuesta a partir de este RFQ. | Solo consultar; los cambios van en la propuesta. |
+| **Cerrado** | La solicitud terminó sin cotizarse. | Solo consultar. |
+| **Cancelado** | La solicitud se canceló. | Solo consultar. |
+
+**Cerrar** y **Cancelar** piden un motivo de al menos tres caracteres. En los estados **Convertido**, **Cerrado** y **Cancelado** ya no hay acciones disponibles.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **Faltan requisitos para marcar el RFQ como listo** | Revisa la pestaña **Revisar** y corrige las secciones con pendientes. |
+| **El RFQ cambió; recarga antes de reintentar** | Actualiza la página y vuelve a intentar. Otra persona modificó la solicitud. |
+| **Sin permiso para esta acción** | Tu usuario solo puede consultar. Pide el permiso de edición a la persona administradora. |
+| **La fecha de la próxima acción no puede estar en el pasado** | Elige una fecha de hoy en adelante. |
+
+## Comprueba que quedó bien
+
+- [ ] El RFQ tiene un folio y el estado esperado.
+- [ ] El cliente y el contacto aparecen en **Resumen**.
+- [ ] Hay al menos un ítem con material, espesor y operaciones.
+- [ ] El archivo técnico aparece como **Vigente** en **Archivos**.
+- [ ] La próxima acción tiene fecha y responsable.
+- [ ] La pestaña **Revisar** no muestra faltantes.
+
+## Qué sigue
+
+Cuando el RFQ esté en **Listo para propuesta**, el siguiente paso es crear la propuesta. Ese flujo se explica en el capítulo de **Propuestas**.

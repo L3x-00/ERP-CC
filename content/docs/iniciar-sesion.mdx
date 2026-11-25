@@ -1,0 +1,89 @@
+---
+title: Iniciar sesión
+description: Entra a ORCA MFG ERP con tu correo o con tu PIN de operador y reconoce cuándo tu sesión sigue abierta.
+---
+
+ORCA MFG ERP tiene dos formas de entrar: con **correo y contraseña** para el personal administrativo, y con un **PIN de seis dígitos** para el personal de piso. Cada una abre un espacio distinto.
+
+## Para qué sirve
+
+Iniciar sesión identifica quién eres y qué puedes ver. El sistema muestra solo los módulos que tu rol tiene permitidos y registra tu nombre en los movimientos que haces.
+
+## Antes de empezar
+
+Necesitas una de estas dos cosas:
+
+- Un **correo corporativo** y su contraseña, si trabajas en oficina, ventas, compras o dirección.
+- Un **PIN de seis dígitos**, si trabajas en el piso de producción.
+
+Si no tienes acceso, pide a la persona administradora que cree tu usuario en **Configuración → Personas y accesos → Usuarios**. La pantalla de acceso no tiene una opción de «recuperar contraseña»: si olvidaste la tuya, solicita apoyo a la persona administradora.
+
+## Entrar con correo y contraseña
+
+Este acceso es para administradores, gerentes, vendedores y contadores.
+
+![Pantalla de inicio de sesión con los campos de correo electrónico y contraseña, el botón Iniciar sesión y el acceso de operador de piso](/manual/capturas/iniciar-sesion-administrador.png)
+
+1. Abre la dirección del sistema. Si no has entrado, te lleva a **Iniciar sesión**.
+2. Escribe tu **Correo electrónico**.
+3. Escribe tu **Contraseña**.
+4. Si quieres revisar lo que escribiste, usa el botón del ojo a la derecha de la contraseña.
+5. Haz clic en **Iniciar sesión**.
+
+Mientras el sistema valida tus datos, el botón cambia a **Iniciando sesión…** y no se puede volver a presionar.
+
+Si los datos son correctos, aparece una pantalla de bienvenida de unos dos segundos y entras directo al **Dashboard**. Tu sesión se mantiene abierta hasta por 24 horas, salvo que cierres sesión antes.
+
+### Si no puedes entrar
+
+| Lo que ves | Qué significa | Qué hacer |
+| --- | --- | --- |
+| **Credenciales inválidas o correo no verificado** | El correo o la contraseña no coinciden, o la cuenta aún no está verificada. | Revisa mayúsculas, espacios y el correo completo. Si persiste, pide apoyo a la persona administradora. |
+| **Demasiados intentos. Intenta de nuevo más tarde.** | Se hicieron cinco intentos fallidos seguidos. | Espera 15 minutos antes de volver a intentar. |
+| **Error de conexión. Intenta de nuevo.** | El sistema no pudo comunicarse en ese momento. | Revisa tu conexión y vuelve a intentar. |
+
+Por seguridad, el mensaje no dice si el correo existe o si solo la contraseña es incorrecta.
+
+## Entrar con PIN de operador
+
+Este acceso es para el personal de piso. No usa correo ni contraseña.
+
+![Pantalla de acceso de operador con seis casillas de PIN, teclado numérico en pantalla y el enlace para administradores](/manual/capturas/operador-teclado-pin.png)
+
+1. Abre la dirección del sistema y, en la pantalla de acceso, elige **Acceso de operador de piso**. También puedes ir directo a `/operador`.
+2. Escribe tu PIN de seis dígitos con el teclado de la pantalla o con el teclado físico.
+3. Al completar el sexto dígito, el sistema valida solo. También puedes presionar **OK**.
+4. Si el PIN es correcto, verás **Acceso permitido** y entrarás a tu espacio de trabajo en piso.
+
+Mientras valida, aparece **Verificando PIN…**. Si el PIN no es correcto, la pantalla muestra **Acceso denegado** con el mensaje **PIN inválido** y se limpia para que lo intentes de nuevo. Usa **Borrar** si te equivocaste en un dígito antes de terminar.
+
+Tu sesión de piso se cierra sola después de **15 minutos sin actividad**. Además, no puede durar más de **8 horas** desde que la iniciaste, aunque estés trabajando: al cumplirse ese tiempo debes volver a entrar con tu PIN.
+
+### Si eres administrador y entras a piso
+
+Si ya tienes una sesión de administrador abierta, la pantalla de operador muestra el aviso **Sesión de administrador detectada**. Desde ahí puedes:
+
+- **Ver piso (solo lectura)**: consulta el piso completo sin usar PIN.
+- **Panel de producción**: vuelve a la vista administrativa de producción.
+
+El administrador no usa PIN y no puede registrar producción como operador desde esa vista.
+
+## Cerrar sesión
+
+![Menú de usuario abierto con las opciones Datos de empresa, Cambiar a tema oscuro y Cerrar sesión](/manual/capturas/menu-cerrar-sesion.png)
+
+1. Haz clic en tu nombre o avatar, arriba a la derecha.
+2. Elige **Cerrar sesión**.
+
+Si trabajas en una computadora compartida, cierra sesión siempre que te retires. En piso, la sesión se cierra sola por inactividad, pero cerrarla manualmente es más seguro al cambiar de turno.
+
+## Comprueba que quedó bien
+
+- [ ] Entraste al sistema y ves tu nombre arriba a la derecha.
+- [ ] En el menú lateral aparecen los módulos que corresponden a tu rol.
+- [ ] Si eres operador, ves tu espacio de trabajo de piso y no el panel administrativo.
+- [ ] El botón **Cerrar sesión** está disponible en el menú de usuario.
+
+## Qué sigue
+
+Si vas a preparar el sistema por primera vez, continúa con [Primeros pasos](/es/docs/primeros-pasos) para configurar la operación antes de empezar a trabajar.
