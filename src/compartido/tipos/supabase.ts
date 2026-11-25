@@ -1524,6 +1524,9 @@ export type Database = {
           folio_comprobante: string | null
           folio_sii: string | null
           id: string
+          material_id: string | null
+          cantidad_material: number | null
+          costo_unitario_material: number | null
           metodo_pago: string | null
           moneda: string
           monto_iva: number
@@ -1552,6 +1555,9 @@ export type Database = {
           folio_comprobante?: string | null
           folio_sii?: string | null
           id?: string
+          material_id?: string | null
+          cantidad_material?: number | null
+          costo_unitario_material?: number | null
           metodo_pago?: string | null
           moneda?: string
           monto_iva?: number
@@ -1580,6 +1586,9 @@ export type Database = {
           folio_comprobante?: string | null
           folio_sii?: string | null
           id?: string
+          material_id?: string | null
+          cantidad_material?: number | null
+          costo_unitario_material?: number | null
           metodo_pago?: string | null
           moneda?: string
           monto_iva?: number

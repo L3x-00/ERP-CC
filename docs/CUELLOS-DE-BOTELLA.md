@@ -624,3 +624,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | El usuario comparaba el «Costo manual» del catálogo de materiales con la tarifa por hora del ruteo y no entendía por qué no coincidían | Son magnitudes distintas que se suman en el costeo de propuestas (`calcular-totales-propuesta.ts:130-148`), pero la palabra «costo manual» se usaba para material y para máquina capturada a mano, y ninguna pantalla explicaba la otra | Etiquetas y textos de ayuda: «Fijar costo unitario», campo «Costo por {unidadBase}» y aviso de que no es tarifa por hora; referencias cruzadas entre Materiales y costos y Tarifas y costos; en la tabla consolidada se separa «Material» de «Otros costos manuales». Sin cambios de reglas ni esquema |
+
+## 78. Egreso vinculado a material
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Una compra de material registrada como egreso no actualizaba el precio del material, y el usuario debía ir a Materiales y costos a fijarlo manualmente | `gastos` no tenía vínculo con `catalogo_materiales` y no existía cableo desde el registro de egreso hacia `proponer/confirmar_costo_material` | Migración `20261124010000`: columnas `material_id`/`cantidad_material`/`costo_unitario_material` en `gastos`, permiso `gestionar_inventario` para contador y RPC `registrar_gasto_a19` ampliada. El modal ofrece «Vincular a material (compra de material)» opcional y cantidad; el unitario es `subtotal ÷ cantidad` sin IVA. Se llama a `proponer_costo_material(fuente='GASTO')` y `confirmar_costo_material` con CAS en una sola transacción. Moneda distinta se rechaza con mensaje concreto y salida real. No se toca `revaluar_costo_material_consumido` ni los snapshots |

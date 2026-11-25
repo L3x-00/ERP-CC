@@ -29,6 +29,19 @@ function gastoBase(parcial: Record<string, unknown> = {}) {
 }
 
 describe('esquemaRegistrarGasto', () => {
+  it('vincula material solo con cantidad comprada válida', () => {
+    const material = '44444444-4444-4444-8444-444444444444';
+    expect(esquemaRegistrarGasto.safeParse(gastoBase({ materialId: material, cantidadMaterial: 2 })).success)
+      .toBe(true);
+    const sinCantidad = esquemaRegistrarGasto.safeParse(gastoBase({ materialId: material }));
+    expect(sinCantidad.success).toBe(false);
+    expect(sinCantidad.error?.issues.some((issue) => issue.path.includes('cantidadMaterial'))).toBe(true);
+    const cantidadCero = esquemaRegistrarGasto.safeParse(gastoBase({ materialId: material, cantidadMaterial: 0 }));
+    expect(cantidadCero.success).toBe(false);
+    const sinMaterial = esquemaRegistrarGasto.safeParse(gastoBase({ cantidadMaterial: 2 }));
+    expect(sinMaterial.success).toBe(false);
+  });
+
   it('exige clasificación explícita para registros nuevos', () => {
     expect(esquemaRegistrarGasto.safeParse(gastoBase({ tipoGasto: undefined })).success).toBe(false);
     expect(esquemaRegistrarGasto.safeParse(gastoBase({ tipoGasto: 'indefinido' })).success).toBe(false);

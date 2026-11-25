@@ -22,6 +22,25 @@ function mensajeError(mensaje: string): string {
   if (mensaje.includes('estado_invalido')) return 'Solo se pueden corregir gastos pendientes';
   if (mensaje.includes('usuario_sin_permiso')) return 'Sin permiso para guardar el gasto';
   if (mensaje.includes('proveedor_inexistente')) return 'El proveedor ya no existe';
+  if (mensaje.includes('sin_permiso_materiales')) {
+    return 'Tu usuario puede registrar gastos, pero no fijar el costo del material. Pide a administración el permiso «gestionar inventario» o registra el gasto sin vincular a material.';
+  }
+  if (mensaje.includes('cantidad_material_invalida')) {
+    return 'Indica la cantidad comprada en la unidad base del material (mayor que cero) para calcular el costo unitario.';
+  }
+  if (mensaje.includes('moneda_gasto_material_distinta')) {
+    return mensaje.split(': ').slice(1).join(': ').trim()
+      || 'La moneda del gasto no coincide con la del material. Registra el gasto en la moneda del material o cámbiala antes de vincularlo.';
+  }
+  if (mensaje.includes('costo_unitario_invalido')) {
+    return 'El subtotal del gasto debe ser mayor que cero para calcular el costo unitario del material.';
+  }
+  if (mensaje.includes('material_inexistente_o_inactivo')) {
+    return 'El material ya no existe o está inactivo. Elige otro material o registra el gasto sin vincular.';
+  }
+  if (mensaje.includes('material_desactualizado')) {
+    return 'El material cambió en otra pantalla. Vuelve a abrir el gasto y vuelve a vincularlo.';
+  }
   return 'No se pudo guardar el gasto';
 }
 

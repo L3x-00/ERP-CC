@@ -83,6 +83,15 @@ export const esquemaRegistrarGasto = z
   proveedorId: z.uuid('ID de proveedor inválido').optional(),
   // OBS-28: cuenta bancaria de salida (opcional).
   cuentaBancariaId: z.uuid('Cuenta inválida').optional(),
+  // Compra de material: vincula el gasto al catálogo y fija el costo unitario
+  // para futuras órdenes y cotizaciones.
+  materialId: z.uuid('ID de material inválido').optional(),
+  cantidadMaterial: z
+    .number()
+    .refine(Number.isFinite, 'La cantidad debe ser finita')
+    .refine((valor) => valor > 0, 'La cantidad comprada debe ser mayor a cero')
+    .refine(tieneCuatroDecimales, 'La cantidad admite máximo cuatro decimales')
+    .optional(),
   categoria: z.string().trim().regex(FORMATO_CATEGORIA_GASTO, 'La categoría no es válida'),
     descripcion: z.string().trim().min(3).max(500),
     montoSubtotal: montoNoNegativo('subtotal'),
@@ -117,6 +126,20 @@ export const esquemaRegistrarGasto = z
         code: 'custom',
         path: ['fechaVencimiento'],
         message: 'La fecha de vencimiento no puede ser anterior al gasto',
+      });
+    }
+    if (datos.materialId && !datos.cantidadMaterial) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['cantidadMaterial'],
+        message: 'Indica la cantidad comprada para calcular el costo unitario del material',
+      });
+    }
+    if (datos.cantidadMaterial && !datos.materialId) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['materialId'],
+        message: 'Selecciona el material comprado o deja la cantidad vacía',
       });
     }
   });
