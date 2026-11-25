@@ -13,13 +13,16 @@ SELECT plan(81);
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-00000000b601', 'sii-b6-admin@prueba.local'),
   ('00000000-0000-4000-8000-00000000b602', 'sii-b6-gerente@prueba.local'),
-  ('00000000-0000-4000-8000-00000000b603', 'sii-b6-operador@prueba.local');
+  ('00000000-0000-4000-8000-00000000b603', 'sii-b6-operador@prueba.local'),
+  ('00000000-0000-4000-8000-00000000b60d', 'sii-b6-vendedor@prueba.local');
 UPDATE public.usuarios SET rol = 'admin', activo = true, nombre_completo = 'Admin B6'
 WHERE id = '00000000-0000-4000-8000-00000000b601';
 UPDATE public.usuarios SET rol = 'gerente', activo = true, nombre_completo = 'Gerente B6'
 WHERE id = '00000000-0000-4000-8000-00000000b602';
 UPDATE public.usuarios SET rol = 'operador', activo = true, nombre_completo = 'Operador B6'
 WHERE id = '00000000-0000-4000-8000-00000000b603';
+UPDATE public.usuarios SET rol = 'vendedor', activo = true, nombre_completo = 'Vendedor B6'
+WHERE id = '00000000-0000-4000-8000-00000000b60d';
 
 INSERT INTO public.clientes (id, razon_social, nombre_comercial, estado) VALUES
   ('00000000-0000-4000-8000-00000000b604', 'Cliente B6 SA de CV', 'B6', 'activo');
@@ -92,8 +95,8 @@ SELECT throws_ok($$
     '00000000-0000-4000-8000-00000000b607',
     (SELECT id FROM public.catalogo_procesos WHERE codigo = 'LASER_FIBRA'),
     jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b608')),
-    '00000000-0000-4000-8000-00000000b603')
-$$, '42501', 'sin_permiso_corrida', 'Operador sin gestionar_produccion no crea corridas');
+    '00000000-0000-4000-8000-00000000b60d')
+$$, '42501', 'sin_permiso_corrida', 'Usuario sin permisos de produccion no crea corridas');
 
 INSERT INTO b6 (clave, valor)
 SELECT 'corrida1', public.crear_corrida(

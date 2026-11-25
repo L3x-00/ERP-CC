@@ -323,7 +323,7 @@ export function horasAcumuladasSesiones(
 export function sesionResumen(
   sesion: SesionTrabajo,
   responsables: Readonly<Record<string, string>>,
-  corridasConPrimeraPiezaPendiente: ReadonlySet<string>,
+  corridasConPrimeraPiezaPendiente: ReadonlyMap<string, string[]>,
 ): SesionProceso {
   return {
     id: sesion.id,
@@ -344,6 +344,9 @@ export function sesionResumen(
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
       && corridasConPrimeraPiezaPendiente.has(sesion.corridaId),
+    primeraPiezaPendientePartidas: sesion.corridaId !== null
+      ? corridasConPrimeraPiezaPendiente.get(sesion.corridaId) ?? []
+      : [],
     motivoPausa: sesion.motivoPausaCodigo ?? sesion.motivoPausa,
     motivoPausaNota: sesion.motivoPausaNota,
     motivoExceso: sesion.motivoExceso,
@@ -422,14 +425,15 @@ function avisoSupervisionDesdeSesiones(
 }
 
 /**
- * Corridas cuyo proceso exige primera pieza y todavía no tienen una inspección
- * aprobada. Permite avisar al operador antes de que llene el cierre.
+ * C3: corridas cuyo proceso exige primera pieza y los ítems que aún no la
+ * tienen aprobada. Sustituye al aviso por corrida para que el operador sepa qué
+ * pieza falta liberar antes de cerrar un lote.
  */
 async function obtenerCorridasConPrimeraPiezaPendiente(
   cliente: Admin,
   sesiones: readonly SesionTrabajo[],
-): Promise<Set<string>> {
-  const pendientes = new Set<string>();
+): Promise<Map<string, string[]>> {
+  const pendientes = new Map<string, string[]>();
   const corridaIds = [...new Set(
     sesiones
       .map((sesion) => sesion.corridaId)
@@ -465,25 +469,57 @@ async function obtenerCorridasConPrimeraPiezaPendiente(
   const candidatas = corridas.filter((corrida) => exigen.has(corrida.proceso_id));
   if (candidatas.length === 0) return pendientes;
 
-  const aprobadas = await obtenerFilasEnLotes<{ corrida_id: string | null }>(
-    candidatas.map((corrida) => corrida.id),
-    async (lote) => {
-      const { data, error } = await cliente
-        .from('inspecciones_calidad')
-        .select('corrida_id')
-        .eq('tipo', 'PRIMERA_PIEZA')
-        .eq('resultado', 'APROBADA')
-        .in('corrida_id', lote);
-      return { data, error };
-    },
-  );
-  const conAprobada = new Set(
-    aprobadas
-      .map((fila) => fila.corrida_id)
-      .filter((id): id is string => typeof id === 'string'),
-  );
+  const [aprobadas, items] = await Promise.all([
+    obtenerFilasEnLotes<{ corrida_id: string | null; partida_id: string | null }>(
+      candidatas.map((corrida) => corrida.id),
+      async (lote) => {
+        const { data, error } = await cliente
+          .from('inspecciones_calidad')
+          .select('corrida_id, partida_id')
+          .eq('tipo', 'PRIMERA_PIEZA')
+          .eq('resultado', 'APROBADA')
+          .in('corrida_id', lote);
+        return { data, error };
+      },
+    ),
+    obtenerFilasEnLotes<{ corrida_id: string; partida_id: string }>(
+      candidatas.map((corrida) => corrida.id),
+      async (lote) => {
+        const { data, error } = await cliente
+          .from('corrida_items')
+          .select('corrida_id, partida_id')
+          .in('corrida_id', lote);
+        return { data, error };
+      },
+    ),
+  ]);
+
+  const itemsPorCorrida = new Map<string, string[]>();
+  for (const item of items) {
+    const actuales = itemsPorCorrida.get(item.corrida_id) ?? [];
+    actuales.push(item.partida_id);
+    itemsPorCorrida.set(item.corrida_id, actuales);
+  }
+  const aprobadasPorCorrida = new Map<string, Set<string>>();
+  for (const fila of aprobadas) {
+    if (fila.corrida_id === null) continue;
+    const actuales = aprobadasPorCorrida.get(fila.corrida_id) ?? new Set<string>();
+    actuales.add(fila.partida_id ?? '__sin_partida__');
+    aprobadasPorCorrida.set(fila.corrida_id, actuales);
+  }
+
   for (const corrida of candidatas) {
-    if (!conAprobada.has(corrida.id)) pendientes.add(corrida.id);
+    const ids = itemsPorCorrida.get(corrida.id) ?? [];
+    const aprobadasSet = aprobadasPorCorrida.get(corrida.id) ?? new Set<string>();
+    if (ids.length === 0) {
+      if (!aprobadasSet.size) pendientes.set(corrida.id, []);
+      continue;
+    }
+    // Compatibilidad: una aprobación histórica sin partida cubre la corrida
+    // cuando esta tiene un solo ítem.
+    const legacy = ids.length === 1 && aprobadasSet.has('__sin_partida__');
+    const faltan = ids.filter((id) => !aprobadasSet.has(id) && !legacy);
+    if (faltan.length > 0) pendientes.set(corrida.id, faltan);
   }
   return pendientes;
 }

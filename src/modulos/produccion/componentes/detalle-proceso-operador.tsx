@@ -321,6 +321,9 @@ export function DetalleProcesoOperador({
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
   const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  // C3: la aprobación se registra para el ítem elegido, no siempre para el
+  // ítem principal de la sesión.
+  const [itemPrimeraPieza, setItemPrimeraPieza] = useState('');
   const [reintentarCierreTrasPrimeraPieza, setReintentarCierreTrasPrimeraPieza] = useState(false);
   const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
@@ -534,6 +537,16 @@ export function DetalleProcesoOperador({
     && Number.isInteger(piezasCapturadasVista)
     && piezasCapturadasVista > 0;
   const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
+  const partidasPrimeraPiezaPendientes = proceso.sesionActiva?.primeraPiezaPendientePartidas ?? [];
+  const codigosPrimeraPiezaPendientes = partidasPrimeraPiezaPendientes.map((partidaId) =>
+    itemsCorrida.find((item) => item.partidaId === partidaId)?.codigoPieza ?? 'Ítem de la corrida');
+  const opcionesPrimeraPieza = itemsCorrida.length > 0
+    ? itemsCorrida
+    : [{ partidaId: proceso.partidaId, codigoPieza: proceso.codigoPieza }];
+  function abrirPrimeraPieza(): void {
+    setItemPrimeraPieza(partidasPrimeraPiezaPendientes[0] ?? proceso?.partidaId ?? '');
+    setPrimeraPiezaAbierta(true);
+  }
   // C15: la pausa (manual o automática) deja motivo, operador, corte y horas
   // netas. Se muestran juntos para que el operador sepa qué retomar.
   const sesionPausada = proceso.columna === 'pausada'
@@ -1476,8 +1489,9 @@ export function DetalleProcesoOperador({
       const respuesta = await registrarInspeccionAccion({
         ordenId: proceso.ordenId,
         corridaId: proceso.sesionActiva?.corridaId ?? null,
-        partidaId: proceso.partidaId,
-        codigoItem: proceso.codigoPieza,
+        partidaId: itemPrimeraPieza || proceso.partidaId,
+        codigoItem: itemsCorrida.find((item) => item.partidaId === itemPrimeraPieza)?.codigoPieza
+          ?? proceso.codigoPieza,
         tipo: 'PRIMERA_PIEZA',
         resultado: resultadoPrimeraPieza,
         cantidadInspeccionada: 1,
@@ -2160,7 +2174,7 @@ export function DetalleProcesoOperador({
               onClick={() => {
                 setMensajePrimeraPieza(null);
                 setReintentarCierreTrasPrimeraPieza(false);
-                setPrimeraPiezaAbierta(true);
+                abrirPrimeraPieza();
               }}
               data-testid="alerta-liberar-primera-pieza"
             >
@@ -2838,6 +2852,11 @@ export function DetalleProcesoOperador({
                         aprobada. Regístrala aquí: el cierre se reintenta solo con los datos que ya
                         capturaste, sin perder el consumo ni la hora.
                       </p>
+                      {codigosPrimeraPiezaPendientes.length > 0 ? (
+                        <p data-testid="items-primera-pieza-pendientes" className="text-xs text-advertencia-texto">
+                          Faltan: {codigosPrimeraPiezaPendientes.join(', ')}.
+                        </p>
+                      ) : null}
                       <Button
                         type="button"
                         tamano="sm"
@@ -2846,7 +2865,7 @@ export function DetalleProcesoOperador({
                           setMensaje(null);
                           setMensajePrimeraPieza(null);
                           setReintentarCierreTrasPrimeraPieza(true);
-                          setPrimeraPiezaAbierta(true);
+                          abrirPrimeraPieza();
                         }}
                       >
                         Liberar primera pieza y reintentar cierre
@@ -3354,6 +3373,18 @@ export function DetalleProcesoOperador({
         </DialogHeader>
         <form className="grid gap-3" onSubmit={(evento) => void liberarPrimeraPieza(evento)}>
           <label className={CLASE_ETIQUETA}>
+            Ítem de la primera pieza
+            <Select
+              value={itemPrimeraPieza || proceso.partidaId}
+              onChange={(evento) => setItemPrimeraPieza(evento.target.value)}
+              data-testid="item-primera-pieza"
+            >
+              {opcionesPrimeraPieza.map((item) => (
+                <option key={item.partidaId} value={item.partidaId}>{item.codigoPieza}</option>
+              ))}
+            </Select>
+          </label>
+          <label className={CLASE_ETIQUETA}>
             Resultado de la inspección
             <Select
               value={resultadoPrimeraPieza}
@@ -3427,7 +3458,7 @@ export function DetalleProcesoOperador({
               setMensaje(null);
               setMensajePrimeraPieza(null);
               setReintentarCierreTrasPrimeraPieza(true);
-              setPrimeraPiezaAbierta(true);
+              abrirPrimeraPieza();
             }}
             data-testid="modal-liberar-primera-pieza"
           >
