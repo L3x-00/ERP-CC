@@ -18,6 +18,8 @@ export interface ItemIntegrado {
 
 export interface TiempoItemIntegrado {
   sesionId: string;
+  /** C5: código de la corrida a la que pertenece la sesión. */
+  corridaCodigo?: string | null;
   fechaInicio: string;
   operadorNombre: string;
   partidaId: string;
