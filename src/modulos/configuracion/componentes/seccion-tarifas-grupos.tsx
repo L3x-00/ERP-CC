@@ -96,9 +96,10 @@ export function SeccionTarifasGrupos({
       <div>
         <h3 className="text-base font-semibold text-texto-primario">Tarifas por grupo de equipo</h3>
         <p className="text-sm text-texto-secundario">
-          Es la tarifa que usa el costeo del ruteo de las propuestas (preparación y operación). Es la
-          fuente maestra: la estación de Tarifas y costos solo sirve para copiar su valor. Una máquina puede
-          sustituirla con una tarifa propia en «Equipos y sus tarifas».
+          Es la tarifa por hora de equipo que usa el costeo del ruteo de las propuestas
+          (preparación y operación). Es la fuente maestra: la estación de Tarifas y costos solo sirve
+          para copiar su valor. Una máquina puede sustituirla con una tarifa propia en «Equipos y sus
+          tarifas». El costo de los materiales se captura por unidad en Materiales y costos.
         </p>
         {sinTarifa > 0 ? (
           <p className="mt-1 text-sm text-advertencia-texto" data-testid="grupos-sin-tarifa">

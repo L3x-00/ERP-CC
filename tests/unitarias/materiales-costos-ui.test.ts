@@ -109,7 +109,7 @@ describe('TablaMaterialesCostos (C6.1)', () => {
     expect(screen.getByText('Ana QA')).toBeDefined();
     expect(screen.getByText('2')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Proponer' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Costo manual' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fijar costo unitario' })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Editar/ })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Historial' })).toHaveLength(2);
   });
@@ -131,7 +131,7 @@ describe('TablaMaterialesCostos (C6.1)', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Proponer' })[0]!);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Costo manual' })[1]!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Fijar costo unitario' })[1]!);
     fireEvent.click(screen.getAllByRole('button', { name: 'Editar MDF' })[0]!);
     fireEvent.click(screen.getAllByRole('button', { name: 'Historial' })[0]!);
 
@@ -254,7 +254,7 @@ describe('ModalConfirmarCosto (C6.1)', () => {
       ),
     );
 
-    expect(screen.getByLabelText('Costo')).toBeDefined();
+    expect(screen.getByLabelText('Costo por kg')).toBeDefined();
     expect(screen.getByLabelText('Moneda')).toBeDefined();
     expect(screen.getByLabelText('Fecha efectiva')).toBeDefined();
     expect(screen.getByLabelText(/Referencia/)).toBeDefined();

@@ -179,12 +179,12 @@ export function ModalConfirmarCosto(props: Props) {
       <DialogContent aria-label={`Confirmar costo de ${material.nombre}`}>
         <DialogHeader>
           <DialogTitle>
-            {propuesta ? 'Confirmar propuesta' : 'Registrar costo manual'} — {material.nombre}
+            {propuesta ? 'Confirmar propuesta' : 'Fijar costo unitario'} — {material.nombre}
           </DialogTitle>
           <DialogDescription>
             {propuesta
               ? 'Al confirmar, el costo vigente cambia y la propuesta pasa a confirmada. El historial no se modifica.'
-              : 'El costo manual queda confirmado de inmediato y se agrega al historial de solo lectura.'}
+              : `Este valor es el costo por ${material.unidadBase} del material y se usa al registrar consumos en órdenes. Queda confirmado de inmediato y se agrega al historial de solo lectura. No es una tarifa por hora de máquina.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -220,7 +220,7 @@ export function ModalConfirmarCosto(props: Props) {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
-                <Label htmlFor="costo-manual">Costo</Label>
+                <Label htmlFor="costo-manual">Costo por {material.unidadBase}</Label>
                 <Input
                   id="costo-manual"
                   type="number"
