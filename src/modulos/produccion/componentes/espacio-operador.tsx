@@ -46,7 +46,9 @@ import { resumirJornadaDiaria } from '@/modulos/produccion/utilidades/mi-panel-o
 import {
   motivoNoAgrupable,
   sugerenciasDeAgrupacion,
+  type SugerenciaCorrida,
 } from '@/modulos/produccion/utilidades/agrupacion-corridas';
+import { crearLoteOperadorAccion } from '@/modulos/produccion/acciones/crear-lote-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -135,6 +137,7 @@ export function EspacioOperador({
   const [inicioPendiente, setInicioPendiente] = useState<ProcesoEspacioOperador | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [creandoLote, setCreandoLote] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
   // Tras reclamar o mover, el servidor refresca los procesos y el detalle se
@@ -158,6 +161,30 @@ export function EspacioOperador({
     : null;
 
   const operativo = !soloLectura && operadorId !== null;
+
+  async function crearLote(sugerencia: SugerenciaCorrida): Promise<void> {
+    if (!operativo || creandoLote !== null) return;
+    setCreandoLote(sugerencia.clave);
+    setAviso(null);
+    const respuesta = await crearLoteOperadorAccion({
+      ordenId: sugerencia.ordenId,
+      procesoNombre: sugerencia.procesoNombre,
+      items: sugerencia.procesos.map((proceso) => ({
+        partidaId: proceso.partidaId,
+        cantidad: proceso.pendientePiezas,
+      })),
+    });
+    setCreandoLote(null);
+    if (!respuesta.exito) {
+      setAviso({ tipo: 'error', texto: respuesta.error ?? 'No se pudo crear el lote' });
+      return;
+    }
+    setAviso({
+      tipo: 'ok',
+      texto: `Lote ${respuesta.datos?.codigo ?? ''} creado con ${sugerencia.procesos.length} ítems.`,
+    });
+    enrutador.refresh();
+  }
 
   // C27: vigilante del tablero. La jornada es acumulada por día y la decide el
   // servidor: el cliente no compara reloj bruto contra 8 h (esa medición era la
@@ -611,14 +638,25 @@ export function EspacioOperador({
         >
           <p className="text-xs font-semibold text-texto-primario">Posibles corridas conjuntas</p>
           {sugerenciasCorrida.map((sugerencia) => (
-            <p
+            <div
               key={sugerencia.clave}
               role="status"
               data-testid={`sugerencia-corrida-${sugerencia.clave}`}
-              className="text-sm text-texto-primario"
+              className="flex flex-wrap items-center justify-between gap-2"
             >
-              {sugerencia.mensaje}
-            </p>
+              <p className="text-sm text-texto-primario">{sugerencia.mensaje}</p>
+              {operativo ? (
+                <Button
+                  type="button"
+                  tamano="sm"
+                  data-testid={`crear-lote-${sugerencia.clave}`}
+                  disabled={creandoLote !== null}
+                  onClick={() => void crearLote(sugerencia)}
+                >
+                  {creandoLote === sugerencia.clave ? 'Creando…' : 'Crear Lote'}
+                </Button>
+              ) : null}
+            </div>
           ))}
         </div>
       ) : motivosSinAgrupacion.length > 0 ? (

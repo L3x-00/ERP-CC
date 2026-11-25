@@ -12,8 +12,9 @@ import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-serv
 import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
- * SII-B6.1: crea una corrida con ítems compatibles (misma orden, proceso y
- * grupo de equipo). Requiere `gestionar_produccion`; la RPC revalida el actor.
+ * C2: crea una corrida con ítems de una misma orden, material+calibre y
+ * proceso inicial iguales. Acepta `gestionar_produccion` o `produccion_operar`;
+ * la RPC revalida el actor y la compatibilidad.
  */
 export async function crearCorridaAccion(entrada: unknown): Promise<RespuestaAccion<Corrida>> {
   const resultado = esquemaCrearCorrida.safeParse(entrada);
@@ -26,8 +27,12 @@ export async function crearCorridaAccion(entrada: unknown): Promise<RespuestaAcc
     resultado.data.ordenId,
   );
   if (!actor) return { exito: false, error: 'No autorizado' };
-  if (!(await can(actor, 'gestionar_produccion'))) {
-    return { exito: false, error: 'Sin permiso para crear corridas' };
+  const [puedeGestionar, puedeOperar] = await Promise.all([
+    can(actor, 'gestionar_produccion'),
+    can(actor, 'produccion_operar'),
+  ]);
+  if (!puedeGestionar && !puedeOperar) {
+    return { exito: false, error: 'Sin permiso para crear lotes' };
   }
 
   const correlationId = nuevoCorrelationId();

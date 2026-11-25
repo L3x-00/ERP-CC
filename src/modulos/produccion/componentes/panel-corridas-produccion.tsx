@@ -43,6 +43,7 @@ export function PanelCorridasProduccion({
   const [dialogoCrear, setDialogoCrear] = useState(false);
   const [procesoId, setProcesoId] = useState('');
   const [partidasMarcadas, setPartidasMarcadas] = useState<Record<string, boolean>>({});
+  const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [checklistCorrida, setChecklistCorrida] = useState<string | null>(null);
   const [cancelar, setCancelar] = useState<string | null>(null);
   const [motivoCancelar, setMotivoCancelar] = useState('');
@@ -81,18 +82,42 @@ export function PanelCorridasProduccion({
   }) ?? [], [orden, procesoSeleccionado]);
 
   function alternarPartida(partidaId: string): void {
-    setPartidasMarcadas((previas) => ({ ...previas, [partidaId]: !previas[partidaId] }));
+    const marcada = partidasMarcadas[partidaId] === true;
+    if (!marcada) {
+      const compatible = partidasCompatibles.find(({ partida }) => partida.id === partidaId);
+      if (compatible) {
+        setCantidades((actuales) => ({ ...actuales, [partidaId]: String(compatible.pendiente) }));
+      }
+    }
+    setPartidasMarcadas((previas) => ({ ...previas, [partidaId]: !marcada }));
   }
+
+  const totalLote = partidasCompatibles.reduce((suma, { partida, pendiente }) => {
+    if (partidasMarcadas[partida.id] !== true) return suma;
+    const capturada = Number(cantidades[partida.id] ?? String(pendiente));
+    return Number.isFinite(capturada) && capturada > 0 ? suma + capturada : suma;
+  }, 0);
 
   async function crearCorrida(): Promise<void> {
 
     if (procesando || !orden || !procesoSeleccionado) return;
-    const items = partidasCompatibles
+    const seleccionadas = partidasCompatibles
       .filter(({ partida, compatible, pendiente }) =>
-        compatible && pendiente > 0 && partidasMarcadas[partida.id] === true)
-      .map(({ partida, pendiente }) => ({ partidaId: partida.id, cantidad: pendiente }));
-    if (items.length === 0) {
+        compatible && pendiente > 0 && partidasMarcadas[partida.id] === true);
+    if (seleccionadas.length === 0) {
       setMensaje({ texto: 'Selecciona al menos una partida compatible con pendiente', tipo: 'error' });
+      return;
+    }
+    const items = seleccionadas.map(({ partida, pendiente }) => ({
+      partidaId: partida.id,
+      cantidad: Number(cantidades[partida.id] ?? String(pendiente)),
+      pendiente,
+    }));
+    if (items.some((item) => !Number.isFinite(item.cantidad) || item.cantidad <= 0 || item.cantidad > item.pendiente)) {
+      setMensaje({
+        texto: 'Revisa las cantidades: cada una debe ser mayor a cero y no superar lo pendiente de su ítem.',
+        tipo: 'error',
+      });
       return;
     }
     setProcesando(true);
@@ -102,7 +127,7 @@ export function PanelCorridasProduccion({
       const resultado = await crearCorridaAccion({
         ordenId: orden.id,
         procesoId: procesoSeleccionado.id,
-        items,
+        items: items.map(({ partidaId, cantidad }) => ({ partidaId, cantidad })),
       });
 
       if (!resultado.exito) {
@@ -110,8 +135,9 @@ export function PanelCorridasProduccion({
         return;
       }
 
-      setMensaje({ texto: 'Corrida creada correctamente', tipo: 'estado' });
+      setMensaje({ texto: 'Lote creado correctamente', tipo: 'estado' });
       setPartidasMarcadas({});
+      setCantidades({});
 
       await clienteConsultas.invalidateQueries({
         queryKey: CLAVE_CORRIDAS_ORDEN,
@@ -293,7 +319,8 @@ export function PanelCorridasProduccion({
           <DialogHeader>
             <DialogTitle>Nueva corrida</DialogTitle>
             <DialogDescription>
-              Solo se agrupan partidas compatibles (misma orden, proceso y grupo de equipo).
+              Se agrupan ítems de una misma orden con el mismo material, calibre y proceso inicial.
+              Ajusta la cantidad de cada ítem si no quieres procesar todo lo pendiente.
             </DialogDescription>
           </DialogHeader>
           <label className="grid gap-1 text-sm font-medium" htmlFor="corrida-proceso">
@@ -302,7 +329,7 @@ export function PanelCorridasProduccion({
               id="corrida-proceso"
               data-testid="proceso-corrida"
               value={procesoSeleccionado?.id ?? ''}
-              onChange={(evento) => { setProcesoId(evento.target.value); setPartidasMarcadas({}); }}
+              onChange={(evento) => { setProcesoId(evento.target.value); setPartidasMarcadas({}); setCantidades({}); }}
             >
               {(catalogos?.procesos ?? []).map((proceso) => (
                 <option key={proceso.id} value={proceso.id}>{proceso.nombre} · {proceso.prefijoCorrida}</option>
@@ -315,35 +342,55 @@ export function PanelCorridasProduccion({
               <p className="text-sm text-texto-secundario">La orden no tiene partidas.</p>
             )}
             {partidasCompatibles.map(({ partida, pendiente, compatible }) => (
-              <label
-                key={partida.id}
-                className="flex items-center justify-between gap-2 text-sm"
-                htmlFor={`corrida-partida-${partida.id}`}
-              >
-                <span className="flex items-center gap-2">
-                  <input
-                    id={`corrida-partida-${partida.id}`}
-                    data-testid={`partida-corrida-${partida.id}`}
-                    type="checkbox"
-                    disabled={!compatible || pendiente <= 0}
-                    checked={partidasMarcadas[partida.id] === true}
-                    onChange={() => alternarPartida(partida.id)}
+              <div key={partida.id} className="flex flex-col gap-1">
+                <label
+                  className="flex items-center justify-between gap-2 text-sm"
+                  htmlFor={`corrida-partida-${partida.id}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      id={`corrida-partida-${partida.id}`}
+                      data-testid={`partida-corrida-${partida.id}`}
+                      type="checkbox"
+                      disabled={!compatible || pendiente <= 0}
+                      checked={partidasMarcadas[partida.id] === true}
+                      onChange={() => alternarPartida(partida.id)}
+                    />
+                    {partida.codigoPieza}
+                  </span>
+                  <span className="text-xs text-texto-secundario">
+                    {pendiente > 0 ? `${formatearNumero(pendiente, 0)} pend` : 'sin pendiente'}
+                    {!compatible ? ' · incompatible con el proceso' : ''}
+                  </span>
+                </label>
+                {partidasMarcadas[partida.id] === true ? (
+                  <Input
+                    className="h-9"
+                    type="number"
+                    min="1"
+                    max={pendiente}
+                    step="1"
+                    aria-label={`Piezas de ${partida.codigoPieza}`}
+                    data-testid={`cantidad-corrida-${partida.id}`}
+                    value={cantidades[partida.id] ?? String(pendiente)}
+                    onChange={(evento) => setCantidades((actuales) => ({
+                      ...actuales,
+                      [partida.id]: evento.target.value,
+                    }))}
                   />
-                  {partida.codigoPieza}
-                </span>
-                <span className="text-xs text-texto-secundario">
-                  {pendiente > 0 ? `${formatearNumero(pendiente, 0)} pend` : 'sin pendiente'}
-                  {!compatible ? ' · incompatible con el proceso' : ''}
-                </span>
-              </label>
+                ) : null}
+              </div>
             ))}
           </fieldset>
+          <p data-testid="total-lote" className="text-sm font-medium">
+            Total de piezas del lote: {formatearNumero(totalLote, 0)}
+          </p>
           <div className="flex justify-end gap-2">
             <Button type="button" variante="contorno" disabled={procesando} onClick={() => setDialogoCrear(false)}>
               Cerrar
             </Button>
             <Button type="button" disabled={procesando} data-testid="confirmar-crear-corrida" onClick={() => void crearCorrida()}>
-              {procesando ? 'Creando…' : 'Crear corrida'}
+              {procesando ? 'Creando…' : 'Crear Lote'}
             </Button>
           </div>
         </DialogContent>
