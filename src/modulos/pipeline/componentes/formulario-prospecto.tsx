@@ -309,10 +309,10 @@ export function FormularioProspecto({
         setError('No se pudo continuar la captura. Intenta de nuevo.');
       } else {
         setRfqId(respuesta.datos.id);
-        // La cola vive en una consulta de TanStack Query (`['pipeline']`):
-        // navegar no la invalida por sí solo y con `refetchOnWindowFocus`
-        // desactivado la fila nueva no aparecería al volver a la cola.
-        await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+        // La cola vive en una consulta de TanStack Query (`['pipeline']`), pero
+        // el alta ya terminó: se invalida en background y el asistente avanza
+        // de inmediato. `finalizar()` vuelve a invalidar antes de cerrar.
+        void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
         setPaso('items');
       }
     } catch {

@@ -116,14 +116,15 @@ export function FichaRfq({
     mutationFn: (idRfq: string) => vincularContactoVigenteRfqAccion({ rfqId: idRfq }),
     onSuccess: async (respuesta) => {
       if (!respuesta.exito || !respuesta.datos?.vinculado) return;
-      // Se espera la recarga para que el formulario no se reabra con datos viejos.
+      // La ficha y su validación sí se esperan para no reabrir con datos viejos;
+      // cola, contactos y pipeline se refrescan en background.
       await Promise.all([
         clienteConsultas.invalidateQueries({ queryKey: ['rfq', rfqId] }),
         clienteConsultas.invalidateQueries({ queryKey: ['rfq-validacion-listo', rfqId] }),
-        clienteConsultas.invalidateQueries({ queryKey: [CLAVE_VALIDACION_COLA_RFQ] }),
-        clienteConsultas.invalidateQueries({ queryKey: ['rfq-contactos'] }),
-        clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] }),
       ]);
+      void clienteConsultas.invalidateQueries({ queryKey: [CLAVE_VALIDACION_COLA_RFQ] });
+      void clienteConsultas.invalidateQueries({ queryKey: ['rfq-contactos'] });
+      void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
     },
   });
   const { mutate: vincularContacto } = vinculo;
