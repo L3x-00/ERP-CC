@@ -1,7 +1,12 @@
 {
-  "title": "Manual de Configuración",
+  "title": "Manual de usuario",
   "pages": [
     "index",
+    "---Acceso---",
+    "iniciar-sesion",
+    "---Comercial---",
+    "rfq",
+    "---Configuración---",
     "primeros-pasos",
     "grupos-planeados",
     "grupos-equipo",

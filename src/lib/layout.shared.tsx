@@ -46,7 +46,7 @@ export function baseOptions(
 ): BaseLayoutProps {
   return {
     nav: {
-      title: 'ORCA MFG ERP | Manual de Configuración',
+      title: 'ORCA MFG ERP | Manual de usuario',
       url: `/${locale}/docs`,
     },
   };
