@@ -59,8 +59,20 @@ export type CatalogosPropuesta = {
   canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
   /** Áreas de trabajo activas: rotulan el proceso en el ruteo. */
   areasTrabajo: { codigo: string; nombre: string }[];
-  /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
-  materiales: { id: string; codigo: string; nombre: string }[];
+  /**
+   * C3.1: materiales activos para el alta de un ítem propio de la revisión.
+   * El costo vigente viaja solo con `propuesta_editar_costo`; `costo_vigente` no
+   * es legible por `authenticated`, así que se lee con admin. Nunca se usa para
+   * revaluar costos ya guardados: es una sugerencia para capturas futuras.
+   */
+  materiales: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    costoVigente?: number | null;
+    monedaCosto?: 'MXN' | 'USD' | null;
+    fechaVigenciaCosto?: string | null;
+  }[];
   /**
    * Materiales seleccionables en un ítem vendible: sin consumibles
    * (`metadata.categoria = 'insumo'`). `materiales` conserva todos los nombres.
@@ -154,6 +166,18 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         .order('orden', { ascending: true }),
     ]);
 
+  // `costo_vigente` está fuera del alcance de `authenticated`. Se lee con admin
+  // y se expone solo a quien puede ver el costo interno. No se concede GRANT.
+  const materialesConCosto = puedeVerCosto
+    ? await admin
+        .from('catalogo_materiales')
+        .select('id, costo_vigente, moneda_costo, fecha_vigencia_costo')
+        .eq('activo', true)
+    : null;
+  const costoPorMaterial = new Map(
+    (materialesConCosto?.data ?? []).map((fila) => [fila.id, fila]),
+  );
+
   return {
     exito: true,
     datos: {
@@ -228,11 +252,26 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         esOtro: fila.es_otro,
         activo: fila.activo,
       })),
-      materiales: (materiales.data ?? []).map((fila) => ({
-        id: fila.id,
-        codigo: fila.codigo,
-        nombre: fila.nombre,
-      })),
+      materiales: (materiales.data ?? []).map((fila) => {
+        const costo = costoPorMaterial.get(fila.id);
+        const costoVigente =
+          puedeVerCosto && costo?.costo_vigente != null ? Number(costo.costo_vigente) : null;
+        return {
+          id: fila.id,
+          codigo: fila.codigo,
+          nombre: fila.nombre,
+          costoVigente,
+          // Sin costo no hay moneda de costo: el catálogo conserva el default
+          // 'MXN' aunque nunca se haya fijado un precio.
+          monedaCosto:
+            costoVigente !== null && costo?.moneda_costo === 'USD'
+              ? 'USD'
+              : costoVigente !== null
+                ? 'MXN'
+                : null,
+          fechaVigenciaCosto: costoVigente !== null ? (costo?.fecha_vigencia_costo ?? null) : null,
+        };
+      }),
       materialesVendibles: (materiales.data ?? [])
         .filter((fila) => esMaterialVendible(fila.metadata))
         .map((fila) => ({
