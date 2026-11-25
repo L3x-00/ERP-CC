@@ -1,0 +1,128 @@
+---
+title: Producción
+description: Sigue el avance de las órdenes en el tablero, abre su ficha y gestiona las sesiones de trabajo del operador.
+---
+
+
+En **Producción** se sigue el avance de cada orden y se abre su ficha para operar, registrar calidad, entregar y revisar documentos en un solo lugar.
+
+Esta pantalla es el tablero de administración. El botón **Vista producción →** abre el piso en solo lectura para el administrador, sin PIN. El operador trabaja en `/operador` con su PIN.
+
+## Para qué sirve
+
+Aquí puedes:
+
+- Ver el trabajo en cinco columnas: **Bandeja**, **En proceso**, **Pausada**, **Lista** y **Entregada**.
+- Abrir una orden y consultar su ficha: avance, ruta, sesiones, calidad, entrega y documentos.
+- Supervisar la sesión del operador, pausarla o finalizarla si es necesario.
+- Generar la nota de entrega cuando la orden terminó.
+
+**Como administrador no capturas producción aquí.** Los pasos de iniciar, pausar y finalizar sesión los ejecuta el operador con su PIN; el administrador consulta y supervisa.
+
+## Antes de empezar
+
+- Para entrar hace falta el permiso de gestión de producción. El menú puede mostrar el módulo con otros permisos, pero sin ese permiso la página no estará disponible.
+- Para operar una orden, antes debes programar su partida y pulsar **Iniciar preparación** en **Planeación**. Después el operador entra por `/operador` con su PIN y vuelve a esta pantalla para iniciar o cerrar la sesión.
+- Si una orden aún no está preparada, el panel muestra **Programar la partida en Planeación**.
+- Para ver el piso en solo lectura se usa **Vista producción →**. El acceso del operador es `/operador` con su PIN.
+
+## El tablero
+
+![Tablero Control de producción con las columnas Bandeja, En proceso, Pausada, Lista y Entregada](/manual/capturas/produccion-tablero.png)
+
+1. En el menú lateral, entra a **Operación → Producción**.
+2. Filtra por **Recurso** o **Área de taller** si solo quieres ver un equipo o un área.
+3. En **Control de producción**, localiza la orden por folio y revisa su columna, las piezas `X/Y`, el cliente y el compromiso.
+4. Si quieres ver el detalle por operación, abre **Ver avance por proceso** en la tarjeta: muestra el área, la estación, el responsable y el avance de cada proceso.
+5. Haz clic en la tarjeta para abrir el panel lateral de la orden.
+
+Las columnas se calculan a partir del avance: no son estados que se escriben a mano. Una orden con todas las piezas entregadas aparece en **Entregada**; una orden terminada pero sin entregar aparece en **Lista**.
+
+## Ficha y acciones de la orden
+
+![Panel Ficha y acciones de la orden con el resumen, corridas, operación en piso, calidad y nota de entrega](/manual/capturas/produccion-panel.png)
+
+Al abrir una tarjeta se despliega el panel **Orden en piso** con:
+
+- **Resumen:** cliente, compromiso, prioridad, responsable, avance, entregadas, scrap y horas registradas.
+- **Corridas:** agrupación de partidas por proceso. Si no hay ninguna, aparece **Sin corridas**; al iniciar una sesión sin corrida se genera una automática.
+- **Operación en piso:** el **Panel de operador**, con la identidad confirmada por sesión del operador.
+- **Calidad:** inspecciones registradas al liberar la primera pieza y al cerrar el proceso.
+- **Nota de entrega:** **Generar nota de entrega** se habilita cuando hay piezas conformes producidas. No contiene precios.
+- **Horas extra**, **Historial de sesiones**, **Entregables de producción**, **Comentarios** y **Ficha completa y antecedentes**.
+
+Si no seleccionas una orden, el panel indica **Selecciona una orden del tablero**.
+
+## Iniciar una sesión
+
+1. En la ficha de la orden, abre el **Panel de operador**.
+2. El operador debe haber entrado por `/operador` con su PIN. Sin esa sesión, el panel indica **Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión**.
+3. Si la orden está preparada, elige la pieza y la fecha/turno correspondientes.
+4. Haz clic en **Iniciar sesión**.
+5. Confirma el **Checklist de eventos críticos** con **Iniciar con checklist**.
+
+Confirma los puntos que muestra el checklist, por ejemplo **Material verificado**, **Cantidad verificada** y **Proceso / equipo correcto**. En doblado aparecen tres puntos distintos. Al iniciar, el recurso queda reservado y aparece la confirmación **Sesión iniciada**.
+
+## Registrar avance y finalizar
+
+No existe un botón **Registrar avance** en este panel: las piezas se declaran al cerrar la sesión.
+
+1. Abre la sesión activa de la orden y captura las piezas en el campo correspondiente, por ejemplo **Piezas dobladas ahora**. El sistema indica el máximo permitido.
+2. Si la sesión terminó antes, ajusta la **Hora real de conclusión**.
+3. Registra el **Consumo de material**: material, cantidad usada, merma y motivo. El motivo es obligatorio cuando hay consumo o merma.
+4. Si aplica, marca **Registrar inspección de cierre** y escribe el resultado o las notas operativas.
+5. En **Resultado**, elige **Finalizar sesión** y confirma.
+
+Aparece el resumen **Sesión finalizada** con tiempo neto, resultado, estado de la orden, planeación, material usado, merma y notas. El recurso queda liberado.
+
+Si el material no tiene costo confirmado, el sistema avisa que no se puede finalizar sin valorizar el consumo: pide a administración registrarlo en **Materiales y costos** o pausa la sesión mientras tanto.
+
+## Pausar y reanudar
+
+1. En **Resultado**, elige **Pausar sesión**.
+2. Selecciona el **Motivo de pausa** (por ejemplo **DUDA**, **MATERIAL**, **FALLA**, **COMIDA**, **FIN_JORNADA** o **OTRA**) y escribe notas si el motivo lo exige.
+3. Confirma con **Pausar sesión**. Aparece **Sesión registrada y recurso liberado**.
+
+Para continuar, usa **Continuar sesión pausada**. Se abre **Reanudar**, donde se revisan operador, horario, partida, motivo y notas, y se confirma con **Continuar**. La confirmación es **Sesión reanudada y recurso reservado**.
+
+Si no hay piezas disponibles del proceso anterior, el sistema lo indica y no permite reanudar. Si la operación ya terminó, hay que cerrar la pausa registrando el consumo pendiente desde la ficha del proceso.
+
+## Columnas del tablero
+
+| Columna | Qué significa |
+| --- | --- |
+| **Bandeja** | La orden está a la espera de trabajo. |
+| **En proceso** | Hay una sesión activa o la orden está en proceso. |
+| **Pausada** | La última sesión está pausada. |
+| **Lista** | La producción terminó y falta entregar. |
+| **Entregada** | Todas las piezas fueron entregadas. |
+
+**Lista** es una vista derivada del avance, no un estado que se guarda manualmente.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Falta liberar la primera pieza antes de declarar producción»** | Registra la inspección de la primera pieza antes de declarar piezas producidas. |
+| **«No puedes declarar piezas: el máximo permitido es…»** | Captura solo las piezas pendientes de esa operación. |
+| **«La hora de conclusión está adelantada. Ajusta la hora a un momento que ya haya pasado.»** | Corrige la hora antes de guardar. |
+| **«Bloqueado por Planeación: no hay sesión que reanudar. Administración debe reabrir la operación.»** | Pide a Planeación que reabra la operación. |
+
+## Opciones adicionales
+
+- **Máquinas liberadas:** muestra pausas antiguas por duda o material. **Reclamar** libera la máquina y devuelve la operación a Planeación para que otro operador la retome.
+- **Corridas:** permite **Nueva corrida**, **Iniciar**, **Completar** y **Cancelar**. Es administración de lotes, no necesaria para consultar el avance.
+- **Salud de la orden:** **Sin inconsistencias** indica que horas, cantidades, pausas y entregas coinciden. Si hay avisos, revisa el detalle antes de cerrar.
+- **Vista de piso:** **Vista producción →** muestra el piso en solo lectura, sin PIN. El operador accede por `/operador` con su PIN.
+
+## Comprueba que quedó bien
+
+- [ ] La orden aparece en la columna correcta del tablero.
+- [ ] El avance muestra las piezas producidas y el porcentaje.
+- [ ] La ficha de la orden muestra el cliente, el compromiso y la ruta.
+- [ ] Si hay sesión, el operador y el recurso son los correctos.
+- [ ] Las piezas conformes aparecen disponibles para la nota de entrega.
+
+## Qué sigue
+
+El siguiente módulo del menú es **Entregas**, donde se registran las notas de entrega de las piezas conformes.
