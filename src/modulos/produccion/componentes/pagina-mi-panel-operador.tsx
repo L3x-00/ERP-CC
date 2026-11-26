@@ -57,6 +57,7 @@ import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-
 import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoDetalleLote } from './dialogo-detalle-lote';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { TarjetaOrdenMisProcesos } from './tarjeta-orden-mis-procesos';
 interface PropsPaginaMiPanelOperador {
@@ -95,6 +96,8 @@ export function PaginaMiPanelOperador({
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
   const [procesoSeleccionadoId, setProcesoSeleccionadoId] = useState<string | null>(null);
   const [inicioPendienteId, setInicioPendienteId] = useState<string | null>(null);
+  const [corridaInicioId, setCorridaInicioId] = useState<string | null>(null);
+  const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
@@ -315,6 +318,27 @@ export function PaginaMiPanelOperador({
     }, 'Sesión registrada y recurso liberado'),
   };
 
+  function abrirLote(lote: LoteTablero): void {
+    const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
+    const proceso = lote.items
+      .map((item) => misProcesos
+        .map(({ proceso: actual }) => actual)
+        .find((actual) => actual.partidaId === item.partidaId
+          && actual.secuencia === 1
+          && nombres.has(actual.procesoNombre.trim().toLowerCase())))
+      .find((actual): actual is ProcesoEspacioOperador => actual !== undefined);
+    if (!proceso || !proceso.puedeIniciar) {
+      setAviso({
+        tipo: 'error',
+        texto: proceso?.motivoNoInicia ?? 'Este lote todavía no se puede iniciar desde tu panel.',
+      });
+      return;
+    }
+    setLoteAbierto(null);
+    setCorridaInicioId(lote.id);
+    setInicioPendienteId(proceso.id);
+  }
+
   async function confirmarInicio(verificacion: VerificacionInicio): Promise<ResultadoOperacion> {
     if (!inicioPendiente) {
       return { exito: false, error: 'Selecciona un proceso para iniciar' };
@@ -328,7 +352,9 @@ export function PaginaMiPanelOperador({
         fecha: inicioPendiente.reclamo?.fecha ?? hoy,
         turno: (inicioPendiente.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
+        ...(corridaInicioId ? { corridaId: corridaInicioId } : {}),
       });
+      setCorridaInicioId(null);
       if (resultado.exito) setInicioPendienteId(null);
       return resultado.exito
         ? { exito: true }
@@ -459,6 +485,7 @@ export function PaginaMiPanelOperador({
                 key={grupo.ordenId}
                 grupo={grupo}
                 testIdPrefijo="tarjeta-lote-mi-panel"
+                onAbrirLote={abrirLote}
               />
             ))}
           </div>
@@ -555,6 +582,12 @@ export function PaginaMiPanelOperador({
           sugerenciaLote={sugerenciaSeleccionada}
           onCrearLote={(sugerencia) => void crearLote(sugerencia)}
           creandoLote={creandoLote !== null}
+          onIniciarCorridaLote={procesoSeleccionado.loteId
+            ? () => {
+              const lote = lotes.find((actual) => actual.id === procesoSeleccionado.loteId);
+              if (lote) setLoteAbierto(lote);
+            }
+            : undefined}
         />
 
         {ordenesDelProceso.length > 0 ? (
@@ -576,6 +609,13 @@ export function PaginaMiPanelOperador({
       </DialogContent>
     ) : null}
   </Dialog>
+
+      <DialogoDetalleLote
+        lote={loteAbierto}
+        puedeOperar
+        onIniciar={abrirLote}
+        onCerrar={() => setLoteAbierto(null)}
+      />
 
       <DialogoChecklistInicio
         abierto={inicioPendiente !== null}

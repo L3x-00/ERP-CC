@@ -45,6 +45,8 @@ export interface PropsKanbanProduccion {
   /** OBS-09: nombre del operador asignado por id. */
   responsables?: Readonly<Record<string, string>>;
   onSeleccionarOrden: (ordenId: string) => void;
+  /** Abre la ficha del lote para operarlo como una sola corrida. */
+  onAbrirLote?: (lote: LoteTablero) => void;
   onAlternarEstado: (estado: EstadoKanbanProduccion) => void;
 }
 
@@ -118,6 +120,7 @@ export function KanbanProduccion({
   areas = [],
   responsables = {},
   onSeleccionarOrden,
+  onAbrirLote,
   onAlternarEstado,
 }: PropsKanbanProduccion) {
   return (
@@ -173,6 +176,7 @@ export function KanbanProduccion({
                     grupo={grupo}
                     testIdPrefijo="tarjeta-lote-produccion"
                     onAbrirOrden={onSeleccionarOrden}
+                    onAbrirLote={onAbrirLote}
                   />
                 ))}
                 {ordenesColumna.map((orden) => (

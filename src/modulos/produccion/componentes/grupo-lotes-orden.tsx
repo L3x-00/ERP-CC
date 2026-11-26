@@ -2,12 +2,14 @@
 
 import { cn } from '@/compartido/utilidades/cn';
 import type { GrupoLotesOrden as GrupoLotes } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { TarjetaLote } from './tarjeta-lote';
 
 interface PropsGrupoLotesOrden {
   grupo: GrupoLotes;
   testIdPrefijo: string;
   onAbrirOrden?: (ordenId: string) => void;
+  onAbrirLote?: (lote: LoteTablero) => void;
   className?: string;
 }
 
@@ -19,6 +21,7 @@ export function GrupoLotesOrden({
   grupo,
   testIdPrefijo,
   onAbrirOrden,
+  onAbrirLote,
   className,
 }: PropsGrupoLotesOrden) {
   return (
@@ -42,6 +45,7 @@ export function GrupoLotesOrden({
             lote={lote}
             testId={`${testIdPrefijo}-${lote.id}`}
             onAbrirOrden={onAbrirOrden}
+            onAbrirLote={onAbrirLote}
             compacta
           />
         ))}
