@@ -2105,6 +2105,36 @@ describe('proceso reclamado por otro operador', () => {
     expect(onCrearLote).toHaveBeenCalledWith(sugerencia);
   });
 
+  it('muestra la referencia del lote terminado en la ficha de la operación', () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso: {
+        ...proceso,
+        corridaReferencia: { id: 'corrida-1', codigo: 'LAS02', estado: 'COMPLETADA' },
+      },
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    const etiqueta = screen.getByTestId(`corrida-operacion-${proceso.id}`);
+    expect(etiqueta.textContent).toContain('Trabajado en lote LAS02');
+  });
+
   it('ofrece iniciar la corrida del lote en vez de iniciar un proceso por ítem', () => {
     const onIniciarCorridaLote = vi.fn();
     render(createElement(DetalleProcesoOperador, {

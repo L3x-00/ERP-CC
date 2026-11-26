@@ -56,6 +56,13 @@ export type Corrida = {
  * Existe porque los tableros se construían solo con órdenes y sesiones: un lote
  * recién creado aún no tiene sesión y, por eso, no generaba ninguna tarjeta.
  */
+/** Referencia de solo lectura para etiquetar un ítem trabajado en lote. */
+export interface CorridaReferencia {
+  id: string;
+  codigo: string;
+  estado: EstadoCorrida;
+}
+
 export interface LoteTablero {
   id: string;
   codigo: string;

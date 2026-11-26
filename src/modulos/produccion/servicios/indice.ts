@@ -119,6 +119,7 @@ export {
   claveLotePartida,
   mapaLotesPorOperacion,
   obtenerLotesTableroServicio,
+  obtenerReferenciasCorridaPorPartida,
 } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 
 export type { GrupoLotesOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';

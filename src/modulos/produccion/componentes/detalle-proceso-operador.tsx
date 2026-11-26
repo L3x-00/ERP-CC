@@ -1767,6 +1767,16 @@ export function DetalleProcesoOperador({
           </h3>
           <span className="text-xs text-texto-secundario">{proceso.areaNombre}</span>
         </div>
+        {proceso.corridaReferencia ? (
+          <p
+            className="mb-3 rounded-md bg-superficie-2 px-3 py-2 text-xs text-texto-secundario"
+            data-testid={`corrida-operacion-${proceso.id}`}
+          >
+            {proceso.corridaReferencia.estado === 'COMPLETADA' ? 'Trabajado en lote ' : 'En lote '}
+            <strong className="font-mono text-texto-primario">{proceso.corridaReferencia.codigo}</strong>
+            {' · '}la pieza conserva su avance y su flujo normal.
+          </p>
+        ) : null}
         {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
           <p
             className="mb-3 rounded-md bg-acento-suave px-3 py-2 text-sm text-acento-texto"

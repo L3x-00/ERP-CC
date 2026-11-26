@@ -197,6 +197,16 @@ function TarjetaOrdenOperadorCompleta({
                   {estadoDistinto ? (
                     <Badge variante="info">{ETIQUETAS_COLUMNA[representante.columna]}</Badge>
                   ) : null}
+                  {representante.corridaReferencia ? (
+                    <Badge
+                      variante={representante.corridaReferencia.estado === 'COMPLETADA' ? 'exito' : 'info'}
+                      data-testid={`corrida-item-${representante.id}`}
+                    >
+                      {representante.corridaReferencia.estado === 'COMPLETADA'
+                        ? `Trabajado en lote ${representante.corridaReferencia.codigo}`
+                        : `En lote ${representante.corridaReferencia.codigo}`}
+                    </Badge>
+                  ) : null}
                   {tieneAviso ? <Badge variante="alerta">Sin piezas previas</Badge> : null}
                   {representante.reclamo ? (
                     <span className={representante.reclamadoPorMi ? 'text-exito-texto' : 'text-advertencia-texto'}>
@@ -342,6 +352,15 @@ function TarjetaOrdenOperadorCompacta({
           <p className="pointer-events-none relative z-10 truncate text-[11px] font-medium text-texto-primario">
             {item!.codigoPieza} · {representante.procesoNombre}
           </p>
+          {representante.corridaReferencia ? (
+            <p
+              className="pointer-events-none relative z-10 text-[10px] text-texto-secundario"
+              data-testid={`corrida-item-${representante.id}`}
+            >
+              {representante.corridaReferencia.estado === 'COMPLETADA' ? 'Trabajado en lote ' : 'En lote '}
+              {representante.corridaReferencia.codigo}
+            </p>
+          ) : null}
           {sesionPausada ? (
             <div
               className="pointer-events-auto relative z-10 mt-1 rounded border border-advertencia/40 bg-advertencia-suave/70 p-1 text-[10px] text-advertencia-texto"

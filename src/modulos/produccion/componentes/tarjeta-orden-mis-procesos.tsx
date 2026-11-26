@@ -149,6 +149,17 @@ export function TarjetaOrdenMisProcesos({
                   className="shrink-0 text-[11px]"
                 />              </div>
 
+              {proceso.corridaReferencia ? (
+                <Badge
+                  variante={proceso.corridaReferencia.estado === 'COMPLETADA' ? 'exito' : 'info'}
+                  className="w-fit text-[10px]"
+                  data-testid={`corrida-mi-proceso-${proceso.id}`}
+                >
+                  {proceso.corridaReferencia.estado === 'COMPLETADA' ? 'Trabajado en lote ' : 'En lote '}
+                  {proceso.corridaReferencia.codigo}
+                </Badge>
+              ) : null}
+
               {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
                 <p
                   className="rounded bg-acento-suave px-2 py-1 text-[11px] text-acento-texto"

@@ -96,6 +96,7 @@ export type {
   EstadoAutorizacionHoraExtra,
   CorridaItem,
   Corrida,
+  CorridaReferencia,
   LoteTablero,
   InspeccionCalidad,
   AutorizacionHoraExtra,

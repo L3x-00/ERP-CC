@@ -2,6 +2,7 @@ import type { Tables } from '@/compartido/tipos/supabase';
 import type { EstadoPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import type { EstadoOrden, PrioridadOrden } from '@/modulos/ordenes/tipos/ordenes';
+import type { CorridaReferencia } from '@/modulos/produccion/tipos/corridas';
 import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 
 /** C10: contratos del espacio de operador en piso. */
@@ -285,6 +286,8 @@ export interface ProcesoEspacioOperador {
   /** Lote en curso que ya agrupa esta operación; evita sugerirlo dos veces. */
   loteId?: string | null;
   loteCodigo?: string | null;
+  /** Corrida en que se trabajó, aunque ya esté terminada (solo lectura). */
+  corridaReferencia?: CorridaReferencia | null;
 }
 
 /** Ítem de la orden con las operaciones visibles de ese ítem. */

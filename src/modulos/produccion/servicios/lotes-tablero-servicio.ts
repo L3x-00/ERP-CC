@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
-import type { CorridaItem, EstadoCorrida, LoteTablero } from '@/modulos/produccion/tipos/indice';
+import type {
+  CorridaItem,
+  CorridaReferencia,
+  EstadoCorrida,
+  LoteTablero,
+} from '@/modulos/produccion/tipos/indice';
 
 type Admin = SupabaseClient<Database>;
 
@@ -171,4 +176,70 @@ export function mapaLotesPorOperacion(
     }
   }
   return mapa;
+}
+
+/**
+ * Historial de corridas por partida y proceso, incluidas las terminadas.
+ * Solo lectura: sirve para etiquetar el ítem sin cambiar su avance ni su flujo.
+ */
+export async function obtenerReferenciasCorridaPorPartida(
+  cliente: Admin,
+  partidaIds: readonly string[],
+): Promise<Map<string, CorridaReferencia>> {
+  const referencias = new Map<string, CorridaReferencia>();
+  if (partidaIds.length === 0) return referencias;
+
+  const items = await enLotes<{ corrida_id: string; partida_id: string }>(
+    partidaIds,
+    (lote) => cliente
+      .from('corrida_items')
+      .select('corrida_id, partida_id')
+      .in('partida_id', lote),
+  );
+  if (items.length === 0) return referencias;
+
+  const corridaIds = [...new Set(items.map((item) => item.corrida_id))];
+  const [corridas, procesos] = await Promise.all([
+    enLotes<{
+      id: string;
+      codigo: string;
+      estado: string;
+      proceso_id: string;
+      creado_en: string;
+    }>(corridaIds, (lote) => cliente
+      .from('corridas')
+      .select('id, codigo, estado, proceso_id, creado_en')
+      .in('id', lote)
+      .in('estado', [...ESTADOS_LOTE_VISIBLE, 'COMPLETADA'])
+      .order('creado_en', { ascending: false })
+      .order('id')),
+    enLotes<{ id: string; nombre: string }>(
+      corridaIds,
+      (lote) => cliente.from('catalogo_procesos').select('id, nombre').in('id', lote),
+    ),
+  ]);
+  const nombresProceso = new Map(procesos.map((proceso) => [proceso.id, proceso.nombre] as const));
+  const partidasPorCorrida = new Map<string, string[]>();
+  for (const item of items) {
+    const actuales = partidasPorCorrida.get(item.corrida_id) ?? [];
+    actuales.push(item.partida_id);
+    partidasPorCorrida.set(item.corrida_id, actuales);
+  }
+  // Las corridas llegan de la más reciente a la más antigua: se conserva la
+  // última en que participó cada operación.
+  for (const corrida of corridas) {
+    const nombre = nombresProceso.get(corrida.proceso_id);
+    if (!nombre) continue;
+    for (const partidaId of partidasPorCorrida.get(corrida.id) ?? []) {
+      const clave = claveLotePartida(partidaId, nombre);
+      if (!referencias.has(clave)) {
+        referencias.set(clave, {
+          id: corrida.id,
+          codigo: corrida.codigo,
+          estado: corrida.estado as EstadoCorrida,
+        });
+      }
+    }
+  }
+  return referencias;
 }

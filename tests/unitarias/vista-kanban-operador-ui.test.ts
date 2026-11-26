@@ -370,4 +370,22 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(secundaria!.getAttribute('data-vista')).toBe('compacta');
     expect(secundaria!.querySelector('[data-testid="abrir-detalle-p2"]')).not.toBeNull();
   });
+
+  it('etiqueta el ítem con el lote en que se trabajó aunque ya esté terminado', () => {
+    render(createElement(VistaKanbanOperador, {
+      procesos: [proceso({
+        id: 'p1', partidaId: 'partida-1', codigoPieza: 'IT01', secuencia: 1,
+        procesoNombre: 'Corte', corridaReferencia: {
+          id: 'corrida-1', codigo: 'LAS02', estado: 'COMPLETADA',
+        },
+      })],
+      hoy: '2026-11-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    const etiqueta = screen.getByTestId('corrida-item-p1');
+    expect(etiqueta.textContent).toContain('Trabajado en lote LAS02');
+  });
 });

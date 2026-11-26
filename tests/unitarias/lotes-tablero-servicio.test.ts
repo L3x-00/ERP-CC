@@ -5,6 +5,7 @@ import {
   claveLotePartida,
   mapaLotesPorOperacion,
   obtenerLotesTableroServicio,
+  obtenerReferenciasCorridaPorPartida,
 } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 
 const ORDEN = '11111111-1111-4111-8111-111111111111';
@@ -93,6 +94,26 @@ describe('lotes visibles en los tableros', () => {
     expect(grupos).toHaveLength(1);
     expect(grupos[0]!.folioOrden).toBe('O-1126_02');
     expect(grupos[0]!.lotes.map((lote) => lote.codigo)).toEqual(['LAS02', 'LAS03']);
+  });
+
+  it('conserva la referencia del lote terminado para etiquetar cada ítem', async () => {
+    const referencias = await obtenerReferenciasCorridaPorPartida(admin({
+      corrida_items: [
+        { corrida_id: CORRIDA, partida_id: ITEM1 },
+        { corrida_id: CORRIDA, partida_id: ITEM2 },
+      ],
+      corridas: [{
+        id: CORRIDA, codigo: 'LAS02', estado: 'COMPLETADA',
+        proceso_id: PROCESO, creado_en: '2026-11-26T01:00:00.000Z',
+      }],
+      catalogo_procesos: [{ id: PROCESO, nombre: 'CORTE LASER' }],
+    }), [ITEM1, ITEM2]);
+
+    expect(referencias.get(claveLotePartida(ITEM1, 'CORTE LASER'))).toMatchObject({
+      codigo: 'LAS02', estado: 'COMPLETADA',
+    });
+    expect(referencias.get(claveLotePartida(ITEM2, 'corte laser'))?.codigo).toBe('LAS02');
+    expect(referencias.get(claveLotePartida(ITEM1, 'DOB'))).toBeUndefined();
   });
 
   it('no consulta nada cuando no hay órdenes visibles', async () => {
