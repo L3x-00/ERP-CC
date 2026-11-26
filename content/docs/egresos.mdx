@@ -1,0 +1,111 @@
+---
+title: Egresos
+description: Registra gastos operativos, márcalos como pagados y consulta las compras y cuentas por pagar.
+---
+
+
+En **Egresos** se registran las compras a proveedores y los gastos operativos.
+
+## Para qué sirve
+
+- Llevar un registro de los gastos con su comprobante, categoría, proveedor e importe.
+- Marcar un gasto como pagado cuando ya se cubrió.
+- Consultar las compras y sus cuentas por pagar en una pestaña separada.
+- Si el gasto es una compra de material, también fijar el costo unitario de ese material.
+
+## Antes de empezar
+
+- Para consultar necesitas acceso a finanzas. Para registrar gastos, gestionar compras y cambiar estados se requiere el permiso de registro de gastos. Quien solo tiene ese permiso ve únicamente la pestaña **Compras y CxP**.
+- Para vincular un gasto a un material y fijar su costo hace falta además el permiso «gestionar inventario». Si no lo tienes, registra el gasto sin vincularlo.
+- Ten a la mano la descripción, la categoría, el subtotal, el IVA, la moneda y la fecha del gasto.
+
+## Las dos pestañas
+
+![Pestaña Gastos con el botón Registrar gasto, filtros, resumen y tabla de gastos registrados](/manual/capturas/egresos-gastos.png)
+
+1. En el menú lateral, entra a **Finanzas → Egresos**.
+2. En **Gastos** registras gastos operativos y consultas su estado.
+3. En **Compras y CxP** registras compras a proveedores y llevas sus cuentas por pagar.
+4. Arriba se muestran el total por pagar, las compras registradas, los gastos registrados y los proveedores disponibles.
+
+## Registrar un gasto
+
+![Diálogo Registrar gasto con categoría, proveedor, vínculo a material, descripción, subtotal, IVA y total](/manual/capturas/egresos-registrar.png)
+
+1. Haz clic en **Registrar gasto**.
+2. Completa, en el orden de la pantalla, **Descripción**, **Categoría**, **Tipo de gasto**, **Subtotal**, **IVA**, **Moneda**, **Tipo de cambio (MXN)** y **Fecha de gasto**. El **Total** se calcula solo.
+3. Revisa lo capturado y haz clic en **Guardar gasto**.
+
+El comprobante, el folio de comprobante, el método de pago, el **Proveedor (opcional)**, la **Orden vinculada (opcional)** y las notas son opcionales. Sin orden, el gasto queda como indirecto. Si adjuntas una imagen, puedes usar **Escanear comprobante con IA** para proponer datos; revisa siempre lo extraído antes de guardar.
+
+En la tabla puedes filtrar por **Buscar**, **Periodo**, **Categoría**, **Estado**, **Proveedor**, **IVA** y **Tipo**. Los gastos cancelados no se incluyen en los totales.
+
+## Editar, marcar pagado y cancelar
+
+En los gastos **Pendiente** puedes usar:
+
+- **Editar** para corregir el gasto y guardar con **Guardar cambios**.
+- **Marcar pagado** para cerrarlo.
+- **Cancelar** para darlo de baja.
+
+Un gasto **Pagado** o **Cancelado** ya no se puede editar ni marcar pagado.
+
+## Vincular a material (opcional)
+
+Cuando el gasto es una compra de material:
+
+1. Despliega **Vincular a material (compra de material)** y elige el material.
+2. Captura la **Cantidad comprada** en la unidad base del material. El **Precio por unidad base** llena el subtotal, aunque puedes ajustarlo.
+3. Completa el resto del gasto y guarda.
+
+> **Importante:** el costo unitario que se guarda es el **Subtotal dividido entre la cantidad**, sin IVA. Solo se usa en cotizaciones y órdenes futuras: no cambia lo que ya se produjo. Editar este gasto no modifica el precio del material. Necesitas el permiso «gestionar inventario» para fijar el costo; si no lo tienes, el sistema lo indica y puedes guardar el gasto sin vincularlo.
+
+## Compras y CxP
+
+![Pestaña Compras y CxP con filtros, botón Nueva compra y tabla de compras con sus estados](/manual/capturas/egresos-compras.png)
+
+1. Abre la pestaña **Compras y CxP**.
+2. Haz clic en **Nueva compra** para registrar un pedido a proveedor.
+3. Cuando esté lista, usa **Confirmar** para dejarla como cuenta por pagar pendiente.
+4. Al recibir la mercancía, usa **Recibir**. El saldo sigue pendiente hasta pagar.
+5. Haz clic en **Pagar**, captura el **Monto**, el **Método** y la **Referencia (opcional)**, y confirma con **Registrar pago**.
+
+Los pagos parciales reducen el saldo. Al saldarse, la compra queda **Pagada**. También puedes **Cancelar** una compra con un motivo de al menos tres caracteres.
+
+## Estados
+
+| Gasto | Qué significa |
+| --- | --- |
+| **Pendiente** | El gasto está registrado pero aún no se marcó como pagado. |
+| **Pagado** | El gasto ya se cubrió. |
+| **Cancelado** | El gasto se dio de baja y no cuenta en los totales. |
+
+En compras, el ciclo es **Borrador → Confirmada → Recibida → Pagada**, con **Cancelada** como alternativa.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«Solo se pueden corregir gastos pendientes»** | No se puede corregir un gasto pagado; registra uno nuevo con el dato correcto. |
+| **«El gasto cambió en otra pantalla; vuelve a consultar»** | Actualiza la lista y repite la acción. |
+| **«Tu usuario puede registrar gastos, pero no fijar el costo del material. Pide a administración el permiso «gestionar inventario» o registra el gasto sin vincular a material.»** | Pide el permiso o guarda el gasto sin vínculo. |
+| **«Indica la cantidad comprada en la unidad base del material (mayor que cero) para calcular el costo unitario.»** | Captura la cantidad antes de guardar o quita el vínculo. |
+
+## Opciones adicionales
+
+- **Rentabilidad:** en los gastos con orden vinculada, el botón **Rentabilidad** abre el análisis de venta, costo y margen.
+- **Conciliación de costos:** al abrir **Rentabilidad** aparece la conciliación, que compara lo estimado, lo comprometido y lo real por orden. No se muestra en órdenes internas.
+- **Vista de categoría:** el gráfico **Distribución por categoría** se puede ocultar con **Ocultar gráfico**.
+- **Filtros avanzados:** **IVA**, **Tipo** y **Personalizado** sirven para análisis; para el día a día bastan **Buscar** y **Periodo**.
+
+## Comprueba que quedó bien
+
+- [ ] El gasto aparece en la lista con su folio y su categoría.
+- [ ] El total es igual al subtotal más el IVA.
+- [ ] Si se vinculó un material, la cantidad y el precio son correctos.
+- [ ] El estado del gasto es el esperado.
+- [ ] Si es una compra, el saldo baja al registrar pagos.
+
+## Qué sigue
+
+El último módulo de **Finanzas** es **Cierre administrativo**, donde se compara lo cotizado con el costo real. El módulo ya está en el menú; el capítulo del manual aún no está publicado. Mientras tanto, vuelve al [índice del manual](/es/docs).
