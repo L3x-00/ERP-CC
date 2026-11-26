@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { obtenerMaterialClienteOrdenAccion } from '@/modulos/produccion/acciones/material-cliente';
 import { act, createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
@@ -2191,5 +2192,65 @@ describe('proceso reclamado por otro operador', () => {
     }));
 
     expect(screen.queryByText('Crear Lote')).toBeNull();
+  });
+});
+
+describe('DetalleProcesoOperador — consumo y reprogramación', () => {
+  function montarConMaterial(
+    datosMaterialCliente: unknown[],
+    procesoExtra: Record<string, unknown> = {},
+  ) {
+    vi.mocked(obtenerMaterialClienteOrdenAccion).mockResolvedValueOnce({
+      exito: true,
+      datos: datosMaterialCliente as never,
+    });
+    render(createElement(DetalleProcesoOperador, {
+      proceso: { ...proceso, ...procesoExtra },
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+  }
+
+  it('marca consumo y merma obligatorios cuando el material lo pone la empresa', () => {
+    montarConMaterial([]);
+    expect(screen.getAllByText(/Consumo de material/u).some((nodo) => (
+      nodo.textContent?.includes('obligatorio')
+    ))).toBe(true);
+    expect(screen.getByTestId('usado-cierre').className).toContain('border-peligro/50');
+    expect(screen.getByTestId('merma-cierre').className).toContain('border-peligro/50');
+  });
+
+  it('deja el consumo opcional cuando el material lo puso el cliente', async () => {
+    montarConMaterial([{
+      partidaId: 'partida-1', materialId: 'material-cliente-1',
+      codigoItem: 'PZA-01', cantidad: 5,
+    }]);
+    await waitFor(() => expect(screen.getAllByText(/Consumo de material/u).some((nodo) => (
+      nodo.textContent?.includes('opcional')
+    ))).toBe(true));
+    expect(screen.getByTestId('usado-cierre').className).not.toContain('border-peligro/50');
+  });
+
+  it('deja la fecha de reprogramación vacía y marcada en la ficha del operador', () => {
+    montarConMaterial([], {
+      reclamadoPorMi: true,
+      sesionActiva: null,
+      programacion: { ...proceso.programacion, estadoPlaneacion: 'en_preparacion' },
+    });
+    const fecha = screen.getByLabelText('Día de la jornada') as HTMLInputElement;
+    expect(fecha.value).toBe('');
+    expect(fecha.className).toContain('border-peligro/50');
+    fireEvent.click(screen.getByTestId('mover-detalle'));
+    expect(screen.getByText('Indica la fecha de reprogramación.')).toBeTruthy();
   });
 });

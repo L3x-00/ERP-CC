@@ -265,6 +265,7 @@ describe('operación de Planeación en cliente', () => {
     renderizarOperacion(cliente);
 
     fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
     fireEvent.change(screen.getByLabelText('Prioridad'), { target: { value: '0' } });
     fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
 
@@ -414,6 +415,7 @@ describe('operación de Planeación en cliente', () => {
     renderizarOperacion(cliente);
 
     fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-15' } });
 
     const desglose = await screen.findByTestId('desglose-partida-planeacion');
     expect(desglose.textContent).toContain('OP-000001 · PIEZA-E2E');
@@ -1543,6 +1545,7 @@ describe('operación de Planeación en cliente', () => {
       }),
     );
 
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
     fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
       target: { value: 'Mover a otra máquina' },
     });
@@ -1582,6 +1585,7 @@ describe('operación de Planeación en cliente', () => {
       }),
     );
 
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
     fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
       target: { value: 'Mover operación atrasada' },
     });
@@ -1609,5 +1613,18 @@ describe('operación de Planeación en cliente', () => {
 
     expect(screen.queryByTestId(`accion-reactivar-${programacion.ordenId}`)).toBeNull();
     expect(screen.queryByRole('button', { name: /reactivar/i })).toBeNull();
+  });
+
+  it('deja fecha y motivo vacíos y marcados al reprogramar', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+
+    const fecha = await screen.findByLabelText('Fecha programada') as HTMLInputElement;
+    expect(fecha.value).toBe('');
+    expect(fecha.className).toContain('border-peligro/50');
+    const motivo = screen.getByLabelText('Motivo de la reprogramación') as HTMLTextAreaElement;
+    expect(motivo.value).toBe('');
+    expect(motivo.className).toContain('border-peligro/50');
   });
 });

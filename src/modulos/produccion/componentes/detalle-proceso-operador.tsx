@@ -6,6 +6,10 @@ import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_OBLIGATORIO,
+} from '@/modulos/rfq/utilidades/faltantes';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -226,7 +230,8 @@ export function DetalleProcesoOperador({
   const soloDetalle = soloLectura || procesoAjeno;
   // C21: el día de la jornada es siempre el día operativo actual, no el de la
   // programación original con la que se reclamó el proceso.
-  const [fecha, setFecha] = useState(hoy);
+  // Reprogramar obliga a elegir fecha: nunca se hereda el día de la sesión.
+  const [fecha, setFecha] = useState('');
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
   const [piezas, setPiezas] = useState('0');
   // El material de la orden viene preseleccionado: el operador no debe elegirlo
@@ -611,6 +616,14 @@ export function DetalleProcesoOperador({
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
+  // Empresa pone el material → consumo y merma obligatorios; material del
+  // cliente → opcional (se descuenta de su saldo, no del inventario propio).
+  const materialEsDelCliente = materialClientePartida.length > 0;
+  const consumoMaterialObligatorio = !materialEsDelCliente
+    && !esProcesoPosterior
+    && materialId !== '';
+  const consumoPendiente = consumoMaterialObligatorio
+    && ((Number(cantidadUsada) || 0) + (Number(cantidadMerma) || 0)) <= 0;
   const errorPrimeraPieza = mensaje !== null
     && !mensaje.exito
     && mensaje.codigo === 'primera_pieza_pendiente';
@@ -621,6 +634,10 @@ export function DetalleProcesoOperador({
   }
 
   async function mover(): Promise<void> {
+    if (!proceso || fecha === '') {
+      setMensaje({ exito: false, error: 'Indica la fecha de reprogramación.' });
+      return;
+    }
     const resultado = await acciones.mover(proceso!, fecha, turno);
     setMensaje(resultado);
   }
@@ -2347,7 +2364,15 @@ export function DetalleProcesoOperador({
                   ) : null}
                   {estadoDestino === 'finalizada' && (
                     <div className="col-span-full grid gap-3 rounded-lg border border-borde p-3">
-                      <p className="text-sm font-semibold">Consumo de material</p>
+                      <p className="text-sm font-semibold">
+                        Consumo de material (
+                        {consumoMaterialObligatorio ? 'obligatorio' : 'opcional'})
+                      </p>
+                      <p className="text-xs text-texto-secundario">
+                        {consumoMaterialObligatorio
+                          ? 'La empresa proporcionó el material: registra el usado y la merma para cerrar.'
+                          : 'El material lo proporcionó el cliente: registrar consumo y merma es opcional.'}
+                      </p>
 
                       {esProcesoPosterior ? (
                         <>
@@ -2416,6 +2441,10 @@ export function DetalleProcesoOperador({
                               value={materialId}
                               onChange={(evento) => setMaterialId(evento.target.value)}
                               data-testid="material-cierre"
+                              aria-invalid={consumoMaterialObligatorio && materialId === ''}
+                              className={consumoMaterialObligatorio && materialId === ''
+                                ? CLASE_CAMPO_FALTANTE
+                                : undefined}
                             >
                               <option value="">Selecciona un material</option>
                               {materiales.map((material) => (
@@ -2460,6 +2489,8 @@ export function DetalleProcesoOperador({
                                 value={cantidadUsada}
                                 onChange={(evento) => setCantidadUsada(evento.target.value)}
                                 data-testid="usado-cierre"
+                                aria-invalid={consumoPendiente}
+                                className={consumoPendiente ? CLASE_CAMPO_FALTANTE : undefined}
                               />
                             </label>
 
@@ -2472,6 +2503,8 @@ export function DetalleProcesoOperador({
                                 value={cantidadMerma}
                                 onChange={(evento) => setCantidadMerma(evento.target.value)}
                                 data-testid="merma-cierre"
+                                aria-invalid={consumoPendiente}
+                                className={consumoPendiente ? CLASE_CAMPO_FALTANTE : undefined}
                               />
                             </label>
                           </div>
@@ -2928,12 +2961,14 @@ export function DetalleProcesoOperador({
 
             {proceso.columna !== 'lista' && !proceso.sesionActiva ? (
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                <label className={CLASE_ETIQUETA}>
+                <label className={`${CLASE_ETIQUETA} ${CLASE_OBLIGATORIO}`}>
                   Día de la jornada
                   <Input
                     type="date"
                     min={hoy}
                     value={fecha}
+                    aria-invalid={fecha === ''}
+                    className={fecha === '' ? CLASE_CAMPO_FALTANTE : undefined}
                     onChange={(evento) => {
                       const nueva = evento.target.value;
                       setFecha(nueva);
@@ -3161,7 +3196,8 @@ export function DetalleProcesoOperador({
                   ) : (
                     <details className="rounded-md border border-borde p-2">
                       <summary className="cursor-pointer list-none text-sm text-texto-secundario marker:content-none">
-                        Consumo de material (opcional)
+                        Consumo de material (
+                        {consumoMaterialObligatorio ? 'obligatorio al cerrar' : 'opcional'})
                       </summary>
                       <div className="mt-2 grid gap-2">
                         <label className={CLASE_ETIQUETA}>

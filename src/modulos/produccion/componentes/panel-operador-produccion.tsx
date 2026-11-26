@@ -1700,6 +1700,8 @@ function DialogoCerrarSesionSupervisor({
             {esPausa
               ? 'La captura de piezas, material y merma corresponde al operador. Si su sesión quedó abierta, esta pausa libera la máquina sin declarar producción.'
               : 'La sesión se cerrará como finalizada con 0 piezas: no se declara producción ni consumo. Úsalo solo si el operador olvidó cerrar y no hay piezas que registrar.'}
+            {' '}Cuando la orden usa material de la empresa, el operador debe registrar consumo y
+            merma al cerrar; si el material lo aportó el cliente, ese registro es opcional.
           </p>
           {esPausa ? (
             <label className={CLASE_ETIQUETA}>
