@@ -9,6 +9,8 @@ import type {
   AreaCatalogoProduccion,
   OrdenTableroProduccion,
 } from '@/modulos/produccion/servicios/indice';
+import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
+import { TarjetaLote } from './tarjeta-lote';
 import {
   ESTADOS_KANBAN_PRODUCCION,
   type EstadoKanbanProduccion,
@@ -32,6 +34,8 @@ const VARIANTES_ESTADO: Record<EstadoKanbanProduccion, 'neutro' | 'info' | 'aler
 
 export interface PropsKanbanProduccion {
   ordenes: readonly OrdenTableroProduccion[];
+  /** Lotes creados que todavía no abren una sesión. */
+  lotes?: readonly LoteTablero[];
   ordenSeleccionadaId: string | null;
   estadosActivos: readonly EstadoKanbanProduccion[];
   actualizando: boolean;
@@ -106,6 +110,7 @@ export function resumenTallerOrden(
 /** Kanban derivado: las columnas no escriben ningún estado en la base de datos. */
 export function KanbanProduccion({
   ordenes,
+  lotes = [],
   ordenSeleccionadaId,
   estadosActivos,
   actualizando,
@@ -121,7 +126,9 @@ export function KanbanProduccion({
           Control de producción
         </h2>
         <p className="text-sm text-texto-secundario" aria-live="polite">
-          {actualizando ? 'Actualizando…' : `${ordenes.length} órdenes visibles`}
+          {actualizando
+            ? 'Actualizando…'
+            : `${ordenes.length} órdenes${lotes.length > 0 ? ` y ${lotes.length} lotes` : ''} visibles`}
         </p>
       </div>
       <fieldset className="flex flex-wrap gap-2 text-sm">
@@ -143,6 +150,7 @@ export function KanbanProduccion({
       <div className="grid gap-3 xl:grid-cols-5" data-testid="kanban-produccion">
         {ESTADOS_KANBAN_PRODUCCION.map((estado) => {
           const ordenesColumna = ordenes.filter((orden) => orden.estadoKanban === estado);
+          const lotesColumna = estado === 'en_proceso' ? lotes : [];
           return (
             <section
               key={estado}
@@ -153,9 +161,19 @@ export function KanbanProduccion({
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
                   {ETIQUETAS_ESTADO[estado]}
                 </h3>
-                <Badge variante={VARIANTES_ESTADO[estado]}>{ordenesColumna.length}</Badge>
+                <Badge variante={VARIANTES_ESTADO[estado]}>
+                  {ordenesColumna.length + lotesColumna.length}
+                </Badge>
               </div>
               <div className="flex flex-col gap-3">
+                {lotesColumna.map((lote) => (
+                  <TarjetaLote
+                    key={lote.id}
+                    lote={lote}
+                    testId={`tarjeta-lote-produccion-${lote.id}`}
+                    onAbrirOrden={onSeleccionarOrden}
+                  />
+                ))}
                 {ordenesColumna.map((orden) => (
                   <article
                     key={orden.id}
@@ -272,7 +290,7 @@ export function KanbanProduccion({
                     </p>
                   </article>
                 ))}
-                {ordenesColumna.length === 0 ? (
+                {ordenesColumna.length === 0 && lotesColumna.length === 0 ? (
                   <p className="py-4 text-center text-sm text-texto-tenue">Sin órdenes</p>
                 ) : null}
               </div>

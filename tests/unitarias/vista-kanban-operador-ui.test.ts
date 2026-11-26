@@ -5,6 +5,7 @@ import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { VistaKanbanOperador } from '@/modulos/produccion/componentes/vista-kanban-operador';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
+import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 
 afterEach(cleanup);
 
@@ -301,5 +302,43 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(columna.querySelector('[data-testid="cerrar-pausa-proceso-partida-1:meta-1"]')).toBeNull();
     expect(columna.textContent).not.toContain('Continuar sesión');
     expect(columna.textContent).not.toContain('Cerrar pausa');
+  });
+
+  it('muestra el lote creado como tarjeta en la columna En proceso', () => {
+    const lote: LoteTablero = {
+      id: 'corrida-1',
+      codigo: 'LAS02',
+      estado: 'PLANIFICADA',
+      ordenId: 'orden-1',
+      folioOrden: 'OF-001171',
+      clienteNombre: 'Manufacturing Group',
+      procesoNombre: 'CORTE LASER',
+      areaCodigo: 'LASER',
+      areaCodigos: ['LASER'],
+      cantidadPlanificada: 180,
+      items: [
+        { id: null, partidaId: 'partida-1', codigoItem: 'IT01', cantidad: 60 },
+        { id: null, partidaId: 'partida-2', codigoItem: 'IT02', cantidad: 120 },
+      ],
+      creadoEn: '2026-11-26T00:09:51.000Z',
+    };
+
+    render(createElement(VistaKanbanOperador, {
+      procesos: [],
+      lotes: [lote],
+      hoy: '2026-11-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    const columna = screen.getByTestId('columna-en_proceso');
+    const tarjeta = columna.querySelector('[data-testid="tarjeta-lote-piso-corrida-1"]');
+    expect(tarjeta).not.toBeNull();
+    expect(tarjeta!.textContent).toContain('LAS02');
+    expect(tarjeta!.textContent).toContain('Planificada');
+    expect(tarjeta!.textContent).toContain('IT01');
+    expect(tarjeta!.textContent).toContain('IT02');
+    expect(tarjeta!.textContent).toContain('180');
   });
 });

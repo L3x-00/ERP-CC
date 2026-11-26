@@ -9,10 +9,14 @@ import {
 } from '@/modulos/produccion/tipos/indice';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
+import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
+import { TarjetaLote } from './tarjeta-lote';
 import { TarjetaOrdenOperador } from './tarjeta-orden-operador';
 
 export interface PropsVistaKanbanOperador {
   procesos: ProcesoEspacioOperador[];
+  /** Lotes creados que aún no han abierto sesión. */
+  lotes?: readonly LoteTablero[];
   hoy: string;
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
@@ -41,6 +45,7 @@ const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
  */
 export function VistaKanbanOperador({
   procesos,
+  lotes = [],
   hoy,
   soloLectura,
   onAbrir,
@@ -59,6 +64,7 @@ export function VistaKanbanOperador({
     >
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
         const ordenesDelEstado = ordenes.filter((grupo) => grupo.columna === columna);
+        const lotesDelEstado = columna === 'en_proceso' ? lotes : [];
         const procesosDelEstado = ordenesDelEstado.reduce(
           (total, grupo) => total + grupo.procesos.length,
           0,
@@ -71,7 +77,7 @@ export function VistaKanbanOperador({
               'flex min-w-0 flex-col gap-2 rounded-lg border border-t-4 border-borde p-2',
               ESTILO_COLUMNA[columna],
             )}
-            aria-label={`${ETIQUETAS_COLUMNA[columna]}: ${ordenesDelEstado.length} órdenes, ${procesosDelEstado} procesos`}
+            aria-label={`${ETIQUETAS_COLUMNA[columna]}: ${ordenesDelEstado.length} órdenes, ${procesosDelEstado} procesos, ${lotesDelEstado.length} lotes`}
             data-testid={`columna-${columna}`}
           >
             <header className="flex items-baseline justify-between gap-2 px-1">
@@ -79,22 +85,32 @@ export function VistaKanbanOperador({
                 <h3 className="text-sm font-semibold text-texto-primario">
                   {ETIQUETAS_COLUMNA[columna]}
                   <span className="ml-1.5 rounded-full bg-superficie px-1.5 py-0.5 text-xs tabular-nums text-texto-secundario">
-                    {ordenesDelEstado.length}
+                    {ordenesDelEstado.length + lotesDelEstado.length}
                   </span>
                 </h3>
                 <p className="text-[11px] text-texto-tenue">
                   {ordenesDelEstado.length} orden{ordenesDelEstado.length === 1 ? '' : 'es'} ·{' '}
                   {procesosDelEstado} proceso{procesosDelEstado === 1 ? '' : 's'}
+                  {lotesDelEstado.length > 0 ? ` · ${lotesDelEstado.length} lote(s)` : ''}
                 </p>
               </div>
               <span className="text-xs tabular-nums text-texto-tenue">{horasLegibles(horas)}</span>
             </header>
-            {ordenesDelEstado.length === 0 ? (
+            {ordenesDelEstado.length === 0 && lotesDelEstado.length === 0 ? (
               <p className="rounded-md border border-dashed border-borde-fuerte/60 p-3 text-center text-xs text-texto-tenue">
                 Sin órdenes
               </p>
             ) : (
               <ul className="grid min-w-0 gap-2">
+                {lotesDelEstado.map((lote) => (
+                  <li key={lote.id} className="min-w-0">
+                    <TarjetaLote
+                      lote={lote}
+                      testId={`tarjeta-lote-piso-${lote.id}`}
+                      onAbrirOrden={onAbrirOrden}
+                    />
+                  </li>
+                ))}
                 {ordenesDelEstado.map((grupo) => (
                   <li key={`${grupo.ordenId}:${columna}`} className="min-w-0">
                     <TarjetaOrdenOperador

@@ -106,6 +106,7 @@ export default async function PaginaProduccionPiso() {
       )}
       <EspacioOperador
         procesos={espacio.procesos}
+        lotes={espacio.lotes}
         areas={espacio.areas}
         resumen={espacio.resumen}
         motivosPausa={espacio.motivosPausa}

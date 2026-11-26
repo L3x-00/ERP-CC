@@ -282,6 +282,9 @@ export interface ProcesoEspacioOperador {
   motivoBloqueo: CodigoBloqueo | null;
   /** Corrección obs: el equipo de esta operación ya lo usa otro operador. */
   equipoOcupadoPor?: string | null;
+  /** Lote en curso que ya agrupa esta operación; evita sugerirlo dos veces. */
+  loteId?: string | null;
+  loteCodigo?: string | null;
 }
 
 /** Ítem de la orden con las operaciones visibles de ese ítem. */

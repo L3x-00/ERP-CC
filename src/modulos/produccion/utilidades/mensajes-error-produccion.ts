@@ -80,6 +80,7 @@ export const MENSAJES_ERROR_PRODUCCION: Readonly<Record<string, DescripcionError
   corrida_material_incompatible: { mensaje: 'Los ítems elegidos no usan el mismo material y calibre. Selecciona solo ítems compatibles.', accion: 'Elegir ítems' },
   corrida_proceso_inicial_incompatible: { mensaje: 'El proceso elegido no es el primero de todos los ítems. Selecciona el proceso inicial que comparten.', accion: 'Elegir proceso' },
   corrida_items_otra_orden: { mensaje: 'Los ítems elegidos no son de la misma orden. Selecciona ítems de una sola orden.', accion: 'Elegir ítems' },
+  corrida_partida_ya_en_lote: { mensaje: 'Una de las piezas ya está en otro lote de este proceso. Abre ese lote para continuar o espera a que termine antes de crear uno nuevo.', accion: 'Ver lotes' },
   corrida_items_invalidos: { mensaje: 'Los ítems del lote no son válidos. Selecciona las piezas de nuevo.', accion: 'Elegir ítems' },
   corrida_item_duplicado: { mensaje: 'Una pieza quedó seleccionada dos veces. Quítala y vuelve a intentarlo.', accion: 'Elegir ítems' },
   corrida_partida_inexistente: { mensaje: 'Una pieza ya no existe en la orden. Actualiza la ficha antes de continuar.', accion: 'Actualizar ficha' },

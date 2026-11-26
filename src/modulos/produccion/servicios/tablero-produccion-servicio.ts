@@ -28,6 +28,8 @@ import {
 } from '@/modulos/produccion/tipos/indice';
 import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import { pausarSesionesJornadaExcedidaServicio } from '@/modulos/produccion/servicios/corridas-servicio';
+import { obtenerLotesTableroServicio } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import type { LoteTablero } from '@/modulos/produccion/tipos/corridas';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
 import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
 import { ordenConcluida } from '@/modulos/ordenes/utilidades/conclusion-orden';
@@ -75,6 +77,8 @@ export interface AreaCatalogoProduccion {
 
 export interface DatosTableroProduccion {
   ordenes: OrdenTableroProduccion[];
+  /** Lotes en curso, visibles en «En proceso» aunque aún no tengan sesión. */
+  lotes: LoteTablero[];
   recursos: RecursoPlaneacion[];
   /** Catálogo de taller para resolver nombres y filtrar por área. */
   areas?: AreaCatalogoProduccion[];
@@ -456,7 +460,7 @@ export async function obtenerDatosTableroProduccionServicio(
     notasPorOrden.set(nota.ordenId, actuales);
   }
 
-  const ordenes = (resultadoOrdenes.data ?? []).map(filaAOrdenOperativa).map((orden) => {
+  const todasLasOrdenes = (resultadoOrdenes.data ?? []).map(filaAOrdenOperativa).map((orden) => {
     const partidas = partidasPorOrden.get(orden.id) ?? [];
     const sesiones = sesionesPorOrden.get(orden.id) ?? [];
     return {
@@ -470,7 +474,8 @@ export async function obtenerDatosTableroProduccionServicio(
       notasEntrega: notasPorOrden.get(orden.id) ?? [],
       estadoKanban: obtenerEstadoKanbanProduccion(orden, partidas, sesiones),
     };
-  }).filter((orden) => {
+  });
+  const ordenes = todasLasOrdenes.filter((orden) => {
     if (filtros.recursoId && !orden.partidas.some((partida) => partida.programaciones.length > 0)) {
       return false;
     }
@@ -481,5 +486,14 @@ export async function obtenerDatosTableroProduccionServicio(
     return !filtros.estados || filtros.estados.length === 0 || filtros.estados.includes(orden.estadoKanban);
   });
 
-  return { ordenes, recursos, areas, responsables };
+  // Los lotes no tienen sesión hasta que se operan: sin esta lectura explícita
+  // no aparecerían en ninguna columna del tablero.
+  const lotes = filtros.estados && !filtros.estados.includes('en_proceso')
+    ? []
+    : await obtenerLotesTableroServicio(admin ?? cliente, todasLasOrdenes.map((orden) => orden.id));
+  const lotesVisibles = codigosAceptados
+    ? lotes.filter((lote) => lote.areaCodigos.some((codigo) => codigosAceptados.has(codigo)))
+    : lotes;
+
+  return { ordenes, lotes: lotesVisibles, recursos, areas, responsables };
 }

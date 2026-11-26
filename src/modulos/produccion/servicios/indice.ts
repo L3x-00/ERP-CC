@@ -115,6 +115,12 @@ export {
 export type { DatosEspacioOperador } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 
 export {
+  claveLotePartida,
+  mapaLotesPorOperacion,
+  obtenerLotesTableroServicio,
+} from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+
+export {
   iniciarProcesoReclamadoServicio,
   liberarReclamoOperadorServicio,
   moverReclamoOperadorServicio,

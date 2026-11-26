@@ -8,6 +8,7 @@ import {
   sumarDiasFecha,
 } from '@/compartido/utilidades/fecha-negocio';
 import { ahoraHoraInputNegocio } from '@/modulos/produccion/utilidades/horas-extra';
+import type { SugerenciaCorrida } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
@@ -2060,5 +2061,73 @@ describe('proceso reclamado por otro operador', () => {
     expect(screen.queryByTestId('aviso-proceso-tomado')).toBeNull();
     expect(screen.getByTestId('formulario-actualizar-avance')).toBeDefined();
     expect(screen.getByTestId('actualizar-avance-detalle')).toBeDefined();
+  });
+
+  it('muestra Crear Lote dentro de la ficha cuando el ítem tiene una sugerencia', () => {
+    const sugerencia = {
+      clave: 'orden|material|1.4|CORTE LASER',
+      ordenId: 'orden-1',
+      materialCodigo: 'LAM-CR-14',
+      espesorMm: 1.4,
+      procesoNombre: 'CORTE LASER',
+      procesos: [procesoPausado(true)],
+      mensaje: 'Puede iniciarlos en una misma corrida.',
+    } as unknown as SugerenciaCorrida;
+    const onCrearLote = vi.fn();
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: procesoPausado(true),
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      sugerenciaLote: sugerencia,
+      onCrearLote,
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    const boton = screen.getByTestId(`crear-lote-detalle-${sugerencia.clave}`);
+    expect(boton.textContent).toContain('Crear Lote');
+    fireEvent.click(boton);
+    expect(onCrearLote).toHaveBeenCalledWith(sugerencia);
+  });
+
+  it('oculta Crear Lote en la ficha cuando ya no hay sugerencia', () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso: procesoPausado(true),
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByText('Crear Lote')).toBeNull();
   });
 });

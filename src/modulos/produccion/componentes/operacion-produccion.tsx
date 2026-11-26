@@ -352,6 +352,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       {consulta.isError ? <p className="text-sm font-medium text-peligro" role="alert">No se pudo actualizar el tablero; vuelve a intentarlo.</p> : null}
       <KanbanProduccion
         ordenes={datos.ordenes}
+        lotes={datos.lotes ?? []}
         ordenSeleccionadaId={ordenSeleccionadaId}
         estadosActivos={estados}
         actualizando={consulta.isFetching}

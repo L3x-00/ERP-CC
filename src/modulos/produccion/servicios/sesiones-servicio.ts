@@ -79,6 +79,7 @@ export type CodigoErrorProduccion =
   | 'corrida_sin_pendiente'
   | 'corrida_sin_proceso_disponible'
   | 'corrida_items_otra_orden'
+  | 'corrida_partida_ya_en_lote'
   | 'corrida_items_incompatibles'
   | 'corrida_cantidad_invalida'
   | 'corrida_item_duplicado'
@@ -251,6 +252,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'corrida_sin_pendiente',
   'corrida_sin_proceso_disponible',
   'corrida_items_otra_orden',
+  'corrida_partida_ya_en_lote',
   'corrida_items_incompatibles',
   'corrida_cantidad_invalida',
   'corrida_item_duplicado',
