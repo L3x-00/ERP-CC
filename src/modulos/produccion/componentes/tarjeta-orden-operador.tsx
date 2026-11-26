@@ -40,6 +40,8 @@ export interface PropsTarjetaOrdenOperador {
   grupo: GrupoOrdenEspacioOperador;
   hoy: string;
   arrastrable?: boolean;
+  /** Réplica de una orden en una columna secundaria: misma información y acciones. */
+  compacta?: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
   onAbrirOrden: (ordenId: string) => void;
   /** C15: reanuda una sesión pausada directamente desde la tarjeta. */
@@ -68,7 +70,12 @@ function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
  * clickeable. El detalle de procesos y las acciones viven en el modal, no en
  * la tarjeta. Así una orden con muchos ítems no se convierte en muchas tarjetas.
  */
-export function TarjetaOrdenOperador({
+export function TarjetaOrdenOperador(props: PropsTarjetaOrdenOperador) {
+  if (props.compacta) return <TarjetaOrdenOperadorCompacta {...props} />;
+  return <TarjetaOrdenOperadorCompleta {...props} />;
+}
+
+function TarjetaOrdenOperadorCompleta({
   grupo,
   hoy,
   arrastrable = false,
@@ -276,6 +283,122 @@ export function TarjetaOrdenOperador({
           );
         })}
       </ul>
+    </article>
+  );
+}
+
+/**
+ * Réplica compacta en una columna secundaria. Conserva la orden, su operación
+ * y las mismas acciones (C15): solo cambia el tamaño visual.
+ */
+function TarjetaOrdenOperadorCompacta({
+  grupo,
+  onAbrir,
+  onAbrirOrden,
+  onReanudar,
+  onCerrarPausa,
+  onActualizarAvance,
+}: PropsTarjetaOrdenOperador) {
+  const item = grupo.items[0];
+  const representante = item ? procesoRepresentativoItem(item) : null;
+  const sesionPausada = representante
+    && (representante.columna === 'pausada' || representante.columna === 'actualizar_avance')
+    && representante.ultimaSesion?.estadoSesion === 'pausada'
+    ? representante.ultimaSesion
+    : null;
+
+  return (
+    <article
+      className="relative flex min-w-0 flex-col gap-1.5 rounded-lg border border-l-4 border-borde border-l-info/60 bg-superficie/70 p-2 text-left"
+      data-testid={`orden-operador-${grupo.ordenId}`}
+      data-vista="compacta"
+      aria-label={`${grupo.folioOrden} · operación en ${ETIQUETAS_COLUMNA[grupo.columna]}`}
+    >
+      <button
+        type="button"
+        onClick={() => onAbrirOrden(grupo.ordenId)}
+        className="absolute inset-0 z-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        aria-label={`Abrir detalle general de la orden ${grupo.folioOrden}`}
+        data-testid={`abrir-orden-operador-${grupo.ordenId}`}
+      />
+      <div className="pointer-events-none relative z-10 flex flex-wrap items-center justify-between gap-1">
+        <p className="truncate font-mono text-xs font-semibold text-texto-primario">
+          {grupo.folioOrden}
+        </p>
+        <Badge variante="info">{ETIQUETAS_COLUMNA[grupo.columna]}</Badge>
+      </div>
+      {representante ? (
+        <div
+          className="pointer-events-auto relative z-10 rounded-md border border-borde bg-superficie-2/50 p-1.5"
+          data-testid={`proceso-${representante.id}`}
+        >
+          <button
+            type="button"
+            onClick={() => onAbrir(representante)}
+            className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+            aria-label={`Abrir detalle de ${item!.codigoPieza} de ${grupo.folioOrden}`}
+            data-testid={`abrir-detalle-${representante.id}`}
+          />
+          <p className="pointer-events-none relative z-10 truncate text-[11px] font-medium text-texto-primario">
+            {item!.codigoPieza} · {representante.procesoNombre}
+          </p>
+          {sesionPausada ? (
+            <div
+              className="pointer-events-auto relative z-10 mt-1 rounded border border-advertencia/40 bg-advertencia-suave/70 p-1 text-[10px] text-advertencia-texto"
+              data-testid={`pausa-proceso-${representante.id}`}
+            >
+              <p className="font-semibold">
+                {etiquetaMotivoPausa(sesionPausada.motivoPausa) ?? 'Sesión pausada'}
+              </p>
+              <p className="text-texto-secundario">
+                {sesionPausada.operadorNombre}
+                {sesionPausada.fechaFin
+                  ? ` · ${etiquetaFechaHora(sesionPausada.fechaFin)}`
+                  : ''}
+              </p>
+              {representante.reclamadoPorMi
+                && (representante.puedeReanudar || representante.pendienteActualizacionAvance)
+                && (onReanudar || onCerrarPausa || onActualizarAvance) ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {representante.pendienteActualizacionAvance && onActualizarAvance ? (
+                    <Button
+                      type="button"
+                      tamano="sm"
+                      variante="secundario"
+                      onClick={() => onActualizarAvance(representante)}
+                      data-testid={`actualizar-avance-proceso-${representante.id}`}
+                    >
+                      Actualizar avance
+                    </Button>
+                  ) : null}
+                  {!representante.pendienteActualizacionAvance && onReanudar ? (
+                    <Button
+                      type="button"
+                      tamano="sm"
+                      variante="secundario"
+                      onClick={() => onReanudar(representante)}
+                      data-testid={`reanudar-proceso-${representante.id}`}
+                    >
+                      Continuar sesión
+                    </Button>
+                  ) : null}
+                  {!representante.pendienteActualizacionAvance && onCerrarPausa ? (
+                    <Button
+                      type="button"
+                      tamano="sm"
+                      variante="contorno"
+                      onClick={() => onCerrarPausa(representante)}
+                      data-testid={`cerrar-pausa-proceso-${representante.id}`}
+                    >
+                      Cerrar pausa
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }

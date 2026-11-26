@@ -3,14 +3,16 @@
 import {
   COLUMNAS_ESPACIO_OPERADOR,
   ETIQUETAS_COLUMNA,
+  agruparProcesosPorOrden,
   agruparProcesosPorOrdenYColumna,
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import { GrupoLotesOrden } from './grupo-lotes-orden';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
-import { TarjetaLote } from './tarjeta-lote';
 import { TarjetaOrdenOperador } from './tarjeta-orden-operador';
 
 export interface PropsVistaKanbanOperador {
@@ -57,6 +59,11 @@ export function VistaKanbanOperador({
   // C15: agrupar por orden y columna evita que una operación pausada quede
   // oculta dentro de la tarjeta de la orden que sigue en proceso.
   const ordenes = agruparProcesosPorOrdenYColumna(procesos);
+  // La tarjeta completa vive en la columna principal; las demás apariciones de
+  // la misma orden son réplicas compactas con sus acciones intactas (C15).
+  const columnaPrincipalPorOrden = new Map(
+    agruparProcesosPorOrden(procesos).map((grupo) => [grupo.ordenId, grupo.columna] as const),
+  );
   return (
     <div
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
@@ -102,11 +109,11 @@ export function VistaKanbanOperador({
               </p>
             ) : (
               <ul className="grid min-w-0 gap-2">
-                {lotesDelEstado.map((lote) => (
-                  <li key={lote.id} className="min-w-0">
-                    <TarjetaLote
-                      lote={lote}
-                      testId={`tarjeta-lote-piso-${lote.id}`}
+                {agruparLotesPorOrden(lotesDelEstado).map((grupo) => (
+                  <li key={grupo.ordenId} className="min-w-0">
+                    <GrupoLotesOrden
+                      grupo={grupo}
+                      testIdPrefijo="tarjeta-lote-piso"
                       onAbrirOrden={onAbrirOrden}
                     />
                   </li>
@@ -116,6 +123,7 @@ export function VistaKanbanOperador({
                     <TarjetaOrdenOperador
                       grupo={grupo}
                       hoy={hoy}
+                      compacta={columnaPrincipalPorOrden.get(grupo.ordenId) !== columna}
                       arrastrable={!soloLectura && columna !== 'lista' && columna !== 'actualizar_avance'}
                       onAbrir={onAbrir}
                       onAbrirOrden={onAbrirOrden}

@@ -42,7 +42,7 @@ describe('Kanban de Producción con lotes', () => {
     const columna = screen.getByRole('region', { name: 'En proceso' });
     const tarjeta = columna.querySelector('[data-testid="tarjeta-lote-produccion-corrida-1"]');
     expect(tarjeta).not.toBeNull();
-    expect(tarjeta!.textContent).toContain('Lote nuevo en proceso');
+    expect(tarjeta!.textContent).toContain('Lote LAS02');
     expect(tarjeta!.textContent).toContain('LAS02');
     expect(tarjeta!.textContent).toContain('Planificada');
     expect(tarjeta!.textContent).toContain('CORTE LASER');
