@@ -15,19 +15,31 @@ const ITEM1 = '44444444-4444-4444-8444-444444444444';
 const ITEM2 = '55555555-5555-4555-8555-555555555555';
 const CLIENTE = '66666666-6666-4666-8666-666666666666';
 
-function consulta(datos: unknown[]) {
+function consulta(datos: Record<string, unknown>[]) {
+  let campo: string | null = null;
+  let valores: unknown[] = [];
   const objeto = {
     select: () => objeto,
-    eq: () => objeto,
-    in: () => objeto,
+    eq: (nombre: string, valor: unknown) => {
+      if (campo === null || campo === nombre) { campo = nombre; valores = [valor]; }
+      return objeto;
+    },
+    in: (nombre: string, lista: unknown[]) => {
+      if (campo === null || campo === nombre) { campo = nombre; valores = lista; }
+      return objeto;
+    },
     order: () => objeto,
-    then: (resolver: (valor: unknown) => unknown, rechazar?: (error: unknown) => unknown) =>
-      Promise.resolve({ data: datos, error: null }).then(resolver, rechazar),
+    then: (resolver: (valor: unknown) => unknown, rechazar?: (error: unknown) => unknown) => {
+      const filas = campo
+        ? datos.filter((fila) => valores.includes(fila[campo!]))
+        : datos;
+      return Promise.resolve({ data: filas, error: null }).then(resolver, rechazar);
+    },
   };
   return objeto;
 }
 
-function admin(datosPorTabla: Record<string, unknown[]>) {
+function admin(datosPorTabla: Record<string, Record<string, unknown>[]>) {
   return {
     from: (tabla: string) => consulta(datosPorTabla[tabla] ?? []),
   } as never;

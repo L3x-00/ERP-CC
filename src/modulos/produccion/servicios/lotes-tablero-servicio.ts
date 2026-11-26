@@ -199,25 +199,23 @@ export async function obtenerReferenciasCorridaPorPartida(
   if (items.length === 0) return referencias;
 
   const corridaIds = [...new Set(items.map((item) => item.corrida_id))];
-  const [corridas, procesos] = await Promise.all([
-    enLotes<{
-      id: string;
-      codigo: string;
-      estado: string;
-      proceso_id: string;
-      creado_en: string;
-    }>(corridaIds, (lote) => cliente
-      .from('corridas')
-      .select('id, codigo, estado, proceso_id, creado_en')
-      .in('id', lote)
-      .in('estado', [...ESTADOS_LOTE_VISIBLE, 'COMPLETADA'])
-      .order('creado_en', { ascending: false })
-      .order('id')),
-    enLotes<{ id: string; nombre: string }>(
-      corridaIds,
-      (lote) => cliente.from('catalogo_procesos').select('id, nombre').in('id', lote),
-    ),
-  ]);
+  const corridas = await enLotes<{
+    id: string;
+    codigo: string;
+    estado: string;
+    proceso_id: string;
+    creado_en: string;
+  }>(corridaIds, (lote) => cliente
+    .from('corridas')
+    .select('id, codigo, estado, proceso_id, creado_en')
+    .in('id', lote)
+    .in('estado', [...ESTADOS_LOTE_VISIBLE, 'COMPLETADA'])
+    .order('creado_en', { ascending: false })
+    .order('id'));
+  const procesos = await enLotes<{ id: string; nombre: string }>(
+    [...new Set(corridas.map((corrida) => corrida.proceso_id))],
+    (lote) => cliente.from('catalogo_procesos').select('id, nombre').in('id', lote),
+  );
   const nombresProceso = new Map(procesos.map((proceso) => [proceso.id, proceso.nombre] as const));
   const partidasPorCorrida = new Map<string, string[]>();
   for (const item of items) {
