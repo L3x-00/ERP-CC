@@ -51,7 +51,8 @@ import {
   type AccionesDetalleProceso,
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
-import { TarjetaLote } from './tarjeta-lote';
+import { GrupoLotesOrden } from './grupo-lotes-orden';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/indice';
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
@@ -453,11 +454,11 @@ export function PaginaMiPanelOperador({
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {lotes.map((lote) => (
-              <TarjetaLote
-                key={lote.id}
-                lote={lote}
-                testId={`tarjeta-lote-mi-panel-${lote.id}`}
+            {agruparLotesPorOrden(lotes).map((grupo) => (
+              <GrupoLotesOrden
+                key={grupo.ordenId}
+                grupo={grupo}
+                testIdPrefijo="tarjeta-lote-mi-panel"
               />
             ))}
           </div>

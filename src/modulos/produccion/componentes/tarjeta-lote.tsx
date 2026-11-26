@@ -25,6 +25,8 @@ interface PropsTarjetaLote {
   lote: LoteTablero;
   testId?: string;
   onAbrirOrden?: (ordenId: string) => void;
+  /** Fila dentro del grupo de una orden: misma información, menos altura. */
+  compacta?: boolean;
   className?: string;
 }
 
@@ -36,6 +38,7 @@ export function TarjetaLote({
   lote,
   testId = `tarjeta-lote-${lote.id}`,
   onAbrirOrden,
+  compacta = false,
   className,
 }: PropsTarjetaLote) {
   const abrir = onAbrirOrden ? () => onAbrirOrden(lote.ordenId) : undefined;
@@ -54,18 +57,24 @@ export function TarjetaLote({
         }
       } : undefined}
       className={cn(
-        'flex min-w-0 flex-col gap-2 rounded-lg border border-acento/40 bg-acento-suave/20 p-3 text-left transition-colors',
+        'flex min-w-0 flex-col gap-2 rounded-lg border border-acento/40 bg-acento-suave/20 text-left transition-colors',
+        compacta ? 'gap-1 p-2' : 'p-3',
         abrir && 'cursor-pointer hover:border-acento focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/50',
         className,
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-acento-texto">
-            {lote.estado === 'PLANIFICADA' ? 'Lote nuevo en proceso' : 'Lote en curso'}
-          </p>
-          <strong className="font-mono text-base font-semibold text-texto-primario">
-            {lote.codigo}
+          {compacta ? null : (
+            <p className="text-xs font-semibold uppercase tracking-wide text-acento-texto">
+              {lote.estado === 'PLANIFICADA' ? 'Lote nuevo en proceso' : 'Lote en curso'}
+            </p>
+          )}
+          <strong className={cn(
+            'font-mono font-semibold text-texto-primario',
+            compacta ? 'text-sm' : 'text-base',
+          )}>
+            {compacta ? `Lote ${lote.codigo}` : lote.codigo}
           </strong>
         </div>
         <Badge variante={VARIANTE_ESTADO_LOTE[lote.estado]}>

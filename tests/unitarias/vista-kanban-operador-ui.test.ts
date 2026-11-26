@@ -341,4 +341,33 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(tarjeta!.textContent).toContain('IT02');
     expect(tarjeta!.textContent).toContain('180');
   });
+
+  it('deja la tarjeta completa en la columna principal y compacta la réplica en la secundaria', () => {
+    render(createElement(VistaKanbanOperador, {
+      procesos: [
+        proceso({
+          id: 'p1', partidaId: 'partida-1', codigoPieza: 'IT01',
+          secuencia: 1, procesoNombre: 'Corte', columna: 'en_proceso',
+        }),
+        proceso({
+          id: 'p2', partidaId: 'partida-2', codigoPieza: 'IT02',
+          secuencia: 1, procesoNombre: 'Corte', columna: 'pausada',
+        }),
+      ],
+      hoy: '2026-11-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    const principal = screen.getByTestId('columna-en_proceso')
+      .querySelector('[data-testid="orden-operador-orden-1"]');
+    expect(principal).not.toBeNull();
+    expect(principal!.getAttribute('data-vista')).toBeNull();
+
+    const secundaria = screen.getByTestId('columna-pausada')
+      .querySelector('[data-testid="orden-operador-orden-1"]');
+    expect(secundaria!.getAttribute('data-vista')).toBe('compacta');
+    expect(secundaria!.querySelector('[data-testid="abrir-detalle-p2"]')).not.toBeNull();
+  });
 });

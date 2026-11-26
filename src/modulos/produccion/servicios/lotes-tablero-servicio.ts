@@ -124,6 +124,35 @@ export async function obtenerLotesTableroServicio(
   });
 }
 
+export interface GrupoLotesOrden {
+  ordenId: string;
+  folioOrden: string;
+  clienteNombre: string;
+  lotes: LoteTablero[];
+}
+
+/**
+ * Agrupación visual: una sola cabecera por orden con una fila por corrida.
+ * No fusiona lotes: cada uno conserva su código, estado y acción de apertura.
+ */
+export function agruparLotesPorOrden(lotes: readonly LoteTablero[]): GrupoLotesOrden[] {
+  const grupos = new Map<string, GrupoLotesOrden>();
+  for (const lote of lotes) {
+    const actual = grupos.get(lote.ordenId);
+    if (actual) {
+      actual.lotes.push(lote);
+      continue;
+    }
+    grupos.set(lote.ordenId, {
+      ordenId: lote.ordenId,
+      folioOrden: lote.folioOrden,
+      clienteNombre: lote.clienteNombre,
+      lotes: [lote],
+    });
+  }
+  return [...grupos.values()];
+}
+
 /** Clave estable para saber si una operación ya pertenece a un lote en curso. */
 export function claveLotePartida(partidaId: string, procesoNombre: string): string {
   return `${partidaId}:${procesoNombre.trim().toLowerCase()}`;

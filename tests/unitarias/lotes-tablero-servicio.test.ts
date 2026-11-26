@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  agruparLotesPorOrden,
   claveLotePartida,
   mapaLotesPorOperacion,
   obtenerLotesTableroServicio,
@@ -82,6 +83,16 @@ describe('lotes visibles en los tableros', () => {
     expect(mapa.get(claveLotePartida(ITEM1, 'CORTE LASER'))?.codigo).toBe('LAS02');
     expect(mapa.get(claveLotePartida(ITEM2, 'corte laser'))?.codigo).toBe('LAS02');
     expect(mapa.has(claveLotePartida(ITEM1, 'DOB'))).toBe(false);
+  });
+
+  it('agrupa los lotes por orden sin perder ninguna corrida', async () => {
+    const lotes = await obtenerLotesTableroServicio(admin(DATOS), [ORDEN]);
+    const otroLote = { ...lotes[0]!, id: 'otra-corrida', codigo: 'LAS03' };
+    const grupos = agruparLotesPorOrden([lotes[0]!, otroLote]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0]!.folioOrden).toBe('O-1126_02');
+    expect(grupos[0]!.lotes.map((lote) => lote.codigo)).toEqual(['LAS02', 'LAS03']);
   });
 
   it('no consulta nada cuando no hay órdenes visibles', async () => {

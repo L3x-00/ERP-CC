@@ -10,7 +10,8 @@ import type {
   OrdenTableroProduccion,
 } from '@/modulos/produccion/servicios/indice';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
-import { TarjetaLote } from './tarjeta-lote';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/indice';
+import { GrupoLotesOrden } from './grupo-lotes-orden';
 import {
   ESTADOS_KANBAN_PRODUCCION,
   type EstadoKanbanProduccion,
@@ -166,11 +167,11 @@ export function KanbanProduccion({
                 </Badge>
               </div>
               <div className="flex flex-col gap-3">
-                {lotesColumna.map((lote) => (
-                  <TarjetaLote
-                    key={lote.id}
-                    lote={lote}
-                    testId={`tarjeta-lote-produccion-${lote.id}`}
+                {agruparLotesPorOrden(lotesColumna).map((grupo) => (
+                  <GrupoLotesOrden
+                    key={grupo.ordenId}
+                    grupo={grupo}
+                    testIdPrefijo="tarjeta-lote-produccion"
                     onAbrirOrden={onSeleccionarOrden}
                   />
                 ))}
