@@ -141,6 +141,7 @@ export default async function PaginaMiPanel() {
         nombreOperador={nombreOperador}
         operadorId={operadorId}
         procesos={espacio.procesos}
+        lotes={espacio.lotes}
         ordenes={ordenes}
         materiales={materiales}
         areas={areas}

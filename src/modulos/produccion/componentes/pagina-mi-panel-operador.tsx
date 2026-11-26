@@ -51,6 +51,10 @@ import {
   type AccionesDetalleProceso,
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
+import { TarjetaLote } from './tarjeta-lote';
+import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
+import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupacion-corridas';
+import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { TarjetaOrdenMisProcesos } from './tarjeta-orden-mis-procesos';
@@ -58,6 +62,8 @@ interface PropsPaginaMiPanelOperador {
   nombreOperador: string;
   operadorId: string;
   procesos: ProcesoEspacioOperador[];
+  /** Lotes en curso que aún no abren sesión. */
+  lotes?: LoteTablero[];
   ordenes: OrdenConPartidas[];
   materiales: MaterialPiso[];
   areas: AreaPiso[];
@@ -75,6 +81,7 @@ export function PaginaMiPanelOperador({
   nombreOperador,
   operadorId,
   procesos,
+  lotes = [],
   ordenes,
   materiales,
   areas,
@@ -89,12 +96,30 @@ export function PaginaMiPanelOperador({
   const [inicioPendienteId, setInicioPendienteId] = useState<string | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [creandoLote, setCreandoLote] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
   const misProcesos = useMemo(
     () => obtenerMisProcesos(procesos, operadorId),
     [procesos, operadorId],
   );
+  // Solo se sugieren lotes entre los procesos que este operador puede trabajar.
+  const sugerenciasLote = useMemo(
+    () => sugerenciasDeAgrupacion(misProcesos.map((item) => item.proceso)),
+    [misProcesos],
+  );
+  const sugerenciaSeleccionada = sugerenciasLote.find((sugerencia) =>
+    sugerencia.procesos.some((proceso) => proceso.id === procesoSeleccionadoId)) ?? null;
+
+  async function crearLote(sugerencia: (typeof sugerenciasLote)[number]): Promise<void> {
+    if (creandoLote !== null) return;
+    setCreandoLote(sugerencia.clave);
+    setAviso(null);
+    const resultado = await crearLoteDesdeSugerencia(sugerencia);
+    setCreandoLote(null);
+    setAviso({ tipo: resultado.exito ? 'ok' : 'error', texto: resultado.mensaje });
+    if (resultado.exito) enrutador.refresh();
+  }
   const resumen = useMemo(
     () => resumirMiPanel(misProcesos, operadorId),
     [misProcesos, operadorId],
@@ -415,6 +440,30 @@ export function PaginaMiPanelOperador({
         </p>
       ) : null}
 
+      {lotes.length > 0 ? (
+        <section
+          aria-label="Lotes nuevos en proceso"
+          data-testid="lotes-nuevos-mi-panel"
+          className="space-y-3 rounded-xl border border-acento/40 bg-acento-suave/20 p-4"
+        >
+          <div>
+            <h3 className="text-base font-semibold text-texto-primario">Lotes nuevos en proceso</h3>
+            <p className="text-xs text-texto-secundario">
+              Lotes creados que aún no han iniciado su primera sesión.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {lotes.map((lote) => (
+              <TarjetaLote
+                key={lote.id}
+                lote={lote}
+                testId={`tarjeta-lote-mi-panel-${lote.id}`}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="overflow-hidden rounded-xl border border-borde bg-superficie">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde px-4 py-3">
           <div>
@@ -502,6 +551,9 @@ export function PaginaMiPanelOperador({
           presentacion="integrado"
           materiales={materiales}
           consumos={consumos}
+          sugerenciaLote={sugerenciaSeleccionada}
+          onCrearLote={(sugerencia) => void crearLote(sugerencia)}
+          creandoLote={creandoLote !== null}
         />
 
         {ordenesDelProceso.length > 0 ? (

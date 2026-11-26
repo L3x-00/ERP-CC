@@ -96,6 +96,7 @@ export type {
   EstadoAutorizacionHoraExtra,
   CorridaItem,
   Corrida,
+  LoteTablero,
   InspeccionCalidad,
   AutorizacionHoraExtra,
 } from '@/modulos/produccion/tipos/corridas';

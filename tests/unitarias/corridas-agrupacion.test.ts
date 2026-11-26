@@ -72,6 +72,18 @@ describe('sugerencias de agrupación de corridas', () => {
     expect(sugerenciasDeAgrupacion([base, terminado])).toHaveLength(0);
   });
 
+  it('no sugiere un lote cuando alguna pieza ya está en uno en curso', () => {
+    const base = proceso({ id: 'p1', codigoPieza: 'IT01' });
+    const enLote = proceso({
+      id: 'p2',
+      codigoPieza: 'IT02',
+      loteId: 'corrida-1',
+      loteCodigo: 'LAS01',
+    });
+    expect(motivoNoAgrupable(enLote)).toContain('LAS01');
+    expect(sugerenciasDeAgrupacion([base, enLote])).toHaveLength(0);
+  });
+
   it('explica por qué un ítem sin calibre no entra en la sugerencia', () => {
     const sinCalibre = proceso({ id: 'p1', codigoPieza: 'IT01', material: materialDe(MATERIAL, 'LAM-CR-14', null) });
     expect(motivoNoAgrupable(sinCalibre)).toContain('calibre');

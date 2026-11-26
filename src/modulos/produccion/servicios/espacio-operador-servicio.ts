@@ -43,6 +43,12 @@ import {
 } from '@/modulos/produccion/tipos/espacio-operador';
 import { MOTIVO_BLOQUEO_TEXTO } from '@/modulos/produccion/tipos/acciones-proceso';
 import { obtenerMotivosPausaServicio, type MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
+import {
+  claveLotePartida,
+  mapaLotesPorOperacion,
+  obtenerLotesTableroServicio,
+} from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import type { LoteTablero } from '@/modulos/produccion/tipos/corridas';
 
 type Admin = SupabaseClient<Database>;
 type FilaPartida = Tables<'partidas_orden_produccion'>;
@@ -51,6 +57,8 @@ type FilaRecursoResumen = { id: string; codigo: string; nombre: string };
 
 export interface DatosEspacioOperador {
   procesos: ProcesoEspacioOperador[];
+  /** Lotes en curso: existen antes de abrir la primera sesión. */
+  lotes: LoteTablero[];
   areas: AreaEspacioOperador[];
   motivosPausa: MotivoPausaCatalogo[];
   responsables: Record<string, string>;
@@ -666,12 +674,15 @@ export async function obtenerEspacioOperadorServicio(
     { hechoPorMeta, consumidoPorMeta },
     archivosPorOrden,
     comentariosPorOrden,
+    lotes,
   ] = await Promise.all([
     obtenerSesionesDeOrdenes(cliente, ordenIds),
     obtenerAvancesDeMetas(cliente, filasMetas.map((meta) => meta.id)),
     obtenerArchivosDeOrdenes(cliente, ordenIds),
     obtenerComentariosDeOrdenes(cliente, ordenIds),
+    obtenerLotesTableroServicio(cliente, ordenIds),
   ]);
+  const lotePorOperacion = mapaLotesPorOperacion(lotes);
   const corridasConPrimeraPiezaPendiente = await obtenerCorridasConPrimeraPiezaPendiente(
     cliente,
     sesiones,
@@ -832,6 +843,7 @@ export async function obtenerEspacioOperadorServicio(
     for (const operacion of operaciones) {
       const metaProcesoId = operacion.meta?.id ?? null;
       const claveOperacion = `${partida.id}:${metaProcesoId ?? ''}`;
+      const lote = lotePorOperacion.get(claveLotePartida(partida.id, operacion.nombre)) ?? null;
       const programacionOperacion = metaProcesoId
         ? programaciones.find((actual) => actual.metaProcesoId === metaProcesoId) ?? null
         : null;
@@ -1028,6 +1040,8 @@ export async function obtenerEspacioOperadorServicio(
         motivoNoInicia,
         motivoBloqueo: bloqueadoSinSesion ? 'programacion_bloqueada_sin_sesion' : null,
         equipoOcupadoPor: null,
+        loteId: lote?.id ?? null,
+        loteCodigo: lote?.codigo ?? null,
       };
       proceso.etiquetas = etiquetasProceso(proceso);
       procesos.push(proceso);
@@ -1080,6 +1094,7 @@ export async function obtenerEspacioOperadorServicio(
 
   return {
     procesos,
+    lotes,
     areas,
     motivosPausa,
     responsables,

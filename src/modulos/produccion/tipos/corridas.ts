@@ -51,6 +51,27 @@ export type Corrida = {
   items: CorridaItem[];
 };
 
+/**
+ * Proyección legible de una corrida para las tarjetas de producción.
+ * Existe porque los tableros se construían solo con órdenes y sesiones: un lote
+ * recién creado aún no tiene sesión y, por eso, no generaba ninguna tarjeta.
+ */
+export interface LoteTablero {
+  id: string;
+  codigo: string;
+  estado: EstadoCorrida;
+  ordenId: string;
+  folioOrden: string;
+  clienteNombre: string;
+  procesoNombre: string;
+  areaCodigo: string | null;
+  /** Todas las áreas de los ítems, para filtrar sin perder lotes mixtos. */
+  areaCodigos: string[];
+  cantidadPlanificada: number;
+  items: CorridaItem[];
+  creadoEn: string;
+}
+
 /** Inspección de calidad básica (§6.3). */
 export type InspeccionCalidad = {
   id: string;

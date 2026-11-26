@@ -19,6 +19,7 @@ export function motivoNoAgrupable(proceso: ProcesoEspacioOperador): string | nul
   if (proceso.procesoCompleto || proceso.pendientePiezas <= 0) return 'no hay piezas pendientes';
   if (proceso.sesionActiva) return 'ya tiene una sesión activa';
   if (proceso.reclamo) return 'ya está reclamado';
+  if (proceso.loteId) return `ya está en el lote ${proceso.loteCodigo ?? ''}`.trim();
   return null;
 }
 

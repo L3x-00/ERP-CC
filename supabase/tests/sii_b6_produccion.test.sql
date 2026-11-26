@@ -51,6 +51,14 @@ INSERT INTO public.partidas_orden_produccion (
    '00000000-0000-4000-8000-00000000b603'),
   ('00000000-0000-4000-8000-00000000b60d', '00000000-0000-4000-8000-00000000b60c',
    'P3', 'Pieza B6 tres', 2, 'pza', ARRAY['LASER_FIBRA'], NULL,
+   '00000000-0000-4000-8000-00000000b603'),
+  -- Piezas separadas para probar el consecutivo sin reutilizar una pieza en
+  -- dos lotes activos del mismo proceso.
+  ('00000000-0000-4000-8000-00000000b60e', '00000000-0000-4000-8000-00000000b607',
+   'P4', 'Pieza B6 cuatro', 1, 'pza', ARRAY['LASER_FIBRA'], NULL,
+   '00000000-0000-4000-8000-00000000b603'),
+  ('00000000-0000-4000-8000-00000000b60f', '00000000-0000-4000-8000-00000000b607',
+   'P5', 'Pieza B6 cinco', 1, 'pza', ARRAY['LASER_FIBRA'], NULL,
    '00000000-0000-4000-8000-00000000b603');
 
 INSERT INTO public.programacion_areas (
@@ -158,7 +166,7 @@ INSERT INTO b6 (clave, valor)
 SELECT 'corrida100', public.crear_corrida(
   '00000000-0000-4000-8000-00000000b607',
   (SELECT id FROM public.catalogo_procesos WHERE codigo = 'LASER_FIBRA'),
-  jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b608')),
+  jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b60e')),
   '00000000-0000-4000-8000-00000000b602');
 SELECT is((SELECT valor->>'codigo' FROM b6 WHERE clave = 'corrida100'), 'LAS100',
   'El consecutivo 100 no se trunca');
@@ -167,7 +175,7 @@ INSERT INTO b6 (clave, valor)
 SELECT 'corrida101', public.crear_corrida(
   '00000000-0000-4000-8000-00000000b607',
   (SELECT id FROM public.catalogo_procesos WHERE codigo = 'LASER_FIBRA'),
-  jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b608')),
+  jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b60f')),
   '00000000-0000-4000-8000-00000000b602');
 SELECT is((SELECT valor->>'codigo' FROM b6 WHERE clave = 'corrida101'), 'LAS101',
   'El consecutivo 101 continúa sin ambigüedad');

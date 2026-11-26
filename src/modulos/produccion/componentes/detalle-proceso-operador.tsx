@@ -38,6 +38,7 @@ import {
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/indice';
 import { etiquetaPiezasProceso, verboProceso } from '@/modulos/produccion/utilidades/procesos';
+import type { SugerenciaCorrida } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import {
   mensajeMotivoConsumoPiezas,
   piezasUsadasEfectivas,
@@ -149,6 +150,10 @@ export interface PropsDetalleProceso {
   acciones: AccionesDetalleProceso;
   materiales: MaterialPiso[];
   consumos: ConsumoMaterialVisible[];
+  /** Sugerencia de este ítem para agruparlo en un lote con otros. */
+  sugerenciaLote?: SugerenciaCorrida | null;
+  onCrearLote?: (sugerencia: SugerenciaCorrida) => void | Promise<void>;
+  creandoLote?: boolean;
   onCerrar: () => void;
   /** C15: refresca el tablero cuando la pausa automática cierra la jornada. */
   onPausaAutomatica?: () => void;
@@ -204,6 +209,9 @@ export function DetalleProcesoOperador({
   acciones,
   materiales,
   consumos,
+  sugerenciaLote = null,
+  onCrearLote,
+  creandoLote = false,
   onCerrar,
   onPausaAutomatica,
   presentacion = 'dialogo',
@@ -1765,6 +1773,23 @@ export function DetalleProcesoOperador({
             {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}
             {proceso.procesoPrevioNombre ? `, listas desde ${proceso.procesoPrevioNombre}` : ''}.
           </p>
+        ) : null}
+        {sugerenciaLote && onCrearLote && !soloDetalle ? (
+          <div
+            className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-acento/40 bg-acento-suave p-2"
+            data-testid={`sugerencia-lote-detalle-${sugerenciaLote.clave}`}
+          >
+            <p className="min-w-0 flex-1 text-xs text-texto-primario">{sugerenciaLote.mensaje}</p>
+            <Button
+              type="button"
+              tamano="sm"
+              disabled={creandoLote || procesando}
+              onClick={() => void onCrearLote(sugerenciaLote)}
+              data-testid={`crear-lote-detalle-${sugerenciaLote.clave}`}
+            >
+              {creandoLote ? 'Creando…' : 'Crear Lote'}
+            </Button>
+          </div>
         ) : null}
         <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           <Dato

@@ -32,6 +32,7 @@ import {
   type AreaEspacioOperador,
   type DiaCalendarioOperador,
   type GrupoOrdenEspacioOperador,
+  type LoteTablero,
   type ProcesoEspacioOperador,
   type ResumenEspacioOperador,
   type TipoAccionTarjeta,
@@ -48,7 +49,7 @@ import {
   sugerenciasDeAgrupacion,
   type SugerenciaCorrida,
 } from '@/modulos/produccion/utilidades/agrupacion-corridas';
-import { crearLoteOperadorAccion } from '@/modulos/produccion/acciones/crear-lote-operador';
+import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -73,6 +74,8 @@ const ETIQUETAS_VISTA: Record<VistaEspacioOperador, string> = {
 
 export interface PropsEspacioOperador {
   procesos: ProcesoEspacioOperador[];
+  /** Lotes en curso que aún no abren sesión. */
+  lotes?: LoteTablero[];
   areas: AreaEspacioOperador[];
   resumen: ResumenEspacioOperador;
   motivosPausa: MotivoPausaCatalogo[];
@@ -111,6 +114,7 @@ const RESUMEN = [
  */
 export function EspacioOperador({
   procesos,
+  lotes = [],
   areas,
   resumen,
   motivosPausa,
@@ -147,6 +151,8 @@ export function EspacioOperador({
     : null;
   const gruposOrden = useMemo(() => agruparProcesosPorOrden(procesos), [procesos]);
   const sugerenciasCorrida = useMemo(() => sugerenciasDeAgrupacion(procesos), [procesos]);
+  const sugerenciaDetalle = sugerenciasCorrida.find((sugerencia) =>
+    sugerencia.procesos.some((proceso) => proceso.id === detalleActual?.id)) ?? null;
   const motivosSinAgrupacion = useMemo(() => {
     if (sugerenciasCorrida.length > 0) return [];
     return [...new Set(
@@ -166,24 +172,10 @@ export function EspacioOperador({
     if (!operativo || creandoLote !== null) return;
     setCreandoLote(sugerencia.clave);
     setAviso(null);
-    const respuesta = await crearLoteOperadorAccion({
-      ordenId: sugerencia.ordenId,
-      procesoNombre: sugerencia.procesoNombre,
-      items: sugerencia.procesos.map((proceso) => ({
-        partidaId: proceso.partidaId,
-        cantidad: proceso.pendientePiezas,
-      })),
-    });
+    const resultado = await crearLoteDesdeSugerencia(sugerencia);
     setCreandoLote(null);
-    if (!respuesta.exito) {
-      setAviso({ tipo: 'error', texto: respuesta.error ?? 'No se pudo crear el lote' });
-      return;
-    }
-    setAviso({
-      tipo: 'ok',
-      texto: `Lote ${respuesta.datos?.codigo ?? ''} creado con ${sugerencia.procesos.length} ítems.`,
-    });
-    enrutador.refresh();
+    setAviso({ tipo: resultado.exito ? 'ok' : 'error', texto: resultado.mensaje });
+    if (resultado.exito) enrutador.refresh();
   }
 
   // C27: vigilante del tablero. La jornada es acumulada por día y la decide el
@@ -251,6 +243,12 @@ export function EspacioOperador({
   }, [procesos, busqueda, soloUrgentes, areaFiltro]);
 
   const grupos = useMemo(() => agruparProcesosPorArea(filtrados, areas), [filtrados, areas]);
+  // El lote sigue los mismos filtros que sus ítems: si ninguno es visible, no
+  // se muestra una tarjeta huérfana en «En proceso».
+  const lotesFiltrados = useMemo(() => {
+    const partidasVisibles = new Set(filtrados.map((proceso) => proceso.partidaId));
+    return lotes.filter((lote) => lote.items.some((item) => partidasVisibles.has(item.partidaId)));
+  }, [lotes, filtrados]);
 
   // A18: el mismo criterio que Mi panel: solo sesiones cerradas dentro del día
   // de negocio. La vista de administrador no pertenece a un operador concreto.
@@ -695,6 +693,7 @@ export function EspacioOperador({
       ) : vista === 'kanban' ? (
         <VistaKanbanOperador
           procesos={filtrados}
+          lotes={lotesFiltrados}
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
@@ -754,6 +753,9 @@ export function EspacioOperador({
         acciones={accionesDetalle}
         materiales={materiales}
         consumos={consumos}
+        sugerenciaLote={sugerenciaDetalle}
+        onCrearLote={(sugerencia) => void crearLote(sugerencia)}
+        creandoLote={creandoLote !== null}
         onCerrar={() => setDetalle(null)}
         onPausaAutomatica={() => enrutador.refresh()}
       />
