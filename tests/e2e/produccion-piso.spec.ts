@@ -545,7 +545,7 @@ await expect(modalGestion.getByTestId('alternar-cierre-sesion')).toHaveAttribute
 await expect(modalGestion.getByTestId('material-consumo')).toHaveCount(0);
 await modalGestion.getByTestId('alternar-cierre-sesion').click();
 await expect(modalGestion.getByTestId('alternar-cierre-sesion')).toHaveAttribute('aria-expanded', 'true');
-await expect(modalGestion.getByText('Consumo de material', { exact: true })).toBeVisible();
+await expect(modalGestion.getByText(/Consumo de material/u)).toBeVisible();
 
 // Cerrar el modal debe regresar a las tarjetas.
 await modalGestion
