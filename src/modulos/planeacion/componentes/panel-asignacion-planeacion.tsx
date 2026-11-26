@@ -5,6 +5,10 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_OBLIGATORIO,
+} from '@/modulos/rfq/utilidades/faltantes';
 import { DialogFooter } from '@/compartido/componentes/ui/dialog';
 import {
   evaluarAsignacionTurno,
@@ -215,7 +219,8 @@ export function PanelAsignacionPlaneacion({
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
   const [recursoId, setRecursoId] = useState(programacion?.recursoId ?? '');
-  const [fechaProgramada, setFechaProgramada] = useState(programacion?.fechaProgramada ?? '');
+  // Reprogramar obliga a elegir fecha: nunca se hereda la de la programación.
+  const [fechaProgramada, setFechaProgramada] = useState('');
   const [turno, setTurno] = useState<TurnoPlaneacion>(programacion?.turno ?? 'matutino');
   const [responsableId, setResponsableId] = useState<string | null | undefined>(undefined);
   const [horasEstimadas, setHorasEstimadas] = useState(
@@ -307,7 +312,7 @@ export function PanelAsignacionPlaneacion({
   if (claveProgramacion !== clavePrevia) {
     setClavePrevia(claveProgramacion);
     setRecursoId(programacion?.recursoId ?? '');
-    setFechaProgramada(programacion?.fechaProgramada ?? '');
+    setFechaProgramada('');
     setTurno(programacion?.turno ?? 'matutino');
     setHorasEstimadas(programacion ? String(programacion.horasEstimadas) : '');
     setOrdenPrioridad(programacion ? String(programacion.ordenPrioridad) : '1');
@@ -468,6 +473,8 @@ export function PanelAsignacionPlaneacion({
     : turnosDelDia(fechaProgramada);
   const turnoCerrado = fechaProgramada !== '' && !turnosDisponibles.includes(turno);
   const errorFecha = fechaProgramada === '' ? null : errorFechaProgramacion(fechaProgramada);
+  const fechaFaltante = fechaProgramada === '';
+  const motivoFaltante = programacion !== undefined && motivo.trim().length < 3;
   // Cliente 2026-11-10: la guía nombra el equipo y el turno que realmente falta.
   const pasosCapacidad = evaluacion.sinCapacidad
     ? diagnosticarCapacidadTurno({
@@ -1073,7 +1080,9 @@ export function PanelAsignacionPlaneacion({
 
         {programacion ? (
           <div className="col-span-2 flex flex-col gap-1">
-            <Label htmlFor="planeacion-motivo">Motivo de la reprogramación</Label>
+            <Label htmlFor="planeacion-motivo" className={CLASE_OBLIGATORIO}>
+              Motivo de la reprogramación
+            </Label>
             <Textarea
               id="planeacion-motivo"
               value={motivo}
@@ -1081,18 +1090,28 @@ export function PanelAsignacionPlaneacion({
               rows={2}
               onChange={(evento) => setMotivo(evento.target.value)}
               placeholder="Ej. Ajuste por disponibilidad de máquina"
+              aria-invalid={motivoFaltante}
+              className={motivoFaltante ? CLASE_CAMPO_FALTANTE : undefined}
             />
+            {motivoFaltante ? (
+              <span className="text-xs font-medium text-peligro-texto">
+                Indica el motivo de la reprogramación.
+              </span>
+            ) : null}
           </div>
         ) : null}
 
         <div className="flex min-w-0 flex-col gap-1">
-          <Label htmlFor="planeacion-fecha">Fecha programada</Label>
+          <Label htmlFor="planeacion-fecha" className={CLASE_OBLIGATORIO}>
+            Fecha programada
+          </Label>
           <Input
             id="planeacion-fecha"
             type="date"
             min={hoy}
             value={fechaProgramada}
-            aria-invalid={errorFecha !== null}
+            aria-invalid={errorFecha !== null || fechaFaltante}
+            className={fechaFaltante ? CLASE_CAMPO_FALTANTE : undefined}
             aria-describedby={errorFecha !== null ? 'planeacion-fecha-ayuda' : undefined}
             onChange={(evento) => {
               const nueva = evento.target.value;
@@ -1107,8 +1126,10 @@ export function PanelAsignacionPlaneacion({
             }}
           />
           <span id="planeacion-fecha-ayuda" className="text-[11px] text-texto-tenue">
-            {errorFecha
-              ?? 'Lunes a viernes 08:00–17:00 · sábado 08:00–12:00 · domingo cerrado.'}
+            {fechaFaltante
+              ? 'Indica la fecha en que se reprograma la operación.'
+              : errorFecha
+                ?? 'Lunes a viernes 08:00–17:00 · sábado 08:00–12:00 · domingo cerrado.'}
           </span>
         </div>
 
