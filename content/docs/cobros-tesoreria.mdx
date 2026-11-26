@@ -1,0 +1,110 @@
+---
+title: Cobros y tesorería
+description: Consulta las cuentas por cobrar, registra cobros, aplica saldos a favor y revisa los saldos de tesorería.
+---
+
+
+En **Cobros y tesorería** se concentra la cartera, los recibos y los saldos de las cuentas. Las rutas antiguas de cobranza, tesorería y facturación llevan aquí.
+
+## Para qué sirve
+
+- Ver cuánto deben los clientes y desde cuándo.
+- Registrar un cobro y generar su recibo.
+- Aplicar el saldo a favor que tenga un cliente.
+- Consultar los saldos y movimientos de las cuentas.
+
+## Antes de empezar
+
+- Para consultar necesitas acceso a Finanzas. Para registrar cobros y conciliar movimientos hace falta el permiso de registro de pagos; para aplicar saldo a favor, el permiso de saldos; para dar de alta cuentas, el permiso de configuración.
+- Una cuenta solo es **cobrable** después de entregar la orden. Antes aparece **No cobrable** y el vencimiento dice **Por entregar**: en ese caso solo admite anticipos.
+- Si pagas en USD, revisa el **Tipo de cambio (MXN)**: el sistema propone el vigente y puedes corregirlo.
+
+## Las pestañas del módulo
+
+![Módulo Cobros y tesorería con el resumen y las pestañas Cuentas por cobrar, Tesorería y Cuentas bancarias](/manual/capturas/cobros-cola.png)
+
+1. En el menú lateral, entra a **Finanzas → Cobros y tesorería**.
+2. Arriba se muestran la cartera pendiente, el saldo en cuentas MXN y los movimientos vivos.
+3. Trabaja en **Cuentas por cobrar** para cobrar; en **Tesorería** para ver saldos y movimientos; y en **Cuentas bancarias** para dar de alta cuentas (solo con permiso de configuración).
+4. La pestaña activa se conserva en la dirección del navegador, para que puedas volver a ella.
+
+## Cuentas por cobrar
+
+La tabla muestra **AR / orden**, **Cliente**, **Vencimiento**, **Monto**, **Saldo**, **Producción** y **Pago**.
+
+- Usa **Buscar por cliente, orden o AR** o los filtros **Periodo de emisión** y **Antigüedad** para localizar una cuenta.
+- La antigüedad agrupa en **Al corriente**, **1–30 días**, **31–60 días**, **61–90 días** y **+90 días**.
+- En cada fila están **Historial** y **Cobrar**. Si tienes permiso para registrar cobros, también aparecen **Factura** y **Promesa**, según el estado de la cuenta.
+- Si la cuenta aún no es cobrable, verás la etiqueta **No cobrable**. El cobro se registra como anticipo.
+
+## Registrar un cobro
+
+![Modal Registrar cobro con monto, moneda de pago, tipo de cambio, método y cuenta bancaria](/manual/capturas/cobros-registrar.png)
+
+1. En la cuenta correspondiente, haz clic en **Cobrar**. **Cobrar** solo está habilitado si la cuenta está **Pendiente** o **Parcial**.
+2. Captura el **Monto** y la **Moneda de pago**.
+3. Si elegiste USD, revisa el **Tipo de cambio (MXN)** propuesto y corrígelo si hace falta. En MXN queda en 1.
+4. Elige el **Método**: **Transferencia**, **Efectivo**, **Cheque** o **Tarjeta**.
+5. Si aplica, selecciona una **Cuenta bancaria (opcional)** y escribe la **Referencia bancaria** y las **Notas**. Si quieres ver el cobro en Tesorería, elige una cuenta bancaria en lugar de dejar **Sin cuenta bancaria asociada**.
+6. Haz clic en **Registrar pago**.
+
+Al terminar aparece el recibo con el folio **REC**, el cliente, la orden, el importe pagado, lo aplicado a la cuenta y el saldo actual de la cuenta. Puedes **Imprimir recibo** desde el propio recibo. Si el pago supera el saldo, el excedente queda como crédito al monedero del cliente.
+
+## Aplicar saldo a favor
+
+Si el cliente tiene saldo en su monedero:
+
+1. Abre **Cobrar** en la cuenta.
+2. Escribe el importe en **Monto**.
+3. Haz clic en **Aplicar saldo a favor (MXN)**.
+
+El botón solo aparece habilitado si hay saldo disponible y tienes permiso para aplicarlo. El resultado se muestra en el mismo recibo.
+
+## Tesorería
+
+![Pestaña Tesorería con saldos por cuenta y la tabla de movimientos](/manual/capturas/cobros-tesoreria.png)
+
+1. Abre la pestaña **Tesorería**.
+2. Revisa los saldos por cuenta y el dato **Conciliados** en el pie de cada cuenta. En la tabla, la columna **Conciliación** indica **Pendiente** o **Conciliado**.
+3. En **Movimientos de tesorería por cuenta** consulta fecha, cuenta, concepto (**Cobro**, **Pago a proveedor**, **Gasto pagado**, **Transferencia** y, si aplica, **Reverso de cobro**) y monto.
+4. Si el movimiento está **Pendiente**, puedes usar **Conciliar**. Para quitar la marca, usa **Desconciliar**.
+
+La tabla **Flujo informativo por cuenta** resume cobros menos gastos convertidos a MXN; el saldo con autoridad es el de la tabla de movimientos.
+
+## Estados de la cuenta
+
+| Estado | Qué significa |
+| --- | --- |
+| **Pendiente** | La cuenta está abierta y aún no tiene abonos. |
+| **Parcial** | Recibió uno o más pagos, pero aún queda saldo. |
+| **Pagado** | El saldo quedó en cero. |
+| **Cancelado** | La cuenta se canceló. |
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«No se pudo actualizar la cartera; vuelve a intentarlo.»** | Usa **Reintentar** y vuelve a intentar. |
+| **«Sin permiso para registrar pagos»** | Pide el permiso de registro de pagos a la persona administradora. |
+| **«El cliente no tiene saldo a favor suficiente»** | Revisa el monedero del cliente antes de aplicar saldo. |
+| **«La cuenta no está disponible para este movimiento»** | Actualiza la cartera y comprueba el estado de la cuenta. |
+
+## Opciones adicionales
+
+- **Cuentas bancarias:** en su pestaña puedes crear o editar cuentas con **Nueva cuenta** y **Guardar cuenta**. Solo con permiso de configuración.
+- **Transferencia interna:** mueve saldo entre cuentas de la misma moneda. No cuenta como ingreso ni gasto.
+- **Saldo inicial:** registra el saldo de apertura de una cuenta.
+- **Estado de cuenta:** desde la fila del cliente abre un consolidado imprimible con documentos, vencimientos, abonos y saldos.
+- **Cobro múltiple** y **Consolidar cuentas heredadas** son operaciones de administración de cartera, no del cobro diario.
+
+## Comprueba que quedó bien
+
+- [ ] La cuenta muestra el cliente, el vencimiento y el saldo correctos.
+- [ ] El cobro aparece en el historial de la cuenta con su folio **REC**.
+- [ ] El saldo de la cuenta bajó después del pago.
+- [ ] Si asocié cuenta bancaria, el movimiento aparece en **Tesorería**.
+- [ ] Si aplicaste saldo a favor, el monedero del cliente se descontó.
+
+## Qué sigue
+
+El siguiente módulo de **Finanzas** es **Egresos**, donde se registran pagos a proveedores y gastos. Ese capítulo está en preparación; mientras tanto, vuelve al [índice del manual](/es/docs).
