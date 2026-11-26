@@ -154,6 +154,8 @@ export interface PropsDetalleProceso {
   sugerenciaLote?: SugerenciaCorrida | null;
   onCrearLote?: (sugerencia: SugerenciaCorrida) => void | Promise<void>;
   creandoLote?: boolean;
+  /** El ítem pertenece a un lote: se opera desde la ficha del lote, una sola vez. */
+  onIniciarCorridaLote?: () => void;
   onCerrar: () => void;
   /** C15: refresca el tablero cuando la pausa automática cierra la jornada. */
   onPausaAutomatica?: () => void;
@@ -212,6 +214,7 @@ export function DetalleProcesoOperador({
   sugerenciaLote = null,
   onCrearLote,
   creandoLote = false,
+  onIniciarCorridaLote,
   onCerrar,
   onPausaAutomatica,
   presentacion = 'dialogo',
@@ -3174,7 +3177,17 @@ export function DetalleProcesoOperador({
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              {proceso.puedeIniciar ? (
+              {proceso.loteId && onIniciarCorridaLote ? (
+                <Button
+                  type="button"
+                  tamano="lg"
+                  disabled={procesando}
+                  onClick={onIniciarCorridaLote}
+                  data-testid="iniciar-corrida-desde-detalle"
+                >
+                  {`Ver lote ${proceso.loteCodigo ?? ''} e iniciar corrida`}
+                </Button>
+              ) : proceso.puedeIniciar ? (
                 <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso)} data-testid="iniciar-detalle">
                   {proceso.equipoOcupadoPor ? 'Ocupado · Ver detalles' : 'Iniciar proceso'}
                 </Button>

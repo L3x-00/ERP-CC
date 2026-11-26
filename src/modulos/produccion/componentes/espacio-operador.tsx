@@ -51,6 +51,7 @@ import {
 } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoDetalleLote } from './dialogo-detalle-lote';
 import { DialogoErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
 import {
@@ -139,6 +140,8 @@ export function EspacioOperador({
   const [detalle, setDetalle] = useState<ProcesoEspacioOperador | null>(null);
   const [ordenAbiertaId, setOrdenAbiertaId] = useState<string | null>(null);
   const [inicioPendiente, setInicioPendiente] = useState<ProcesoEspacioOperador | null>(null);
+  const [corridaInicioId, setCorridaInicioId] = useState<string | null>(null);
+  const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
@@ -452,7 +455,9 @@ export function EspacioOperador({
         fecha: proceso.reclamo?.fecha ?? hoy,
         turno: (proceso.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
+        ...(corridaInicioId ? { corridaId: corridaInicioId } : {}),
       });
+      setCorridaInicioId(null);
       if (respuesta.exito) setDetalle(null);
       return respuesta.exito ? { exito: true } : { exito: false, error: respuesta.error };
     }, 'Sesión iniciada');
@@ -471,6 +476,28 @@ export function EspacioOperador({
       }
     }
     setInicioPendiente(proceso);
+  }
+
+  /** El lote se abre como una sola operación: un checklist y una sola corrida. */
+  function abrirLote(lote: LoteTablero): void {
+    const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
+    const proceso = lote.items
+      .map((item) => procesos.find((actual) => (
+        actual.partidaId === item.partidaId && actual.secuencia === 1 && nombres.has(actual.procesoNombre.trim().toLowerCase())
+      )))
+      .find((actual): actual is ProcesoEspacioOperador => actual !== undefined)
+      ?? procesos.find((actual) => lote.items.some((item) => item.partidaId === actual.partidaId));
+    if (!proceso) {
+      setAviso({ tipo: 'error', texto: 'No se pudo ubicar el proceso del lote. Actualiza la ficha y vuelve a abrirlo.' });
+      return;
+    }
+    if (!proceso.puedeIniciar) {
+      setAviso({ tipo: 'error', texto: proceso.motivoNoInicia ?? 'Este lote todavía no se puede iniciar.' });
+      return;
+    }
+    setLoteAbierto(null);
+    setCorridaInicioId(lote.id);
+    void abrirInicio(proceso);
   }
 
   function accionRapida(proceso: ProcesoEspacioOperador, tipo: TipoAccionTarjeta): void {
@@ -694,6 +721,7 @@ export function EspacioOperador({
         <VistaKanbanOperador
           procesos={filtrados}
           lotes={lotesFiltrados}
+          onAbrirLote={operativo ? abrirLote : undefined}
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
@@ -756,6 +784,12 @@ export function EspacioOperador({
         sugerenciaLote={sugerenciaDetalle}
         onCrearLote={(sugerencia) => void crearLote(sugerencia)}
         creandoLote={creandoLote !== null}
+        onIniciarCorridaLote={detalleActual?.loteId
+          ? () => {
+            const lote = lotes.find((actual) => actual.id === detalleActual.loteId);
+            if (lote) setLoteAbierto(lote);
+          }
+          : undefined}
         onCerrar={() => setDetalle(null)}
         onPausaAutomatica={() => enrutador.refresh()}
       />
@@ -768,6 +802,13 @@ export function EspacioOperador({
           setOrdenAbiertaId(null);
           setDetalle(proceso);
         }}
+      />
+
+      <DialogoDetalleLote
+        lote={loteAbierto}
+        puedeOperar={operativo}
+        onIniciar={abrirLote}
+        onCerrar={() => setLoteAbierto(null)}
       />
 
       <DialogoChecklistInicio

@@ -25,6 +25,8 @@ interface PropsTarjetaLote {
   lote: LoteTablero;
   testId?: string;
   onAbrirOrden?: (ordenId: string) => void;
+  /** Abre la ficha del lote para operarlo como una sola corrida. */
+  onAbrirLote?: (lote: LoteTablero) => void;
   /** Fila dentro del grupo de una orden: misma información, menos altura. */
   compacta?: boolean;
   className?: string;
@@ -38,10 +40,15 @@ export function TarjetaLote({
   lote,
   testId = `tarjeta-lote-${lote.id}`,
   onAbrirOrden,
+  onAbrirLote,
   compacta = false,
   className,
 }: PropsTarjetaLote) {
-  const abrir = onAbrirOrden ? () => onAbrirOrden(lote.ordenId) : undefined;
+  const abrir = onAbrirLote
+    ? () => onAbrirLote(lote)
+    : onAbrirOrden
+      ? () => onAbrirOrden(lote.ordenId)
+      : undefined;
   return (
     <div
       data-testid={testId}

@@ -2105,6 +2105,38 @@ describe('proceso reclamado por otro operador', () => {
     expect(onCrearLote).toHaveBeenCalledWith(sugerencia);
   });
 
+  it('ofrece iniciar la corrida del lote en vez de iniciar un proceso por ítem', () => {
+    const onIniciarCorridaLote = vi.fn();
+    render(createElement(DetalleProcesoOperador, {
+      proceso: { ...proceso, loteId: 'corrida-1', loteCodigo: 'LAS02', puedeIniciar: true },
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      onIniciarCorridaLote,
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('iniciar-detalle')).toBeNull();
+    const boton = screen.getByTestId('iniciar-corrida-desde-detalle');
+    expect(boton.textContent).toContain('LAS02');
+    fireEvent.click(boton);
+    expect(onIniciarCorridaLote).toHaveBeenCalledTimes(1);
+  });
+
   it('oculta Crear Lote en la ficha cuando ya no hay sugerencia', () => {
     render(createElement(DetalleProcesoOperador, {
       proceso: procesoPausado(true),

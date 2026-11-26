@@ -23,6 +23,8 @@ export interface PropsVistaKanbanOperador {
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
   onAbrirOrden: (ordenId: string) => void;
+  /** Abre la ficha del lote para operarlo como una sola corrida. */
+  onAbrirLote?: (lote: LoteTablero) => void;
   /** C15: continúa la sesión pausada sin abrir la ficha. */
   onReanudar?: (proceso: ProcesoEspacioOperador) => void;
   /** C15: cierra una pausa que el operador no retomará, sin producir. */
@@ -52,6 +54,7 @@ export function VistaKanbanOperador({
   soloLectura,
   onAbrir,
   onAbrirOrden,
+  onAbrirLote,
   onReanudar,
   onCerrarPausa,
   onActualizarAvance,
@@ -115,6 +118,7 @@ export function VistaKanbanOperador({
                       grupo={grupo}
                       testIdPrefijo="tarjeta-lote-piso"
                       onAbrirOrden={onAbrirOrden}
+                      onAbrirLote={onAbrirLote}
                     />
                   </li>
                 ))}

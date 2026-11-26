@@ -27,8 +27,9 @@ const LOTE: LoteTablero = {
 };
 
 describe('Kanban de Producción con lotes', () => {
-  it('muestra el lote creado en la columna En proceso y abre su orden', () => {
+  it('muestra el lote creado en la columna En proceso y abre su ficha', () => {
     const onSeleccionarOrden = vi.fn();
+    const onAbrirLote = vi.fn();
     render(createElement(KanbanProduccion, {
       ordenes: [],
       lotes: [LOTE],
@@ -36,6 +37,7 @@ describe('Kanban de Producción con lotes', () => {
       estadosActivos: [],
       actualizando: false,
       onSeleccionarOrden,
+      onAbrirLote,
       onAlternarEstado: vi.fn(),
     }));
 
@@ -49,7 +51,8 @@ describe('Kanban de Producción con lotes', () => {
     expect(tarjeta!.textContent).toContain('IT01');
     expect(tarjeta!.textContent).toContain('IT02');
     fireEvent.click(tarjeta!);
-    expect(onSeleccionarOrden).toHaveBeenCalledWith('orden-1');
+    expect(onAbrirLote).toHaveBeenCalledWith(LOTE);
+    expect(onSeleccionarOrden).not.toHaveBeenCalled();
   });
 
   it('no pinta tarjetas de lote en otras columnas', () => {
