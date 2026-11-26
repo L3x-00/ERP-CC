@@ -47,6 +47,7 @@ import {
   claveLotePartida,
   mapaLotesPorOperacion,
   obtenerLotesTableroServicio,
+  obtenerReferenciasCorridaPorPartida,
 } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import type { LoteTablero } from '@/modulos/produccion/tipos/corridas';
 
@@ -675,12 +676,14 @@ export async function obtenerEspacioOperadorServicio(
     archivosPorOrden,
     comentariosPorOrden,
     lotes,
+    referenciasCorrida,
   ] = await Promise.all([
     obtenerSesionesDeOrdenes(cliente, ordenIds),
     obtenerAvancesDeMetas(cliente, filasMetas.map((meta) => meta.id)),
     obtenerArchivosDeOrdenes(cliente, ordenIds),
     obtenerComentariosDeOrdenes(cliente, ordenIds),
     obtenerLotesTableroServicio(cliente, ordenIds),
+    obtenerReferenciasCorridaPorPartida(cliente, partidaIds),
   ]);
   const lotePorOperacion = mapaLotesPorOperacion(lotes);
   const corridasConPrimeraPiezaPendiente = await obtenerCorridasConPrimeraPiezaPendiente(
@@ -1042,6 +1045,7 @@ export async function obtenerEspacioOperadorServicio(
         equipoOcupadoPor: null,
         loteId: lote?.id ?? null,
         loteCodigo: lote?.codigo ?? null,
+        corridaReferencia: referenciasCorrida.get(claveLotePartida(partida.id, operacion.nombre)) ?? null,
       };
       proceso.etiquetas = etiquetasProceso(proceso);
       procesos.push(proceso);
