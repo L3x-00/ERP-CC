@@ -10,7 +10,7 @@ import type {
   OrdenTableroProduccion,
 } from '@/modulos/produccion/servicios/indice';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
-import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/indice';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import {
   ESTADOS_KANBAN_PRODUCCION,

@@ -52,7 +52,7 @@ import {
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
-import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/indice';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';

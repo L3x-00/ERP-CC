@@ -8,7 +8,7 @@ import {
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
-import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/indice';
+import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
