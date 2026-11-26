@@ -1,0 +1,101 @@
+---
+title: Cierre administrativo
+description: Compara lo cotizado con lo que realmente costó producir y consulta el cierre de las órdenes terminadas más recientes.
+---
+
+
+En **Cierre administrativo** se revisa, para las órdenes terminadas, cuánto se cotizó y cuánto se gastó realmente. Este módulo es **solo de consulta**: no tiene botones para cerrar una orden.
+
+## Para qué sirve
+
+- Ver si el costo y el tiempo de una orden salieron como se planeó.
+- Comparar la ganancia entre lo vendido y lo que costó producir.
+- Abrir el detalle de una orden por ítem, proceso, costo y material.
+- Detectar órdenes que costaron más de lo previsto.
+
+## Antes de empezar
+
+- Para ver el panel se necesita acceso a finanzas o a producción.
+- Para **registrar** el cierre hace falta otro permiso y hacerlo desde la ficha de la orden. Quien consulta este panel no siempre puede cerrar la orden.
+- El cierre administrativo es independiente del cobro: no afecta la cuenta por cobrar del cliente.
+
+## El panel
+
+![Panel de Cierre administrativo con indicadores de costo, tiempo, ganancia y órdenes, gráficas, buscador, filtro Semáforo y tabla](/manual/capturas/cierre-panel.png)
+
+1. En el menú lateral, entra a **Finanzas → Cierre administrativo**.
+2. Revisa los indicadores de arriba:
+   - **Costo: diferencia con lo previsto**
+   - **Tiempo: diferencia con lo previsto**
+   - **Ganancia sobre la venta**
+   - **Órdenes que costaron más**, con el formato `n de m`
+3. Si no hay datos suficientes, los indicadores muestran **Sin dato** y las gráficas indican qué falta.
+4. Escribe el folio o el cliente en **Buscar orden o cliente**.
+5. Filtra por **Semáforo**: **Ahorro (verde)**, **En rango (ámbar)** o **Sobrecosto (rojo)**.
+6. En la tabla, revisa **Costo estimado**, **Costo real**, **Cambio en costo**, **Horas planeadas y reales**, **Cambio en tiempo**, **Ganancia** y **Entrega**.
+7. Haz clic en el folio para abrir el detalle.
+
+El contador `n de m órdenes` indica cuántas filas quedan después del filtro. Si no hay coincidencias, aparece **Ninguna orden coincide con el filtro.**
+
+## Ver el detalle de una orden
+
+![Diálogo Cierre OP-001217 con costos, horas, piezas entregadas, detalle por ítem y material real](/manual/capturas/cierre-detalle.png)
+
+El diálogo **Cierre** seguido del folio de la orden muestra:
+
+- **Costo cotizado**, **Costo gastado**, **Diferencia de costo** y **Ganancia**.
+- **Horas planeadas**, **Horas trabajadas** y **Piezas entregadas**.
+- **Retrabajo**, con horas y costo.
+- Las secciones **Por ítem**, **Costo** (mano de obra, material y otros) y **Material real**.
+
+Cuando no hay horas planeadas aparece **No hay horas planeadas para comparar.**; si la orden no tiene ítems congelados de la propuesta, el detalle indica que se comparan solo los totales.
+
+Cierra el diálogo con **Cerrar**.
+
+## Registrar el cierre desde Órdenes
+
+El registro no se hace en este panel. Para hacerlo:
+
+1. Entra a **Operación → Órdenes** y abre la ficha de la orden terminada.
+2. Si la orden está en **Producción completada**, haz clic en **Cerrar administrativa**. Si ya está cerrada por entrega pero falta el registro, verás **Cierre administrativo pendiente** y el botón **Completar cierre administrativo**.
+3. Confirma con **Confirmar cierre** en el diálogo de confirmación **Cierre administrativo de la orden**.
+4. Aparece la confirmación **Orden cerrada administrativamente** con su folio y la ficha muestra la tarjeta **Cierre administrativo** con fecha y responsable.
+
+> **Importante:** este paso requiere que el 100 % de las piezas esté entregado y no cobra la cuenta por cobrar. El cierre es definitivo: una vez registrado, la orden ya no se reabre.
+
+## Semáforo
+
+| Color | Qué significa |
+| --- | --- |
+| **Ahorro (verde)** | El gasto quedó al menos 10 % por debajo de lo cotizado. |
+| **En rango (ámbar)** | El gasto está entre -10 % y +10 % de lo cotizado, o no hay dato para comparar. |
+| **Sobrecosto (rojo)** | El gasto superó la cotización en más del 10 %. |
+
+Si una cifra no se puede comparar, aparece **Sin dato** o **Sin cambio** en lugar de un porcentaje.
+
+## Si algo no sale
+
+| Mensaje | Qué hacer |
+| --- | --- |
+| **«No se pudo cargar el cierre administrativo. Vuelve a intentarlo.»** | Usa **Reintentar**. |
+| **«Aún no hay órdenes terminadas»** | El panel se llena cuando una orden termina producción. |
+| **«Se requiere el 100 % de las cantidades entregadas.»** | Registra las entregas pendientes antes de cerrar. |
+| **«Sin permiso para el cierre administrativo»** | Pide el permiso de cierre de órdenes a la persona administradora. |
+
+## Opciones adicionales
+
+- **Ordenar la tabla:** haz clic en **Costo real**, **Cambio en costo** o **Ganancia** para ordenar de menor a mayor o de mayor a menor.
+- **Gráficas:** **Cómo se comportó el costo** y **Lo cotizado contra lo gastado** muestran la tendencia. Por encima de la franja o de la línea, la orden costó más de lo previsto.
+- **Detalle por proceso:** en el diálogo puedes revisar las horas planeadas y trabajadas por proceso, los puntos críticos y el material real consumido.
+
+## Comprueba que quedó bien
+
+- [ ] La orden terminada aparece en la tabla.
+- [ ] El costo real y las horas trabajadas tienen valor.
+- [ ] El semáforo refleja la diferencia con lo cotizado.
+- [ ] El detalle muestra las piezas entregadas y el material consumido.
+- [ ] Si registraste el cierre, la ficha de la orden muestra la tarjeta **Cierre administrativo**.
+
+## Qué sigue
+
+El manual del sistema ya cubre los módulos documentados. Puedes volver al [índice](/es/docs) para recorrerlos en el orden del menú. El módulo **Dashboard** queda pendiente de una mejora visual antes de documentarse.
