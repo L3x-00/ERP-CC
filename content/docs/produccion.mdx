@@ -111,9 +111,66 @@ Si no hay piezas disponibles del proceso anterior, el sistema lo indica y no per
 ## Opciones adicionales
 
 - **Máquinas liberadas:** muestra pausas antiguas por duda o material. **Reclamar** libera la máquina y devuelve la operación a Planeación para que otro operador la retome.
-- **Corridas:** permite **Nueva corrida**, **Iniciar**, **Completar** y **Cancelar**. Es administración de lotes, no necesaria para consultar el avance.
+- **Corridas:** permite revisar o crear lotes y consultar su estado. El flujo del operador se explica en **Corridas y lotes de producción**, más abajo.
 - **Salud de la orden:** **Sin inconsistencias** indica que horas, cantidades, pausas y entregas coinciden. Si hay avisos, revisa el detalle antes de cerrar.
 - **Vista de piso:** **Vista producción →** muestra el piso en solo lectura, sin PIN. El operador accede por `/operador` con su PIN.
+
+## Corridas y lotes de producción
+
+Cuando dos o más piezas distintas de una misma orden son compatibles, el sistema puede sugerir trabajarlas juntas en un **lote** (también llamado **corrida**). Es como juntar piezas iguales en una sola tanda de trabajo, con una sola sesión.
+
+### Cuándo aparece la sugerencia
+
+En la terminal del operador, arriba del tablero, aparece **Posibles corridas conjuntas** cuando las piezas:
+
+- son de la **misma orden**,
+- usan el **mismo material y el mismo calibre**,
+- comparten el **primer proceso** de su ruta (por ejemplo, Corte láser),
+- no están terminadas, no tienen una sesión abierta, no están reservadas y no están ya en otro lote.
+
+La sugerencia no revisa la máquina: la comprobación del **mismo grupo de equipo** se hace al crear el lote. Si las piezas tienen máquina asignada y son incompatibles, el sistema lo avisa en ese momento con **Los ítems no comparten el mismo equipo**.
+
+![Aviso del piso indicando que no hay sugerencias de lotes y los motivos](/manual/capturas/produccion-lote-sugerencia.png)
+
+Si no aparece la sugerencia, el propio aviso indica el motivo: por ejemplo, que el proceso no es el primero, que la pieza ya está reclamada o que ya está en un lote. Los problemas de material, calibre o equipo se detectan al intentar crear el lote.
+
+### Crear el lote
+
+![Ventana Nueva corrida con las partidas pendientes y la regla para agruparlas](/manual/capturas/produccion-lote-nuevo.png)
+
+1. En el aviso **Posibles corridas conjuntas**, revisa las piezas propuestas y haz clic en **Crear Lote**.
+2. El sistema crea el lote en estado **Planificada** e incluye esas piezas. Las cantidades salen de lo que falta por producir: se pueden bajar, pero nunca subir.
+3. No se pueden crear dos lotes con las mismas piezas y el mismo proceso. Si ya hay uno en curso, abre ese lote para continuar.
+
+Pueden crear lotes quienes tienen permiso para operar en piso o para gestionar producción. En la ficha de la orden, la sección **Corridas** permite revisar las piezas compatibles y crear el lote desde el panel con **Nueva corrida**.
+
+### Operar el lote
+
+![Ficha de un lote con sus ítems, total de piezas y botón Iniciar corrida](/manual/capturas/produccion-lote-ficha.png)
+
+1. Abre la ficha de una de las piezas y haz clic en **Ver lote … e iniciar corrida**.
+2. En la ficha del lote se ven las piezas, el proceso y el total de piezas. Haz clic en **Iniciar corrida**.
+3. Confirma el **Checklist de eventos críticos** con **Iniciar con checklist**.
+4. Se abre **una sola sesión** para todas las piezas del lote, respetando la jornada y la disponibilidad del equipo.
+
+### Primera pieza y cierre
+
+Antes de cerrar hay que liberar la **primera pieza de cada ítem**, no una sola para todo el lote:
+
+1. Si falta alguna, el sistema avisa con los ítems pendientes y ofrece **Liberar primera pieza y reintentar cierre**.
+2. En **Ítem de la primera pieza**, elige el ítem correspondiente, registra el resultado de la inspección y confirma con **Registrar y liberar**.
+3. Repite para cada ítem del lote. Después ya puedes finalizar la sesión.
+
+Al declarar la producción, marca **Los ítems se trabajaron juntos** y escribe cuántas piezas se hicieron en cada ítem. Los minutos por ítem son opcionales: el tiempo real de la sesión se registra una sola vez para el lote.
+
+El consumo de material y la merma también se registran **una sola vez** para el lote, con el costo vigente al momento. No se reparten entre los ítems ni se duplican horas.
+
+### Ver el resultado y al terminar
+
+- En la ficha de la orden consulta **Corridas**, **Sesiones de Corrida** y **Totales de corrida**: número de piezas, tiempo y material del lote.
+- Los importes de costo se muestran a quien tiene permiso de finanzas o de gestión de producción. Si no hay desglose, aparece **No calculable (sin desglose)**.
+- Al terminar, la corrida aparece como **Completada** en Corridas (la tarjeta del tablero la muestra como **Terminada**) y deja de pintarse como trabajo activo. Cada pieza conserva su avance y sigue su ruteo normal.
+- No hay una acción para disolver el lote: la agrupación queda como registro y no cambia lo que ya se cotizó ni los precios aceptados.
 
 ## Comprueba que quedó bien
 
