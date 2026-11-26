@@ -40,7 +40,7 @@ export function TarjetaLote({
 }: PropsTarjetaLote) {
   const abrir = onAbrirOrden ? () => onAbrirOrden(lote.ordenId) : undefined;
   return (
-    <article
+    <div
       data-testid={testId}
       data-estado-lote={lote.estado}
       role={abrir ? 'button' : undefined}
@@ -93,6 +93,6 @@ export function TarjetaLote({
         Total del lote: {formatearNumero(lote.cantidadPlanificada, 0)} piezas · creado{' '}
         {formatearFecha(lote.creadoEn)}
       </p>
-    </article>
+    </div>
   );
 }
