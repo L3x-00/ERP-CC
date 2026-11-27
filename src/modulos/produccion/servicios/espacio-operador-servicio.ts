@@ -49,6 +49,7 @@ import {
   obtenerLotesTableroServicio,
   obtenerReferenciasCorridaPorPartida,
 } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import { obtenerCorridasConPrimeraPiezaPendiente } from '@/modulos/produccion/servicios/primera-pieza-corrida';
 import type { LoteTablero } from '@/modulos/produccion/tipos/corridas';
 
 type Admin = SupabaseClient<Database>;
@@ -434,106 +435,6 @@ function avisoSupervisionDesdeSesiones(
 }
 
 /**
- * C3: corridas cuyo proceso exige primera pieza y los ítems que aún no la
- * tienen aprobada. Sustituye al aviso por corrida para que el operador sepa qué
- * pieza falta liberar antes de cerrar un lote.
- */
-async function obtenerCorridasConPrimeraPiezaPendiente(
-  cliente: Admin,
-  sesiones: readonly SesionTrabajo[],
-): Promise<Map<string, string[]>> {
-  const pendientes = new Map<string, string[]>();
-  const corridaIds = [...new Set(
-    sesiones
-      .map((sesion) => sesion.corridaId)
-      .filter((id): id is string => typeof id === 'string' && id.length > 0),
-  )];
-  if (corridaIds.length === 0) return pendientes;
-
-  const corridas = await obtenerFilasEnLotes<{ id: string; proceso_id: string }>(
-    corridaIds,
-    async (lote) => {
-      const { data, error } = await cliente
-        .from('corridas')
-        .select('id, proceso_id')
-        .in('id', lote);
-      return { data, error };
-    },
-  );
-  if (corridas.length === 0) return pendientes;
-
-  const procesos = await obtenerFilasEnLotes<{ id: string; requiere_primera_pieza: boolean }>(
-    [...new Set(corridas.map((corrida) => corrida.proceso_id))],
-    async (lote) => {
-      const { data, error } = await cliente
-        .from('catalogo_procesos')
-        .select('id, requiere_primera_pieza')
-        .in('id', lote);
-      return { data, error };
-    },
-  );
-  const exigen = new Set(
-    procesos.filter((proceso) => proceso.requiere_primera_pieza).map((proceso) => proceso.id),
-  );
-  const candidatas = corridas.filter((corrida) => exigen.has(corrida.proceso_id));
-  if (candidatas.length === 0) return pendientes;
-
-  const [aprobadas, items] = await Promise.all([
-    obtenerFilasEnLotes<{ corrida_id: string | null; partida_id: string | null }>(
-      candidatas.map((corrida) => corrida.id),
-      async (lote) => {
-        const { data, error } = await cliente
-          .from('inspecciones_calidad')
-          .select('corrida_id, partida_id')
-          .eq('tipo', 'PRIMERA_PIEZA')
-          .eq('resultado', 'APROBADA')
-          .in('corrida_id', lote);
-        return { data, error };
-      },
-    ),
-    obtenerFilasEnLotes<{ corrida_id: string; partida_id: string }>(
-      candidatas.map((corrida) => corrida.id),
-      async (lote) => {
-        const { data, error } = await cliente
-          .from('corrida_items')
-          .select('corrida_id, partida_id')
-          .in('corrida_id', lote);
-        return { data, error };
-      },
-    ),
-  ]);
-
-  const itemsPorCorrida = new Map<string, string[]>();
-  for (const item of items) {
-    const actuales = itemsPorCorrida.get(item.corrida_id) ?? [];
-    actuales.push(item.partida_id);
-    itemsPorCorrida.set(item.corrida_id, actuales);
-  }
-  const aprobadasPorCorrida = new Map<string, Set<string>>();
-  for (const fila of aprobadas) {
-    if (fila.corrida_id === null) continue;
-    const actuales = aprobadasPorCorrida.get(fila.corrida_id) ?? new Set<string>();
-    actuales.add(fila.partida_id ?? '__sin_partida__');
-    aprobadasPorCorrida.set(fila.corrida_id, actuales);
-  }
-
-  for (const corrida of candidatas) {
-    const ids = itemsPorCorrida.get(corrida.id) ?? [];
-    const aprobadasSet = aprobadasPorCorrida.get(corrida.id) ?? new Set<string>();
-    if (ids.length === 0) {
-      if (!aprobadasSet.size) pendientes.set(corrida.id, []);
-      continue;
-    }
-    // Compatibilidad: una aprobación histórica sin partida cubre la corrida
-    // cuando esta tiene un solo ítem.
-    const legacy = ids.length === 1 && aprobadasSet.has('__sin_partida__');
-    const faltan = ids.filter((id) => !aprobadasSet.has(id) && !legacy);
-    if (faltan.length > 0) pendientes.set(corrida.id, faltan);
-  }
-  return pendientes;
-}
-
-/**
  * Carga y deriva el espacio de operador completo sin N+1. El servidor es la
  * Única fuente de verdad: la UI no inventa columnas ni capacidades.
  */
@@ -688,7 +589,11 @@ export async function obtenerEspacioOperadorServicio(
   const lotePorOperacion = mapaLotesPorOperacion(lotes);
   const corridasConPrimeraPiezaPendiente = await obtenerCorridasConPrimeraPiezaPendiente(
     cliente,
-    sesiones,
+    [...new Set(
+      sesiones
+        .map((sesion) => sesion.corridaId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    )],
   );
 
   const sesionesPorProgramacion = new Map<string, SesionTrabajo[]>();
