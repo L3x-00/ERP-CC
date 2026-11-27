@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
@@ -20,10 +19,11 @@ export interface PestanaTarifasProps {
   onGuardado: (configuracion: ConfiguracionSistema) => void;
   /** Atajo a «Catálogos operativos»; solo con permiso para verlo. */
   onIrACatalogosBase?: () => void;
+  /** Subsección solicitada por la guía de configuración. */
+  foco?: string | null;
 }
 
-export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }: PestanaTarifasProps) {
-  const foco = useSearchParams().get('foco');
+export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase, foco }: PestanaTarifasProps) {
   const abrirTarifario =
     foco === 'tarifario-ruteo' || foco === 'tarifas-grupos' || foco === 'equipos-tarifas';
   const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);

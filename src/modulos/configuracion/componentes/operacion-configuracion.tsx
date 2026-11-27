@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { enfocarElemento } from '@/compartido/utilidades/enfocar-seccion';
 import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
@@ -149,8 +148,11 @@ export function OperacionConfiguracion({
   }, [vista]);
 
   // Si se llegó con ?foco=, abre el contenedor plegable y resalta la subsección.
-  // El parámetro se limpia después para que una recarga no vuelva a parpadear.
-  const foco = useSearchParams().get('foco');
+  // Se lee desde window.location para no exigir un router en las pruebas.
+  const [foco, setFoco] = useState<string | null>(null);
+  useEffect(() => {
+    setFoco(new URLSearchParams(window.location.search).get('foco'));
+  }, []);
   useEffect(() => {
     if (!foco) return;
     const temporizador = window.setTimeout(() => {
@@ -205,7 +207,8 @@ export function OperacionConfiguracion({
 
         {seccion === 'tarifas' ? (
           <PestanaTarifas
-            key={`tarifas-${vigente.configuracion.actualizadoEn}`}
+            key={`tarifas-${vigente.configuracion.actualizadoEn}-${foco ?? ''}`}
+            foco={foco}
             configuracion={vigente.configuracion}
             onGuardado={actualizarConfiguracion}
             {...(puedeVerCatalogosBase
