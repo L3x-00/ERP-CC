@@ -30,6 +30,7 @@ import {
   CLASE_OBLIGATORIO,
 } from '@/modulos/rfq/utilidades/faltantes';
 import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
+import { CLAVE_VALIDACION_COLA_RFQ } from '@/modulos/rfq/hooks/usar-validacion-cola-rfq';
 
 /** Mismo faltante que reporta `validar_rfq_listo`; reutiliza el estado vacío rojo de la tabla. */
 const FALTANTE_ITEM_ACTIVO = ['al menos un ítem activo'] as const;
@@ -347,6 +348,9 @@ export function FormularioProspecto({
       // «Finalizar captura» (canal, fecha, descripción y próxima acción vacíos).
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq', id] });
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq-validacion-listo', id] });
+      // La cola muestra el aviso verde derivado de esta validación: sin
+      // invalidarla, sigue con el resultado calculado antes de terminar.
+      void clienteConsultas.invalidateQueries({ queryKey: [CLAVE_VALIDACION_COLA_RFQ] });
     }
     reiniciarCaptura();
     onExito?.(id);

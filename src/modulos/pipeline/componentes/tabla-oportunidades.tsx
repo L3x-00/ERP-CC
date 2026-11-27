@@ -53,7 +53,7 @@ export function TablaOportunidades({
   const hoy = fechaLocalNegocio();
   const [historialId, setHistorialId] = useState<string | null>(null);
   // Misma validación de la ficha, en una sola consulta acotada para toda la tabla.
-  const validaciones = usarValidacionColaRfq(oportunidades);
+  const { datos: validaciones, validando } = usarValidacionColaRfq(oportunidades);
 
   return (
     <>
@@ -93,6 +93,7 @@ export function TablaOportunidades({
                     <IndicadorEstadoRfq
                       estadoRfq={oportunidad.estadoRfq}
                       validacion={validacionConfirmadaDeFila(validaciones, oportunidad.id)}
+                      validando={validando && oportunidad.estadoRfq === 'INCOMPLETE'}
                     />
                   </TablaCelda>
                   <TablaCelda>

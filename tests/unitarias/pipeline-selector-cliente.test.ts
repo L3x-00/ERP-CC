@@ -661,6 +661,7 @@ describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal fina
     expect(claves).toContain(JSON.stringify(['rfq', 'op-1']));
     expect(claves).toContain(JSON.stringify(['rfq-validacion-listo', 'op-1']));
     expect(claves).toContain(JSON.stringify(['pipeline']));
+    expect(claves).toContain(JSON.stringify(['rfq-validacion-cola']));
   });
 });
 
