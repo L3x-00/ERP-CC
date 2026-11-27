@@ -487,8 +487,10 @@ export async function obtenerDatosTableroProduccionServicio(
   });
 
   // Los lotes no tienen sesión hasta que se operan: sin esta lectura explícita
-  // no aparecerían en ninguna columna del tablero.
-  const lotes = filtros.estados && !filtros.estados.includes('en_proceso')
+  // no aparecerían en ninguna columna del tablero. Un lote PLANIFICADA está en
+  // Bandeja, así que el filtro debe pedirlo aunque no incluya «en_proceso».
+  const columnasConLotes: readonly EstadoKanbanProduccion[] = ['bandeja', 'en_proceso', 'pausada'];
+  const lotes = filtros.estados && !filtros.estados.some((estado) => columnasConLotes.includes(estado))
     ? []
     : await obtenerLotesTableroServicio(admin ?? cliente, todasLasOrdenes.map((orden) => orden.id));
   const lotesVisibles = codigosAceptados

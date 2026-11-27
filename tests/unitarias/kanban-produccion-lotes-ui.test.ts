@@ -27,7 +27,7 @@ const LOTE: LoteTablero = {
 };
 
 describe('Kanban de Producción con lotes', () => {
-  it('muestra el lote creado en la columna En proceso y abre su ficha', () => {
+  it('muestra el lote recién creado en Bandeja y abre su ficha', () => {
     const onSeleccionarOrden = vi.fn();
     const onAbrirLote = vi.fn();
     render(createElement(KanbanProduccion, {
@@ -41,7 +41,7 @@ describe('Kanban de Producción con lotes', () => {
       onAlternarEstado: vi.fn(),
     }));
 
-    const columna = screen.getByRole('region', { name: 'En proceso' });
+    const columna = screen.getByRole('region', { name: 'Bandeja' });
     const tarjeta = columna.querySelector('[data-testid="tarjeta-lote-produccion-corrida-1"]');
     expect(tarjeta).not.toBeNull();
     expect(tarjeta!.textContent).toContain('Lote LAS02');
@@ -66,9 +66,26 @@ describe('Kanban de Producción con lotes', () => {
       onAlternarEstado: vi.fn(),
     }));
 
-    for (const nombre of ['Bandeja', 'Pausada', 'Lista', 'Entregada']) {
+    for (const nombre of ['En proceso', 'Pausada', 'Lista', 'Entregada']) {
       const columna = screen.getByRole('region', { name: nombre });
       expect(columna.querySelector('[data-testid^="tarjeta-lote-"]')).toBeNull();
     }
+  });
+
+  it('muestra en En proceso el lote cuya corrida ya se inició', () => {
+    render(createElement(KanbanProduccion, {
+      ordenes: [],
+      lotes: [{ ...LOTE, id: 'corrida-2', codigo: 'LAS03', estado: 'EN_PROCESO' }],
+      ordenSeleccionadaId: null,
+      estadosActivos: [],
+      actualizando: false,
+      onSeleccionarOrden: vi.fn(),
+      onAlternarEstado: vi.fn(),
+    }));
+
+    expect(screen.getByRole('region', { name: 'En proceso' })
+      .querySelector('[data-testid="tarjeta-lote-produccion-corrida-2"]')).not.toBeNull();
+    expect(screen.getByRole('region', { name: 'Bandeja' })
+      .querySelector('[data-testid="tarjeta-lote-produccion-corrida-2"]')).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import {
   type ProcesoEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
 import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import { columnaOperadorLote } from '@/modulos/produccion/utilidades/columna-lote';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
@@ -74,7 +75,7 @@ export function VistaKanbanOperador({
     >
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
         const ordenesDelEstado = ordenes.filter((grupo) => grupo.columna === columna);
-        const lotesDelEstado = columna === 'en_proceso' ? lotes : [];
+        const lotesDelEstado = lotes?.filter((lote) => columnaOperadorLote(lote.estado) === columna) ?? [];
         const procesosDelEstado = ordenesDelEstado.reduce(
           (total, grupo) => total + grupo.procesos.length,
           0,
