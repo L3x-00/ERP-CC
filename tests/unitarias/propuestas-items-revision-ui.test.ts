@@ -178,6 +178,7 @@ function enviarAlta(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   agregarMock.mockResolvedValue({ exito: true, datos: ITEM_CREADO });
+  editarMock.mockResolvedValue({ exito: true, datos: { id: ITEM_HEREDADO_ID } });
 });
 
 afterEach(() => {
@@ -206,6 +207,31 @@ describe('P2 — guardado del precio sin parpadeo', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('guardado'));
     expect((screen.getByLabelText('Precio IT01') as HTMLInputElement).value).toBe('250');
     expect(editarMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('el estado Guardando… es solo de la fila que se está guardando', async () => {
+    const resolveres: Array<(valor: unknown) => void> = [];
+    editarMock
+      .mockImplementationOnce(() => new Promise((resolver) => resolveres.push(resolver)))
+      .mockImplementationOnce(() => new Promise((resolver) => resolveres.push(resolver)));
+    renderizarEditor();
+
+    fireEvent.change(screen.getByLabelText('Precio IT01'), { target: { value: '111' } });
+    fireEvent.change(screen.getByLabelText('Precio IT05'), { target: { value: '222' } });
+    const primera = screen.getByTestId(`guardar-item-${ITEM_HEREDADO_ID}`);
+    const segunda = screen.getByTestId(`guardar-item-${ITEM_NUEVO_ID}`);
+
+    fireEvent.click(primera);
+    await waitFor(() => expect(primera.textContent).toContain('Guardando…'));
+    expect(segunda.textContent).toBe('Guardar');
+    expect((segunda as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(segunda);
+    expect(editarMock).toHaveBeenCalledTimes(1);
+    expect(segunda.textContent).toContain('Guardando…');
+    resolveres[0]?.({ exito: true, datos: { id: ITEM_HEREDADO_ID } });
+    await waitFor(() => expect(editarMock).toHaveBeenCalledTimes(2));
+    resolveres[1]?.({ exito: true, datos: { id: ITEM_NUEVO_ID } });
   });
 });
 
