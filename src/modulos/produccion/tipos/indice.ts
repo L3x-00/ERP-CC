@@ -98,6 +98,7 @@ export type {
   Corrida,
   CorridaReferencia,
   LoteTablero,
+  SesionLote,
   InspeccionCalidad,
   AutorizacionHoraExtra,
 } from '@/modulos/produccion/tipos/corridas';

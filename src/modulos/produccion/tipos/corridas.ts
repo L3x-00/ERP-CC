@@ -37,7 +37,31 @@ export type CorridaItem = {
   partidaId: string;
   codigoItem: string;
   cantidad: number;
+  /** Detalle opcional: lo puebla `obtenerLotesTableroServicio` para la ficha del lote. */
+  descripcion?: string | null;
+  materialCodigo?: string | null;
+  materialNombre?: string | null;
+  anchoMm?: number | null;
+  largoMm?: number | null;
+  pendientePiezas?: number | null;
+  hechoPiezas?: number | null;
+  horasEstimadas?: number | null;
+  primeraPiezaPendiente?: boolean;
 };
+
+/** Sesión activa o pausada de la corrida; una corrida tiene una sola sesión. */
+export interface SesionLote {
+  sesionId: string;
+  partidaId: string;
+  programacionId: string | null;
+  actualizadoEnEsperado: string;
+  fechaInicio: string;
+  estadoSesion: 'activa' | 'pausada' | 'finalizada';
+  horasNetas: number;
+  operadorNombre: string | null;
+  motivoPausa: string | null;
+  pendienteActualizacionAvance: boolean;
+}
 
 /** Corrida: unidad de ejecución de una orden para un proceso. */
 export type Corrida = {
@@ -77,6 +101,10 @@ export interface LoteTablero {
   cantidadPlanificada: number;
   items: CorridaItem[];
   creadoEn: string;
+  /** null cuando la corrida todavía no se inició. */
+  sesion?: SesionLote | null;
+  /** Suma de las horas estimadas de los ítems, para el contador en vivo. */
+  limiteHoras?: number | null;
 }
 
 /** Inspección de calidad básica (§6.3). */
