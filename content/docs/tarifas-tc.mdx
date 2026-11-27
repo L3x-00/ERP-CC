@@ -107,7 +107,7 @@ Cuando termines, haz clic en **Guardar tarifas y TC**. La barra inferior muestra
 
 ## 3. Tarifario del ruteo
 
-Más abajo está el **Tarifario del ruteo**. Aquí se asigna una tarifa a cada grupo de equipo y, opcionalmente, a cada máquina.
+El **Tarifario del ruteo** es la sección principal del tarifario. Aquí se asigna una tarifa a cada grupo de equipo y, opcionalmente, a cada máquina.
 
 La regla es simple y auditable:
 
@@ -143,9 +143,13 @@ En la misma sección, pulsa **Nuevo equipo** y completa un solo formulario:
 4. Responde **¿Esta máquina tiene un costo distinto al grupo?**
    - **No**: el equipo usa la tarifa del grupo.
    - **Sí**: se habilita la **tarifa propia por hora** y la moneda; esa tarifa sustituye a la del grupo solo para esta máquina.
-5. Elige el **área de trabajo** y guarda.
+5. Revisa el **área de trabajo** y guarda.
+   - El sistema toma el área del **proceso del grupo**. Si el grupo trabaja en una sola área, aparece calculada y no se edita. Así la máquina queda en la misma área que exige el inicio de producción.
+   - Solo eliges el área cuando el grupo **todavía no tiene procesos** o se usa en **más de un área**.
 
 El equipo queda disponible de inmediato en Planeación, con su grupo y su tarifa correctos. No hace falta visitar otra pantalla.
+
+> **Si el área no coincide con la del grupo**, la lista muestra el distintivo **Área distinta a la del grupo**. Pulsa **Editar equipo** para corregir el nombre, el grupo o el área; el código no cambia. Corrige esa diferencia antes de iniciar el lote.
 
 Así se ve el alta guiada con la tarifa heredada y la excepción de tarifa propia:
 
@@ -166,6 +170,7 @@ El tarifario se ve así:
 - [ ] Cada estación tiene tarifa de máquina y de preparación.
 - [ ] Las tarifas de cada grupo de equipo son las correctas.
 - [ ] Las máquinas que cuestan distinto tienen tarifa propia; las demás usan la del grupo.
+- [ ] Ninguna máquina muestra el distintivo **Área distinta a la del grupo**.
 - [ ] Ninguna operación de una propuesta queda costeada con tarifa de respaldo sin que lo hayas decidido.
 - [ ] Al guardar aparece el mensaje de confirmación.
 - [ ] Una cotización nueva toma los valores actualizados.
