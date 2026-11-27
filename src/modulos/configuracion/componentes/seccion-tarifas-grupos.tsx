@@ -92,7 +92,7 @@ export function SeccionTarifasGrupos({
   }
 
   return (
-    <section className="grid min-w-0 gap-3" aria-label="Tarifas por grupo de equipo" data-testid="seccion-tarifas-grupos">
+    <section id="tarifas-grupos" className="grid min-w-0 gap-3 scroll-mt-24" aria-label="Tarifas por grupo de equipo" data-testid="seccion-tarifas-grupos">
       <div>
         <h3 className="text-base font-semibold text-texto-primario">Tarifas por grupo de equipo</h3>
         <p className="text-sm text-texto-secundario">

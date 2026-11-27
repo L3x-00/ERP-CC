@@ -36,8 +36,10 @@ const CODIGO_GRUPO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
  */
 export function SeccionTarifarioRuteo({
   onIrACatalogosBase,
+  abrirPorFoco = false,
 }: {
   onIrACatalogosBase?: () => void;
+  abrirPorFoco?: boolean;
 }) {
   const clienteQuery = useQueryClient();
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -171,6 +173,8 @@ export function SeccionTarifarioRuteo({
       descripcion="Las propuestas costean su ruteo con estas tarifas, que salen de la tabla de estaciones de arriba."
       resumen={resumen}
       nivelTitulo="h2"
+      abiertoInicial={abrirPorFoco}
+      id="tarifario-ruteo"
       data-testid="tarifario-ruteo"
     >
       {consulta.isPending ? (

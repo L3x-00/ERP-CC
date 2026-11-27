@@ -1,0 +1,7 @@
+fe(configuracion): anclar subsecciones y resaltar destinos
+
+Fase 2 del plan del tutorial. Se añaden ids estables a las subsecciones reales de Configuración (tarifario, grupos, equipos, áreas, procesos, canales, próximas acciones, personas) y a Materiales y costos, y se crea la utilidad enfocarElemento para abrir el contenedor plegable, hacer scroll y parpadear el destino con el color de acento, respetando prefers-reduced-motion.
+
+Configuración lee ?foco=, abre el Tarifario del ruteo cuando aplica y limpia el parámetro después de resaltar. PanelDesplegable y SeccionDesplegable exponen data-estado/id sin cambiar su comportamiento.
+
+Verificación: build EXIT 0, lint 0, 9 unitarias de navegación en verde y comprobación en navegador de ?pestana=tarifas&foco=equipos-tarifas (panel abierto, animación de resaltado y parámetro limpio).

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { enfocarElemento } from '@/compartido/utilidades/enfocar-seccion';
 import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
 import {
   obtenerConfiguracionAccion,
@@ -146,6 +148,20 @@ export function OperacionConfiguracion({
     }
   }, [vista]);
 
+  // Si se llegó con ?foco=, abre el contenedor plegable y resalta la subsección.
+  // El parámetro se limpia después para que una recarga no vuelva a parpadear.
+  const foco = useSearchParams().get('foco');
+  useEffect(() => {
+    if (!foco) return;
+    const temporizador = window.setTimeout(() => {
+      enfocarElemento(decodeURIComponent(foco));
+      const url = new URL(window.location.href);
+      url.searchParams.delete('foco');
+      window.history.replaceState(null, '', url.toString());
+    }, 200);
+    return () => window.clearTimeout(temporizador);
+  }, [foco]);
+
   const seccionesVisibles = SECCIONES_CONFIGURACION.filter(
     (item) => item.id !== 'personas' || vigente.esAdmin,
   );
@@ -243,7 +259,7 @@ export function OperacionConfiguracion({
         ) : null}
 
         {seccion === 'personas' && vigente.esAdmin ? (
-          <div className="grid gap-4">
+          <div id="personas-accesos" className="grid gap-4 scroll-mt-24">
             <PestanasModulo
               pestanas={SUBSECCIONES_PERSONAS}
               activa={subseccionPersonas}

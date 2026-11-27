@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
@@ -22,6 +23,9 @@ export interface PestanaTarifasProps {
 }
 
 export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }: PestanaTarifasProps) {
+  const foco = useSearchParams().get('foco');
+  const abrirTarifario =
+    foco === 'tarifario-ruteo' || foco === 'tarifas-grupos' || foco === 'equipos-tarifas';
   const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -67,6 +71,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
       {/* El tarifario del ruteo es el punto principal: agrupa grupos, máquinas,
           herencia de tarifas y procesos compatibles. */}
       <SeccionTarifarioRuteo
+        abrirPorFoco={abrirTarifario}
         {...(onIrACatalogosBase ? { onIrACatalogosBase } : {})}
       />
 
