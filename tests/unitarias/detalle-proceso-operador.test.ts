@@ -2199,6 +2199,7 @@ describe('DetalleProcesoOperador — consumo y reprogramación', () => {
   function montarConMaterial(
     datosMaterialCliente: unknown[],
     procesoExtra: Record<string, unknown> = {},
+    iniciar: (...args: unknown[]) => void = vi.fn(),
   ) {
     vi.mocked(obtenerMaterialClienteOrdenAccion).mockResolvedValueOnce({
       exito: true,
@@ -2213,7 +2214,7 @@ describe('DetalleProcesoOperador — consumo y reprogramación', () => {
       materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
       consumos: [],
       acciones: {
-        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar: vi.fn(),
+        reclamar: vi.fn(), mover: vi.fn(), liberar: vi.fn(), iniciar,
         reanudar: vi.fn(), cerrarPausa: vi.fn(), actualizarAvance: vi.fn(), cerrar: vi.fn(),
       },
       onCerrar: vi.fn(),
@@ -2239,6 +2240,27 @@ describe('DetalleProcesoOperador — consumo y reprogramación', () => {
       nodo.textContent?.includes('opcional')
     ))).toBe(true));
     expect(screen.getByTestId('usado-cierre').className).not.toContain('border-peligro/50');
+  });
+
+  it('exige fecha antes de iniciar y no marca el campo con asterisco', () => {
+    const iniciar = vi.fn();
+    montarConMaterial([], {
+      sesionActiva: null,
+      puedeIniciar: true,
+      reclamadoPorMi: true,
+      programacion: { ...proceso.programacion, estadoPlaneacion: 'en_preparacion' },
+    }, iniciar);
+    const campo = screen.getByLabelText('Día de la jornada') as HTMLInputElement;
+    expect(campo.value).toBe('');
+    expect(campo.className).toContain('border-peligro/50');
+    expect(campo.closest('label')?.className).not.toContain('after:content');
+    expect((screen.getByTestId('iniciar-detalle') as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.change(campo, { target: { value: '2026-12-01' } });
+    fireEvent.click(screen.getByTestId('iniciar-detalle'));
+    expect(iniciar).toHaveBeenCalledTimes(1);
+    expect(iniciar.mock.calls[0]?.[1]).toBe('2026-12-01');
+    expect(iniciar.mock.calls[0]?.[2]).toBe('matutino');
   });
 
   it('deja la fecha de reprogramación vacía y marcada en la ficha del operador', () => {

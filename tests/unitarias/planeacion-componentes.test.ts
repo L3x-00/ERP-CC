@@ -401,6 +401,7 @@ describe('operación de Planeación en cliente', () => {
 
     expect(screen.queryByTestId('activar-preparacion-planeacion')).toBeNull();
     fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
     fireEvent.click(await screen.findByTestId('activar-preparacion-planeacion'));
 
     await waitFor(() => expect(activarPreparacionMock).toHaveBeenCalledTimes(1));

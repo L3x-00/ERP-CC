@@ -413,6 +413,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
       }
       await page.setViewportSize(tamanoOriginal);
     }
+    await page.getByLabel('Fecha programada').fill('2026-12-01');
     await page.getByTestId('activar-preparacion-planeacion').click();
     await expect
       .poll(async () => {

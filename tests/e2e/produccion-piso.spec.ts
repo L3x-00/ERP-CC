@@ -470,6 +470,8 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(detalle).toContainText('Planos y archivos');
 
       // Iniciar desde el espacio reserva el recurso y abre la sesión real.
+      // La fecha de la jornada es obligatoria antes de abrir el checklist.
+      await detalle.getByLabel('Día de la jornada').fill('2026-12-01');
       await detalle.getByTestId('iniciar-detalle').click();
       await confirmarChecklistInicio(page);
       await expect(page.getByTestId('aviso-espacio')).toContainText('Sesión iniciada');

@@ -97,6 +97,15 @@ export function PaginaMiPanelOperador({
   const [procesoSeleccionadoId, setProcesoSeleccionadoId] = useState<string | null>(null);
   const [inicioPendienteId, setInicioPendienteId] = useState<string | null>(null);
   const [corridaInicioId, setCorridaInicioId] = useState<string | null>(null);
+  const [inicioFecha, setInicioFecha] = useState('');
+  const [inicioTurno, setInicioTurno] = useState('matutino');
+
+  function limpiarInicio(): void {
+    setCorridaInicioId(null);
+    setInicioPendienteId(null);
+    setInicioFecha('');
+    setInicioTurno('matutino');
+  }
   const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
@@ -239,7 +248,11 @@ export function PaginaMiPanelOperador({
       }, 'Reserva liberada');
     },
 
-    iniciar: async (proceso) => {
+    iniciar: async (proceso, fecha, turno) => {
+      if (fecha === '') {
+        setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
+        return;
+      }
       if (procesando === null && proceso.puedeIniciar) {
         if (proceso.equipoOcupadoPor) {
           setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
@@ -252,6 +265,9 @@ export function PaginaMiPanelOperador({
             return;
           }
         }
+        setInicioFecha(fecha);
+        setInicioTurno(turno);
+        setProcesoSeleccionadoId(null);
         setInicioPendienteId(proceso.id);
       }
     },
@@ -318,7 +334,7 @@ export function PaginaMiPanelOperador({
     }, 'Sesión registrada y recurso liberado'),
   };
 
-  function abrirLote(lote: LoteTablero): void {
+  function abrirLote(lote: LoteTablero, fecha: string, turno: string): void {
     const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
     const proceso = lote.items
       .map((item) => misProcesos
@@ -336,6 +352,8 @@ export function PaginaMiPanelOperador({
     }
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
+    setInicioFecha(fecha);
+    setInicioTurno(turno);
     setInicioPendienteId(proceso.id);
   }
 
@@ -343,19 +361,21 @@ export function PaginaMiPanelOperador({
     if (!inicioPendiente) {
       return { exito: false, error: 'Selecciona un proceso para iniciar' };
     }
+    if (inicioFecha === '') {
+      return { exito: false, error: 'Indica la fecha de la jornada antes de iniciar.' };
+    }
     return ejecutar(inicioPendiente, async () => {
       // Obs. cliente: la reserva la crea la acción; el operador no reclama.
       const resultado = await iniciarProcesoDirectoAccion({
         ordenId: inicioPendiente.ordenId,
         partidaId: inicioPendiente.partidaId,
         metaProcesoId: inicioPendiente.metaProcesoId,
-        fecha: inicioPendiente.reclamo?.fecha ?? hoy,
-        turno: (inicioPendiente.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
+        fecha: inicioFecha,
+        turno: inicioTurno as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
         ...(corridaInicioId ? { corridaId: corridaInicioId } : {}),
       });
-      setCorridaInicioId(null);
-      if (resultado.exito) setInicioPendienteId(null);
+      limpiarInicio();
       return resultado.exito
         ? { exito: true }
         : { exito: false, error: resultado.error };
@@ -485,7 +505,7 @@ export function PaginaMiPanelOperador({
                 key={grupo.ordenId}
                 grupo={grupo}
                 testIdPrefijo="tarjeta-lote-mi-panel"
-                onAbrirLote={abrirLote}
+                onAbrirLote={(lote) => setLoteAbierto(lote)}
               />
             ))}
           </div>
@@ -531,7 +551,7 @@ export function PaginaMiPanelOperador({
                 procesos={procesos}
                 hoy={hoy}
                 procesando={procesando}
-                onIniciar={(proceso) => accionesDetalle.iniciar(proceso)}
+                onIniciar={(proceso) => setProcesoSeleccionadoId(proceso.id)}
                 onReanudar={(proceso) => void accionesDetalle.reanudar(proceso)}
                 onLiberar={(proceso) => void accionesDetalle.liberar(proceso)}
                 onGestionar={(proceso) => setProcesoSeleccionadoId(proceso.id)}
@@ -611,8 +631,10 @@ export function PaginaMiPanelOperador({
   </Dialog>
 
       <DialogoDetalleLote
+        key={loteAbierto?.id ?? 'sin-lote'}
         lote={loteAbierto}
         puedeOperar
+        procesando={procesando !== null}
         onIniciar={abrirLote}
         onCerrar={() => setLoteAbierto(null)}
       />
@@ -626,7 +648,7 @@ export function PaginaMiPanelOperador({
         procesoNombre={inicioPendiente?.procesoNombre}
         areaMacro={inicioPendiente?.areaMacro}
         onAbiertoCambiar={(abierto) => {
-          if (!abierto && procesando === null) setInicioPendienteId(null);
+          if (!abierto && procesando === null) limpiarInicio();
         }}
         onConfirmar={confirmarInicio}
       />
