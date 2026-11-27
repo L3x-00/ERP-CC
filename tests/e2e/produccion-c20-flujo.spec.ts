@@ -265,7 +265,7 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
 
     // Inicio directo: el paso de reclamo ya no existe.
     await expect(detalle.getByTestId('reclamar-detalle')).toHaveCount(0);
-    await detalle.getByLabel('Día de la jornada').fill('2026-12-01');
+    // La fecha de inicio se autocompleta con el día del dispositivo.
     await detalle.getByTestId('iniciar-detalle').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByTestId('columna-en_proceso')).toContainText('C20-');

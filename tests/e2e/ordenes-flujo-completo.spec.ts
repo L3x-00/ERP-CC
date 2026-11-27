@@ -390,7 +390,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     // El operador inicia directamente: ya no existe el paso de reclamo.
     await expect(detalle.getByTestId('reclamar-detalle')).toHaveCount(0);
 
-    await detalle.getByLabel('Día de la jornada').fill('2026-12-01');
+    // La fecha de inicio se autocompleta con el día del dispositivo.
     await detalle.getByTestId('iniciar-detalle').click();
     const checklist = page.getByTestId('checklist-inicio');
     await expect(checklist).toBeVisible();

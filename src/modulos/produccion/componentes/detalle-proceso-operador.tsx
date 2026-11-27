@@ -225,10 +225,10 @@ export function DetalleProcesoOperador({
   // aviso nombra al reclamante para que el operador sepa a quién pedirlo.
   const procesoAjeno = proceso !== null && proceso.reclamo !== null && !proceso.reclamadoPorMi;
   const soloDetalle = soloLectura || procesoAjeno;
-  // C21: el día de la jornada lo elige quien inicia; nunca se hereda el día
-  // operativo actual ni el de la programación original.
-  // Reprogramar obliga a elegir fecha: nunca se hereda el día de la sesión.
-  const [fecha, setFecha] = useState('');
+  // Iniciar hoy: se autocompleta con el día de negocio del dispositivo.
+  // Reprogramar: campo aparte, vacío, porque el operador elige otro día.
+  const [fecha, setFecha] = useState(hoy);
+  const [fechaMovimiento, setFechaMovimiento] = useState('');
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
   const [piezas, setPiezas] = useState('0');
   // El material de la orden viene preseleccionado: el operador no debe elegirlo
@@ -631,11 +631,11 @@ export function DetalleProcesoOperador({
   }
 
   async function mover(): Promise<void> {
-    if (!proceso || fecha === '') {
+    if (!proceso || fechaMovimiento === '') {
       setMensaje({ exito: false, error: 'Indica la fecha de reprogramación.' });
       return;
     }
-    const resultado = await acciones.mover(proceso!, fecha, turno);
+    const resultado = await acciones.mover(proceso!, fechaMovimiento, turno);
     setMensaje(resultado);
   }
 
@@ -2963,12 +2963,13 @@ export function DetalleProcesoOperador({
                   <Input
                     type="date"
                     min={hoy}
-                    value={fecha}
-                    aria-invalid={fecha === ''}
-                    className={fecha === '' ? CLASE_CAMPO_FALTANTE : undefined}
+                    value={puedeMover ? fechaMovimiento : fecha}
+                    aria-invalid={puedeMover && fechaMovimiento === ''}
+                    className={puedeMover && fechaMovimiento === '' ? CLASE_CAMPO_FALTANTE : undefined}
                     onChange={(evento) => {
                       const nueva = evento.target.value;
-                      setFecha(nueva);
+                      if (puedeMover) setFechaMovimiento(nueva);
+                      else setFecha(nueva);
                       const permitidos = nueva === '' ? [] : turnosDelDia(nueva);
                       if (permitidos.length > 0 && !permitidos.includes(turno as never)) {
                         setTurno(permitidos[0]!);
@@ -2982,10 +2983,14 @@ export function DetalleProcesoOperador({
                     value={turno}
                     onChange={(evento) => setTurno(evento.target.value)}
                   >
-                    {(turnosDelDia(fecha).length > 0 ? turnosDelDia(fecha) : (['matutino'] as const)).map((valor) => (
+                    {(turnosDelDia(puedeMover ? fechaMovimiento : fecha).length > 0
+                      ? turnosDelDia(puedeMover ? fechaMovimiento : fecha)
+                      : (['matutino'] as const)).map((valor) => (
                       <option key={valor} value={valor}>
                         {turnoLegible(valor)}
-                        {ventanaTurno(fecha, valor) ? ` · ${ventanaTurno(fecha, valor)}` : ''}
+                        {ventanaTurno(puedeMover ? fechaMovimiento : fecha, valor)
+                          ? ` · ${ventanaTurno(puedeMover ? fechaMovimiento : fecha, valor)}`
+                          : ''}
                       </option>
                     ))}
                   </Select>
@@ -3231,7 +3236,7 @@ export function DetalleProcesoOperador({
                   {`Ver lote ${proceso.loteCodigo ?? ''} e iniciar corrida`}
                 </Button>
               ) : proceso.puedeIniciar ? (
-                <Button type="button" tamano="lg" disabled={procesando || fecha === ''} onClick={() => acciones.iniciar(proceso, fecha, turno)} data-testid="iniciar-detalle">
+                <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso, fecha, turno)} data-testid="iniciar-detalle">
                   {proceso.equipoOcupadoPor ? 'Ocupado · Ver detalles' : 'Iniciar proceso'}
                 </Button>
               ) : null}
