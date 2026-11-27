@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import {
   Tabla,
   TablaCelda,
@@ -218,6 +219,12 @@ export function DialogoHistorialRfq({
 
   const catalogosDatos = catalogos.data?.exito ? (catalogos.data.datos ?? null) : null;
   const filas = versiones.data?.exito ? (versiones.data.datos ?? []) : [];
+  // Solo la última acción queda visible con el panel cerrado. Abierta se lista
+  // una vez por tipo de acción, con la más reciente de cada una.
+  const ultimaAccion = filas[0] ?? null;
+  const accionesUnicas = filas.filter(
+    (version, indice) => filas.findIndex((otra) => otra.causa === version.causa) === indice,
+  );
   const error = versiones.isError
     ? 'No se pudo cargar el historial del RFQ'
     : versiones.data && !versiones.data.exito
@@ -278,29 +285,40 @@ export function DialogoHistorialRfq({
             )}
 
             {filas.length > 0 && (
-              <ol className="flex flex-col gap-2">
-                {filas.map((version) => (
-                  <li key={version.id}>
-                    <button
-                      type="button"
-                      onClick={() => setVersionSeleccionada(version)}
-                      className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-superficie px-3 py-2 text-left shadow-xs transition-colors duration-150 hover:bg-superficie-2"
-                      aria-label={`Ver versión ${version.numero} (${etiquetaCausaVersion(version.causa)})`}
-                    >
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-semibold">v{version.numero}</span>
-                        <Badge variante={version.causa === 'CREAR_REV_A' ? 'exito' : 'neutro'}>
-                          {etiquetaCausaVersion(version.causa)}
-                        </Badge>
-                      </span>
-                      <span className="text-xs text-texto-secundario">
-                        {version.actorNombre ?? 'Usuario del sistema'} ·{' '}
-                        {formatearFecha(version.creadoEn)} {formatearHora(version.creadoEn)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
+              <PanelDesplegable
+                titulo="Historial del documento"
+                descripcion="Versiones del RFQ. Cada acción repetida se muestra una sola vez con su fecha más reciente."
+                resumen={ultimaAccion
+                  ? `Última acción: ${etiquetaCausaVersion(ultimaAccion.causa)} · ${
+                    ultimaAccion.actorNombre ?? 'Usuario del sistema'
+                  } · ${formatearFecha(ultimaAccion.creadoEn)} ${formatearHora(ultimaAccion.creadoEn)}`
+                  : null}
+                data-testid="historial-documento-desplegable"
+              >
+                <ol className="flex flex-col gap-2">
+                  {accionesUnicas.map((version) => (
+                    <li key={version.id}>
+                      <button
+                        type="button"
+                        onClick={() => setVersionSeleccionada(version)}
+                        className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-superficie px-3 py-2 text-left shadow-xs transition-colors duration-150 hover:bg-superficie-2"
+                        aria-label={`Ver versión ${version.numero} (${etiquetaCausaVersion(version.causa)})`}
+                      >
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-semibold">v{version.numero}</span>
+                          <Badge variante={version.causa === 'CREAR_REV_A' ? 'exito' : 'neutro'}>
+                            {etiquetaCausaVersion(version.causa)}
+                          </Badge>
+                        </span>
+                        <span className="text-xs text-texto-secundario">
+                          {version.actorNombre ?? 'Usuario del sistema'} ·{' '}
+                          {formatearFecha(version.creadoEn)} {formatearHora(version.creadoEn)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </PanelDesplegable>
             )}
           </div>
         )}

@@ -88,4 +88,27 @@ describe('C31/A6 — diagnóstico accionable', () => {
     );
     expect(salidas.length).toBeGreaterThanOrEqual(11);
   });
+
+  it('en una orden concluida oculta programación y consumo, y la entrega abre el formulario', () => {
+    const onGenerarEntrega = vi.fn();
+    items = [
+      item('produccion_sin_programacion'),
+      item('consumo_material_pendiente'),
+      item('orden_completada_sin_entrega'),
+    ];
+    render(createElement(PanelSaludOrden, {
+      ordenId: 'orden-1',
+      esAdmin: true,
+      puedeGestionarProduccion: true,
+      filtrarNoAccionables: true,
+      onGenerarEntrega,
+    }));
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByText('Producción sin operación programada')).toBeNull();
+    expect(screen.queryByText('Consumo de material pendiente')).toBeNull();
+    screen.getByTestId('accion-generar_nota_entrega-orden_completada_sin_entrega').click();
+    expect(onGenerarEntrega).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+  });
 });
