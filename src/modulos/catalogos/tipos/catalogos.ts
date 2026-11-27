@@ -120,6 +120,13 @@ export interface AreaTrabajoOpcion {
   codigo: string;
   nombre: string;
   activo: boolean;
+  /** Área padre dentro de la jerarquía del taller; null = raíz. */
+  padreCodigo: string | null;
+  /**
+   * Área macro de Planeación (`sheet_metal`, `taller`, `acabados`, `ext`).
+   * Puede vivir en un ancestro: se resuelve con `areaMacroDeCodigo`.
+   */
+  areaPlaneacion: string | null;
 }
 
 /** Datos completos de la pestaña Configuración → Catálogos base. */

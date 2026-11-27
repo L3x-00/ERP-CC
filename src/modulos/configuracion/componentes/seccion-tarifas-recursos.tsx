@@ -7,6 +7,7 @@ import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import {
+  actualizarEquipoAccion,
   alternarEquipoActivoAccion,
   crearEquipoAccion,
   guardarGrupoEquipoAccion,
@@ -15,7 +16,18 @@ import {
   type TarifaRecurso,
 } from '@/modulos/catalogos/acciones/indice';
 import type { AreaEquipo } from '@/modulos/catalogos/validaciones/indice';
-import type { GrupoEquipoCatalogo, MonedaTarifa } from '@/modulos/catalogos/tipos/indice';
+import type {
+  AreaTrabajoOpcion,
+  GrupoEquipoCatalogo,
+  MonedaTarifa,
+  ProcesoCatalogo,
+} from '@/modulos/catalogos/tipos/indice';
+import {
+  ETIQUETA_AREA_EQUIPO,
+  areaCompatibleConGrupo,
+  areasEsperadasGrupo,
+  etiquetaGrupoEquipo,
+} from '@/modulos/catalogos/utilidades/indice';
 
 import { parsearMonto, textoMonto } from '@/compartido/utilidades/monto';
 
@@ -30,11 +42,19 @@ type BorradorEquipo = {
   codigo: string;
   nombre: string;
   grupoEquipoId: string;
-  area: AreaEquipo;
+  /** Vacío = todavía no se deduce ni se elige; el formulario no deja guardar. */
+  area: AreaEquipo | '';
   activo: boolean;
   propia: boolean;
   tarifa: string;
   moneda: MonedaTarifa;
+};
+
+type BorradorEquipoEditado = {
+  recursoId: string;
+  nombre: string;
+  grupoEquipoId: string;
+  area: AreaEquipo | '';
 };
 
 const AREAS_EQUIPO_UI: { valor: AreaEquipo; etiqueta: string }[] = [
@@ -48,7 +68,7 @@ const EQUIPO_VACIO: BorradorEquipo = {
   codigo: '',
   nombre: '',
   grupoEquipoId: '',
-  area: 'taller',
+  area: '',
   activo: true,
   propia: false,
   tarifa: '',
@@ -56,7 +76,7 @@ const EQUIPO_VACIO: BorradorEquipo = {
 };
 
 type ErroresEquipo = Partial<
-  Record<'codigo' | 'nombre' | 'grupoEquipoId' | 'tarifa', string>
+  Record<'codigo' | 'nombre' | 'grupoEquipoId' | 'area' | 'tarifa', string>
 >;
 
 const CODIGO_EQUIPO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
@@ -71,6 +91,7 @@ function validarBorradorEquipo(valor: BorradorEquipo): ErroresEquipo {
   const nombre = valor.nombre.trim();
   if (nombre.length < 2) errores.nombre = 'Escribe un nombre de al menos 2 caracteres.';
   if (valor.grupoEquipoId === '') errores.grupoEquipoId = 'Elige el grupo de equipo.';
+  if (valor.area === '') errores.area = 'Elige el área de trabajo.';
   if (valor.propia) {
     const tarifa = parsearMonto(valor.tarifa);
     if (tarifa === null || tarifa < 0) {
@@ -88,12 +109,17 @@ function validarBorradorEquipo(valor: BorradorEquipo): ErroresEquipo {
  */
 export function SeccionTarifasRecursos({
   grupos,
+  procesos,
+  areasTrabajo,
   tarifaRespaldo,
   puedeEditar,
   onMensaje,
   onError,
 }: {
   grupos: GrupoEquipoCatalogo[];
+  /** Procesos activos: de ellos se deduce el área de planeación del grupo. */
+  procesos: ProcesoCatalogo[];
+  areasTrabajo: AreaTrabajoOpcion[];
   /** T1 2026-11-06: respaldo vigente para explicar qué heredará un grupo sin tarifa. */
   tarifaRespaldo: number | null;
   puedeEditar: boolean;
@@ -105,6 +131,8 @@ export function SeccionTarifasRecursos({
   const [guardando, setGuardando] = useState(false);
   const [nuevo, setNuevo] = useState<BorradorEquipo | null>(null);
   const [erroresEquipo, setErroresEquipo] = useState<ErroresEquipo>({});
+  const [equipoEditado, setEquipoEditado] = useState<BorradorEquipoEditado | null>(null);
+  const [erroresEquipoEditado, setErroresEquipoEditado] = useState<ErroresEquipo>({});
   const [tarifaGrupo, setTarifaGrupo] = useState('');
   const [guardandoTarifaGrupo, setGuardandoTarifaGrupo] = useState(false);
   const [errorTarifaGrupo, setErrorTarifaGrupo] = useState<string | null>(null);
@@ -117,6 +145,27 @@ export function SeccionTarifasRecursos({
     },
   });
   const grupoPorId = new Map(grupos.map((grupo) => [grupo.id, grupo]));
+
+  /**
+   * Área que exige el grupo según sus procesos. Es la misma función que usa la
+   * acción de servidor: la UI no inventa una regla distinta.
+   */
+  function areasEsperadasDe(grupoId: string): AreaEquipo[] {
+    return areasEsperadasGrupo(grupoId, procesos, areasTrabajo);
+  }
+
+  /** Al elegir grupo, el área se deduce si el grupo la define sin ambigüedad. */
+  function elegirGrupo(grupoId: string): void {
+    if (!nuevo) return;
+    const esperadas = areasEsperadasDe(grupoId);
+    const areaActual = nuevo.area;
+    const area = esperadas.length > 0
+      ? (areaActual && esperadas.includes(areaActual) ? areaActual : esperadas[0]!)
+      : areaActual;
+    setNuevo({ ...nuevo, grupoEquipoId: grupoId, area });
+    limpiarError('grupoEquipoId');
+    limpiarError('area');
+  }
 
   function descripcion(recurso: TarifaRecurso): string {
     if (recurso.overrideActivo && recurso.tarifaHora !== null && recurso.moneda) {
@@ -172,6 +221,10 @@ export function SeccionTarifasRecursos({
       setErroresEquipo(errores);
       return;
     }
+    if (!nuevo.area) {
+      setErroresEquipo({ area: 'Elige el área de trabajo.' });
+      return;
+    }
     setErroresEquipo({});
     const tarifa = nuevo.propia ? parsearMonto(nuevo.tarifa) : null;
     setGuardando(true);
@@ -194,6 +247,49 @@ export function SeccionTarifasRecursos({
     setNuevo(null);
     await clienteQuery.invalidateQueries({ queryKey: CLAVE_TARIFAS_RECURSOS });
     onMensaje(`Equipo ${respuesta.datos?.nombre ?? nuevo.nombre} creado y listo para usar`);
+  }
+
+  function elegirGrupoEdicion(grupoId: string): void {
+    if (!equipoEditado) return;
+    const esperadas = areasEsperadasDe(grupoId);
+    const area = esperadas.length > 0
+      ? (equipoEditado.area && esperadas.includes(equipoEditado.area) ? equipoEditado.area : esperadas[0]!)
+      : equipoEditado.area;
+    setEquipoEditado({ ...equipoEditado, grupoEquipoId: grupoId, area });
+    setErroresEquipoEditado({});
+  }
+
+  /** Corrige nombre, grupo o área de una máquina existente sin darla de baja. */
+  async function guardarEdicionEquipo(): Promise<void> {
+    if (!equipoEditado) return;
+    const esperadas = areasEsperadasDe(equipoEditado.grupoEquipoId);
+    const areaFinal = esperadas.length === 1 ? esperadas[0]! : equipoEditado.area;
+    const errores: ErroresEquipo = {};
+    if (equipoEditado.nombre.trim().length < 2) {
+      errores.nombre = 'Escribe un nombre de al menos 2 caracteres.';
+    }
+    if (equipoEditado.grupoEquipoId === '') errores.grupoEquipoId = 'Elige el grupo de equipo.';
+    if (areaFinal === '') errores.area = 'Elige el área de trabajo.';
+    if (Object.keys(errores).length > 0 || !areaFinal) {
+      setErroresEquipoEditado(errores);
+      return;
+    }
+    setErroresEquipoEditado({});
+    setGuardando(true);
+    const respuesta = await actualizarEquipoAccion({
+      recursoId: equipoEditado.recursoId,
+      nombre: equipoEditado.nombre.trim(),
+      grupoEquipoId: equipoEditado.grupoEquipoId,
+      area: areaFinal,
+    });
+    setGuardando(false);
+    if (!respuesta.exito) {
+      onError(respuesta.error);
+      return;
+    }
+    setEquipoEditado(null);
+    await clienteQuery.invalidateQueries({ queryKey: CLAVE_TARIFAS_RECURSOS });
+    onMensaje('Equipo actualizado');
   }
 
   /** Un equipo se desactiva, no se borra: conserva su historial. */
@@ -248,6 +344,8 @@ export function SeccionTarifasRecursos({
 
   const grupoNuevo = nuevo ? grupos.find((grupo) => grupo.id === nuevo.grupoEquipoId) : undefined;
   const resumenGrupoNuevo = grupoNuevo ? resumenTarifaGrupo(grupoNuevo) : null;
+  const areasEsperadasNuevo = grupoNuevo ? areasEsperadasDe(grupoNuevo.id) : [];
+  const areaDeducida = areasEsperadasNuevo.length === 1 ? areasEsperadasNuevo[0]! : null;
   const respaldoValido =
     typeof tarifaRespaldo === 'number' && Number.isFinite(tarifaRespaldo) && tarifaRespaldo >= 0
       ? tarifaRespaldo
@@ -347,10 +445,7 @@ export function SeccionTarifasRecursos({
               Grupo de equipo
               <Select
                 value={nuevo.grupoEquipoId}
-                onChange={(evento) => {
-                  setNuevo({ ...nuevo, grupoEquipoId: evento.target.value });
-                  limpiarError('grupoEquipoId');
-                }}
+                onChange={(evento) => elegirGrupo(evento.target.value)}
                 required
                 aria-invalid={Boolean(erroresEquipo.grupoEquipoId)}
                 aria-describedby={erroresEquipo.grupoEquipoId ? 'equipo-grupo-error' : undefined}
@@ -362,33 +457,69 @@ export function SeccionTarifasRecursos({
                   .filter((grupo) => grupo.activo)
                   .map((grupo) => (
                     <option key={grupo.id} value={grupo.id}>
-                      {grupo.nombre}
+                      {etiquetaGrupoEquipo(grupo)}
                     </option>
                   ))}
               </Select>
-              <span className="text-[11px] font-normal">De aquí hereda la tarifa estándar.</span>
+              <span className="text-[11px] font-normal">
+                De aquí hereda la tarifa estándar y el área de trabajo.
+              </span>
               {erroresEquipo.grupoEquipoId ? (
                 <span id="equipo-grupo-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
                   {erroresEquipo.grupoEquipoId}
                 </span>
               ) : null}
             </label>
-            <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-              Área de trabajo
-              <Select
-                value={nuevo.area}
-                onChange={(evento) =>
-                  setNuevo({ ...nuevo, area: evento.target.value as AreaEquipo })
-                }
-                data-testid="alta-guiada-equipo-area"
-              >
-                {AREAS_EQUIPO_UI.map((area) => (
-                  <option key={area.valor} value={area.valor}>
-                    {area.etiqueta}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <div className="grid gap-1 text-xs font-medium text-texto-secundario">
+              <span>Área de trabajo</span>
+              {areaDeducida ? (
+                <div
+                  className="rounded-md border border-borde bg-superficie px-3 py-2 text-sm font-normal text-texto-primario"
+                  data-testid="alta-guiada-equipo-area-deducida"
+                >
+                  {ETIQUETA_AREA_EQUIPO[areaDeducida]}
+                  <span className="block text-[11px] text-texto-secundario">
+                    Definida por el grupo {grupoNuevo ? etiquetaGrupoEquipo(grupoNuevo) : ''}.
+                  </span>
+                </div>
+              ) : (
+                <Select
+                  value={nuevo.area}
+                  onChange={(evento) => {
+                    setNuevo({ ...nuevo, area: evento.target.value as AreaEquipo | '' });
+                    limpiarError('area');
+                  }}
+                  required
+                  disabled={nuevo.grupoEquipoId === ''}
+                  aria-invalid={Boolean(erroresEquipo.area)}
+                  aria-describedby={erroresEquipo.area ? 'equipo-area-error' : undefined}
+                  className={erroresEquipo.area ? 'border-peligro' : undefined}
+                  data-testid="alta-guiada-equipo-area"
+                >
+                  <option value="">Elige el área…</option>
+                  {(areasEsperadasNuevo.length > 0
+                    ? AREAS_EQUIPO_UI.filter((area) => areasEsperadasNuevo.includes(area.valor))
+                    : AREAS_EQUIPO_UI
+                  ).map((area) => (
+                    <option key={area.valor} value={area.valor}>
+                      {area.etiqueta}
+                    </option>
+                  ))}
+                </Select>
+              )}
+              <span className="text-[11px] font-normal">
+                {nuevo.grupoEquipoId === ''
+                  ? 'Elige el grupo para calcular el área.'
+                  : areasEsperadasNuevo.length === 0
+                    ? 'El grupo aún no tiene procesos: elige el área donde trabajará la máquina.'
+                    : 'El grupo usa más de un área: elige la de esta máquina.'}
+              </span>
+              {erroresEquipo.area ? (
+                <span id="equipo-area-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                  {erroresEquipo.area}
+                </span>
+              ) : null}
+            </div>
 
             <div className="sm:col-span-2 lg:col-span-4" data-testid="alta-guiada-equipo-heredada">
               {nuevo.grupoEquipoId === '' ? (
@@ -549,6 +680,15 @@ export function SeccionTarifasRecursos({
       <ul className="grid gap-2">
         {(consulta.data ?? []).map((recurso) => {
           const editando = borrador?.id === recurso.id ? borrador : null;
+          const editandoEquipo = equipoEditado?.recursoId === recurso.id ? equipoEditado : null;
+          const grupo = recurso.grupoEquipoId ? grupoPorId.get(recurso.grupoEquipoId) : undefined;
+          const esperadas = areasEsperadasDe(recurso.grupoEquipoId ?? '');
+          const areaIncoherente =
+            grupo !== undefined && !areaCompatibleConGrupo(recurso.area, esperadas);
+          const areasEdicion = editandoEquipo
+            ? areasEsperadasDe(editandoEquipo.grupoEquipoId)
+            : [];
+          const areaEdicionDeducida = areasEdicion.length === 1 ? areasEdicion[0]! : null;
           return (
             <li
               key={recurso.id}
@@ -559,10 +699,137 @@ export function SeccionTarifasRecursos({
                 <span className="flex flex-wrap items-center gap-2 font-medium text-texto-primario">
                   {recurso.nombre}
                   {!recurso.activo ? <Badge variante="neutro">Inactivo</Badge> : null}
+                  {areaIncoherente ? (
+                    <Badge
+                      variante="alerta"
+                      data-testid={`equipo-area-distinta-${recurso.codigo}`}
+                      title={`El grupo trabaja en ${esperadas
+                        .map((esperada) => ETIQUETA_AREA_EQUIPO[esperada])
+                        .join(' o ')}`}
+                    >
+                      Área distinta a la del grupo
+                    </Badge>
+                  ) : null}
+                </span>
+                <span className="text-texto-secundario">
+                  {recurso.codigo} · {grupo ? etiquetaGrupoEquipo(grupo) : 'Sin grupo'} · Área:{' '}
+                  {recurso.area ? ETIQUETA_AREA_EQUIPO[recurso.area] : 'sin definir'}
                 </span>
                 <span className="text-texto-secundario">{descripcion(recurso)}</span>
               </span>
-              {editando ? (
+              {editandoEquipo ? (
+                <form
+                  className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                  onSubmit={(evento) => {
+                    evento.preventDefault();
+                    void guardarEdicionEquipo();
+                  }}
+                  aria-label={`Editar equipo ${recurso.nombre}`}
+                  data-testid={`editar-equipo-${recurso.codigo}`}
+                >
+                  <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+                    Nombre
+                    <Input
+                      value={editandoEquipo.nombre}
+                      onChange={(evento) => {
+                        setEquipoEditado({ ...editandoEquipo, nombre: evento.target.value });
+                        setErroresEquipoEditado({});
+                      }}
+                      maxLength={120}
+                      required
+                      data-testid={`editar-equipo-nombre-${recurso.codigo}`}
+                    />
+                    {erroresEquipoEditado.nombre ? (
+                      <span role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresEquipoEditado.nombre}
+                      </span>
+                    ) : null}
+                  </label>
+                  <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+                    Grupo de equipo
+                    <Select
+                      value={editandoEquipo.grupoEquipoId}
+                      onChange={(evento) => elegirGrupoEdicion(evento.target.value)}
+                      required
+                      data-testid={`editar-equipo-grupo-${recurso.codigo}`}
+                    >
+                      <option value="">Elige el grupo…</option>
+                      {grupos
+                        .filter((opcion) => opcion.activo)
+                        .map((opcion) => (
+                          <option key={opcion.id} value={opcion.id}>
+                            {etiquetaGrupoEquipo(opcion)}
+                          </option>
+                        ))}
+                    </Select>
+                    {erroresEquipoEditado.grupoEquipoId ? (
+                      <span role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresEquipoEditado.grupoEquipoId}
+                      </span>
+                    ) : null}
+                  </label>
+                  <div className="grid gap-1 text-xs font-medium text-texto-secundario">
+                    <span>Área de trabajo</span>
+                    {areaEdicionDeducida ? (
+                      <span
+                        className="rounded-md border border-borde bg-superficie px-3 py-2 text-sm font-normal text-texto-primario"
+                        data-testid={`editar-equipo-area-deducida-${recurso.codigo}`}
+                      >
+                        {ETIQUETA_AREA_EQUIPO[areaEdicionDeducida]}
+                      </span>
+                    ) : (
+                      <Select
+                        value={editandoEquipo.area}
+                        onChange={(evento) => {
+                          setEquipoEditado({
+                            ...editandoEquipo,
+                            area: evento.target.value as AreaEquipo | '',
+                          });
+                          setErroresEquipoEditado({});
+                        }}
+                        required
+                        data-testid={`editar-equipo-area-${recurso.codigo}`}
+                      >
+                        <option value="">Elige el área…</option>
+                        {(areasEdicion.length > 0
+                          ? AREAS_EQUIPO_UI.filter((area) => areasEdicion.includes(area.valor))
+                          : AREAS_EQUIPO_UI
+                        ).map((area) => (
+                          <option key={area.valor} value={area.valor}>
+                            {area.etiqueta}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                    {erroresEquipoEditado.area ? (
+                      <span role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresEquipoEditado.area}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button
+                      type="submit"
+                      tamano="sm"
+                      disabled={guardando}
+                      data-testid={`editar-equipo-guardar-${recurso.codigo}`}
+                    >
+                      Guardar equipo
+                    </Button>
+                    <Button
+                      type="button"
+                      variante="contorno"
+                      tamano="sm"
+                      onClick={() => {
+                        setEquipoEditado(null);
+                        setErroresEquipoEditado({});
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              ) : editando ? (
                 <span className="flex min-w-0 flex-wrap items-end gap-2">
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -604,6 +871,23 @@ export function SeccionTarifasRecursos({
                 </span>
               ) : puedeEditar ? (
                 <span className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variante="contorno"
+                    tamano="sm"
+                    onClick={() => {
+                      setEquipoEditado({
+                        recursoId: recurso.id,
+                        nombre: recurso.nombre,
+                        grupoEquipoId: recurso.grupoEquipoId ?? '',
+                        area: recurso.area ?? '',
+                      });
+                      setErroresEquipoEditado({});
+                    }}
+                    data-testid={`editar-equipo-${recurso.codigo}`}
+                  >
+                    Editar equipo
+                  </Button>
                   <Button
                     type="button"
                     variante="contorno"

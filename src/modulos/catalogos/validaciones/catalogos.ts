@@ -141,8 +141,22 @@ export const esquemaCrearEquipo = z
   ])
   .describe('Equipo con grupo y tarifa propia opcional');
 
-/** Grupo planeado (B1.6). */
-export const esquemaGuardarGrupoPlaneado = z
+/**
+ * Edición de un equipo ya creado. El código no se edita: es un identificador
+ * operativo que pueden referenciar documentos e historial. El grupo y el área
+ * sí, para poder corregir una máquina existente sin darla de baja.
+ */
+export const esquemaActualizarEquipo = z
+  .object({
+    recursoId: z.uuid('Equipo inválido'),
+    nombre: nombreCatalogo,
+    grupoEquipoId: z.uuid('Elige un grupo de equipo'),
+    area: z.enum(AREAS_EQUIPO),
+  })
+  .strict()
+  .describe('Equipo con nombre, grupo y área editables');
+
+/** Grupo planeado (B1.6). */export const esquemaGuardarGrupoPlaneado = z
   .object({
     id: idOpcional,
     codigo: codigoCatalogo,

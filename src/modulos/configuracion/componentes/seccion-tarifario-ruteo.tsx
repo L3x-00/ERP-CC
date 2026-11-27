@@ -416,6 +416,8 @@ export function SeccionTarifarioRuteo({
           />
           <SeccionTarifasRecursos
             grupos={datos.gruposEquipo}
+            procesos={datos.procesos}
+            areasTrabajo={datos.areasTrabajo}
             tarifaRespaldo={datos.tarifaRespaldo}
             puedeEditar={datos.puedeEditar}
             onMensaje={(texto) => {

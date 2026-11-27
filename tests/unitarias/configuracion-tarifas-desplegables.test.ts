@@ -11,6 +11,7 @@ vi.mock('@/modulos/configuracion/componentes/consulta-catalogos-base', () => ({
   consultarCatalogosBase: vi.fn(),
 }));
 vi.mock('@/modulos/catalogos/acciones/indice', () => ({
+  actualizarEquipoAccion: vi.fn(async () => ({ exito: true, datos: null })),
   alternarEquipoActivoAccion: vi.fn(async () => ({ exito: true, datos: null })),
   asignarProcesosAGrupoAccion: vi.fn(async () => ({ exito: true, datos: { procesos: 1 } })),
   crearEquipoAccion: vi.fn(async () => ({
@@ -27,9 +28,11 @@ vi.mock('@/modulos/catalogos/acciones/indice', () => ({
 
 import { consultarCatalogosBase } from '@/modulos/configuracion/componentes/consulta-catalogos-base';
 import {
+  actualizarEquipoAccion,
   asignarProcesosAGrupoAccion,
   crearEquipoAccion,
   guardarGrupoEquipoAccion,
+  listarTarifasRecursosAccion,
 } from '@/modulos/catalogos/acciones/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
 import { SeccionTarifarioRuteo } from '@/modulos/configuracion/componentes/seccion-tarifario-ruteo';
@@ -79,6 +82,25 @@ beforeEach(() => {
         grupoPlaneadoId: null,
         areaTrabajoCodigo: null,
         activo: true,
+      },
+      {
+        id: 'p2',
+        codigo: 'CORTE_LASER_G1',
+        nombre: 'Corte láser del grupo',
+        prefijoCorrida: 'LAS',
+        grupoEquipoId: 'g1',
+        grupoPlaneadoId: null,
+        areaTrabajoCodigo: 'LASER',
+        activo: true,
+      },
+    ],
+    areasTrabajo: [
+      {
+        codigo: 'LASER',
+        nombre: 'Corte láser',
+        activo: true,
+        padreCodigo: null,
+        areaPlaneacion: 'sheet_metal',
       },
     ],
     tarifasEstacion: {
@@ -181,6 +203,30 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     return screen.getByTestId('alta-guiada-equipo');
   }
 
+  it('deduce el área del grupo y no deja elegir otra', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g1' },
+    });
+
+    expect(screen.getByTestId('alta-guiada-equipo-area-deducida').textContent).toContain(
+      'Corte y lámina',
+    );
+    expect(screen.queryByTestId('alta-guiada-equipo-area')).toBeNull();
+  });
+
+  it('pide el área cuando el grupo todavía no tiene procesos', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g2' },
+    });
+
+    expect(screen.getByTestId('alta-guiada-equipo-area')).toBeDefined();
+    expect(screen.queryByTestId('alta-guiada-equipo-area-deducida')).toBeNull();
+  });
+
   it('muestra la tarifa heredada del grupo antes de guardar', async () => {
     await abrirFormulario();
 
@@ -271,6 +317,7 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
           codigo: 'LASER-01',
           nombre: 'Láser Fibra 01',
           grupoEquipoId: 'g1',
+          area: 'sheet_metal',
           activo: true,
           tarifaPropiaActiva: false,
         }),
@@ -278,6 +325,44 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     );
     expect(crearEquipoAccion).toHaveBeenCalledWith(
       expect.not.objectContaining({ tarifaHora: expect.anything() }),
+    );
+  });
+
+  it('marca y permite corregir una máquina en un área distinta a la del grupo', async () => {
+    vi.mocked(listarTarifasRecursosAccion).mockResolvedValueOnce({
+      exito: true,
+      datos: [
+        {
+          id: 'r1',
+          codigo: 'LASER-01',
+          nombre: 'Láser Fibra 01',
+          activo: true,
+          area: 'taller',
+          grupoEquipoId: 'g1',
+          overrideActivo: false,
+          tarifaHora: null,
+          moneda: null,
+        },
+      ],
+    });
+
+    montarTarifario();
+    fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
+
+    expect(await screen.findByTestId('equipo-area-distinta-LASER-01')).toBeDefined();
+    fireEvent.click(screen.getByTestId('editar-equipo-LASER-01'));
+    expect(screen.getByTestId('editar-equipo-area-deducida-LASER-01').textContent).toContain(
+      'Corte y lámina',
+    );
+    fireEvent.click(screen.getByTestId('editar-equipo-guardar-LASER-01'));
+
+    await waitFor(() =>
+      expect(actualizarEquipoAccion).toHaveBeenCalledWith({
+        recursoId: 'r1',
+        nombre: 'Láser Fibra 01',
+        grupoEquipoId: 'g1',
+        area: 'sheet_metal',
+      }),
     );
   });
 });
