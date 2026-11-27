@@ -91,7 +91,7 @@ describe('mensajes operativos de corrida', () => {
     expect(mensajeErrorSesion(new ErrorProduccion('sin_recurso_disponible')))
       .toContain('Sin disponibilidad suficiente');
     expect(mensajeErrorSesion(new ErrorProduccion('recurso_sin_equipos')))
-      .toContain('no hay equipos activos');
+      .toContain('máquina activa disponible');
     expect(mensajeErrorSesion(new ErrorProduccion('recurso_sin_capacidad')))
       .toContain('no tiene capacidad configurada');
     expect(mensajeErrorSesion(new ErrorProduccion('recurso_ocupado')))

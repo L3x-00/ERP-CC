@@ -42,6 +42,7 @@ export const MENSAJES_ERROR_PRODUCCION: Readonly<Record<string, DescripcionError
   material_inexistente_o_inactivo: { mensaje: 'El material seleccionado ya no está disponible. Elige otro material activo.', campo: 'material-cierre', accion: 'Cambiar material' },
   costo_material_no_configurado: { mensaje: 'El material no tiene costo confirmado. Pide a administración que lo configure antes de cerrar.', accion: 'Avisar a administración' },
   tipo_cambio_no_configurado: { mensaje: 'Falta configurar el tipo de cambio. Pide a administración que lo registre antes de cerrar.', accion: 'Avisar a administración' },
+  recurso_sin_equipos: { mensaje: 'No hay una máquina activa disponible para el equipo que pide este proceso en el área configurada. Configura un equipo activo del grupo indicado o corrige el equipo del proceso.', accion: 'Revisar equipos' },
   primera_pieza_pendiente: { mensaje: 'Falta liberar la primera pieza antes de declarar producción. Registra la inspección de la primera pieza.', accion: 'Liberar primera pieza' },
   primera_pieza_rechazada: { mensaje: 'La primera pieza fue rechazada. Corrige el problema y vuelve a liberarla antes de producir.', accion: 'Revisar primera pieza' },
   cantidad_excede_meta_proceso: { mensaje: 'Las piezas declaradas superan lo que falta en esta operación. Baja la cantidad y vuelve a intentarlo.', campo: 'piezas-cierre', accion: 'Corregir piezas' },

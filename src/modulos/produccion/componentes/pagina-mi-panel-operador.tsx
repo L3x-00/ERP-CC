@@ -58,7 +58,9 @@ import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupac
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoDetalleLote } from './dialogo-detalle-lote';
-import { DialogoErrorCierre } from './dialogo-error-cierre';
+import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
+import { validarDisponibilidadInicioAccion } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
+import { mensajeSinDisponibilidad } from '@/modulos/produccion/utilidades/mensaje-disponibilidad';
 import { TarjetaOrdenMisProcesos } from './tarjeta-orden-mis-procesos';
 interface PropsPaginaMiPanelOperador {
   nombreOperador: string;
@@ -108,6 +110,7 @@ export function PaginaMiPanelOperador({
   }
   const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
+  const [errorDisponibilidad, setErrorDisponibilidad] = useState<DatosErrorCierre | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
@@ -206,6 +209,45 @@ export function PaginaMiPanelOperador({
     }
   }
 
+  async function prepararInicio(
+    proceso: ProcesoEspacioOperador,
+    fecha: string,
+    turno: string,
+  ): Promise<boolean> {
+    if (fecha === '') {
+      setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
+      return false;
+    }
+    const disponibilidad = await validarDisponibilidadInicioAccion({
+      ordenId: proceso.ordenId,
+      partidaId: proceso.partidaId,
+      ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+      ...(proceso.programacion?.id ? { programacionId: proceso.programacion.id } : {}),
+    });
+    if (disponibilidad.exito && !disponibilidad.datos?.disponible && disponibilidad.datos) {
+      setErrorDisponibilidad({
+        titulo: 'Sin equipo disponible',
+        mensaje: mensajeSinDisponibilidad(disponibilidad.datos),
+        etiquetaCerrar: 'Entendido',
+      });
+      return false;
+    }
+    if (proceso.equipoOcupadoPor) {
+      setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
+      return false;
+    }
+    if (proceso.reclamo) {
+      const ocupacion = await validarOcupacionInicioAccion({ reclamoId: proceso.reclamo.id });
+      if (ocupacion.exito && ocupacion.datos?.ocupadoPor) {
+        setEquipoOcupadoMensaje(ocupacion.datos.ocupadoPor);
+        return false;
+      }
+    }
+    setInicioFecha(fecha);
+    setInicioTurno(turno);
+    return true;
+  }
+
   const accionesDetalle: AccionesDetalleProceso = {
     reclamar: (proceso, fecha, turno) => ejecutar(proceso, async () => {
       const resultado = await reclamarProcesoAccion({
@@ -249,27 +291,10 @@ export function PaginaMiPanelOperador({
     },
 
     iniciar: async (proceso, fecha, turno) => {
-      if (fecha === '') {
-        setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
-        return;
-      }
-      if (procesando === null && proceso.puedeIniciar) {
-        if (proceso.equipoOcupadoPor) {
-          setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
-          return;
-        }
-        if (proceso.reclamo) {
-          const respuesta = await validarOcupacionInicioAccion({ reclamoId: proceso.reclamo.id });
-          if (respuesta.exito && respuesta.datos?.ocupadoPor) {
-            setEquipoOcupadoMensaje(respuesta.datos.ocupadoPor);
-            return;
-          }
-        }
-        setInicioFecha(fecha);
-        setInicioTurno(turno);
-        setProcesoSeleccionadoId(null);
-        setInicioPendienteId(proceso.id);
-      }
+      if (procesando !== null || !proceso.puedeIniciar) return;
+      if (!(await prepararInicio(proceso, fecha, turno))) return;
+      setProcesoSeleccionadoId(null);
+      setInicioPendienteId(proceso.id);
     },
 
     reanudar: (proceso) => {
@@ -334,7 +359,7 @@ export function PaginaMiPanelOperador({
     }, 'Sesión registrada y recurso liberado'),
   };
 
-  function abrirLote(lote: LoteTablero, fecha: string, turno: string): void {
+  async function abrirLote(lote: LoteTablero, fecha: string, turno: string): Promise<void> {
     const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
     const proceso = lote.items
       .map((item) => misProcesos
@@ -350,10 +375,9 @@ export function PaginaMiPanelOperador({
       });
       return;
     }
+    if (!(await prepararInicio(proceso, fecha, turno))) return;
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
-    setInicioFecha(fecha);
-    setInicioTurno(turno);
     setInicioPendienteId(proceso.id);
   }
 
@@ -662,6 +686,13 @@ export function PaginaMiPanelOperador({
         descripcion="No se abrió el checklist porque la máquina ya está en uso."
         testId="error-equipo-ocupado"
         onCerrar={() => setEquipoOcupadoMensaje(null)}
+      />
+
+      <DialogoErrorCierre
+        error={errorDisponibilidad}
+        descripcion="No se abrió el checklist: revisa la configuración indicada antes de iniciar."
+        testId="error-disponibilidad-inicio"
+        onCerrar={() => setErrorDisponibilidad(null)}
       />
 
       <p className="text-xs text-texto-secundario">

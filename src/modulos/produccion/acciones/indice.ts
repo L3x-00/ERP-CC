@@ -42,6 +42,8 @@ export {
   reclamarProcesoAccion,
   validarOcupacionInicioAccion,
 } from '@/modulos/produccion/acciones/espacio-operador';
+export { validarDisponibilidadInicioAccion } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
+export type { ResultadoDisponibilidadInicio } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
 export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornada';
 export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
 export { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';

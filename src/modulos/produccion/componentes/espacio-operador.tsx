@@ -23,6 +23,8 @@ import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 import { actualizarAvanceSesionAccion } from '@/modulos/produccion/acciones/actualizar-avance-sesion';
+import { validarDisponibilidadInicioAccion } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
+import { mensajeSinDisponibilidad } from '@/modulos/produccion/utilidades/mensaje-disponibilidad';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import {
   VISTAS_ESPACIO_OPERADOR,
@@ -52,7 +54,7 @@ import {
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoDetalleLote } from './dialogo-detalle-lote';
-import { DialogoErrorCierre } from './dialogo-error-cierre';
+import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
 import {
   DetalleProcesoOperador,
@@ -152,6 +154,7 @@ export function EspacioOperador({
   }
   const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
+  const [errorDisponibilidad, setErrorDisponibilidad] = useState<DatosErrorCierre | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
@@ -483,6 +486,21 @@ export function EspacioOperador({
     if (fecha === '') {
       limpiarInicio();
       setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
+      return;
+    }
+    const disponibilidad = await validarDisponibilidadInicioAccion({
+      ordenId: proceso.ordenId,
+      partidaId: proceso.partidaId,
+      ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+      ...(proceso.programacion?.id ? { programacionId: proceso.programacion.id } : {}),
+    });
+    if (disponibilidad.exito && !disponibilidad.datos?.disponible && disponibilidad.datos) {
+      limpiarInicio();
+      setErrorDisponibilidad({
+        titulo: 'Sin equipo disponible',
+        mensaje: mensajeSinDisponibilidad(disponibilidad.datos),
+        etiquetaCerrar: 'Entendido',
+      });
       return;
     }
     if (proceso.equipoOcupadoPor) {
@@ -861,6 +879,13 @@ export function EspacioOperador({
         descripcion="No se abrió el checklist porque la máquina ya está en uso."
         testId="error-equipo-ocupado"
         onCerrar={() => setEquipoOcupadoMensaje(null)}
+      />
+
+      <DialogoErrorCierre
+        error={errorDisponibilidad}
+        descripcion="No se abrió el checklist: revisa la configuración indicada antes de iniciar."
+        testId="error-disponibilidad-inicio"
+        onCerrar={() => setErrorDisponibilidad(null)}
       />
             {operadorId !== null ? (
         <MiPanelOperador

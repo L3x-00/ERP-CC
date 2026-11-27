@@ -719,8 +719,17 @@ export function mensajeErrorSesion(error: unknown): string {
   switch (error.codigo) {
     case 'jornada_cerrada':
       return detalleDelMensaje(error) ?? 'Sin disponibilidad: ese día no tiene jornada laboral; elige de lunes a sábado.';
-    case 'recurso_sin_equipos':
-      return detalleDelMensaje(error) ?? 'Sin disponibilidad: no hay equipos activos del grupo que pide el proceso.';
+    case 'recurso_sin_equipos': {
+      const detalle = detalleDelMensaje(error);
+      if (!detalle) return describirErrorProduccion('recurso_sin_equipos').mensaje;
+      // El detalle de la RPC nombra el grupo real; solo se traduce el código
+      // interno del área para que el operador no vea valores técnicos.
+      return detalle
+        .replace(/\bsheet_metal\b/gu, 'corte y lámina')
+        .replace(/\btaller\b/gu, 'taller')
+        .replace(/\bacabados\b/gu, 'acabados')
+        .replace(/\bext\b/gu, 'externo');
+    }
     case 'recurso_sin_capacidad':
       return detalleDelMensaje(error) ?? 'Sin disponibilidad: el equipo no tiene capacidad configurada para esa fecha; elige otro día.';
     case 'recurso_capacidad_excedida':
