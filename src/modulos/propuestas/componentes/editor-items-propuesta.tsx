@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
@@ -76,7 +76,20 @@ export function EditorItemsPropuesta({
   const queryClient = useQueryClient();
   const [borradores, setBorradores] = useState<Record<string, Borrador>>({});
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState<string | null>(null);
+  // Uno por ítem: guardar una fila no puede bloquear ni rehabilitar otra.
+  const [guardandoIds, setGuardandoIds] = useState<ReadonlySet<string>>(new Set<string>());
+  // Serializa los guardados: dos invalidaciones simultáneas sobre la misma
+  // caché pueden dejar el borrador de la segunda fila sin liberar.
+  const colaGuardado = useRef<Promise<void>>(Promise.resolve());
+
+  function marcarGuardando(itemId: string, activo: boolean): void {
+    setGuardandoIds((actual) => {
+      const siguiente = new Set(actual);
+      if (activo) siguiente.add(itemId);
+      else siguiente.delete(itemId);
+      return siguiente;
+    });
+  }
 
   const esBorrador = revision.estado === 'DRAFT';
   const itemsRevision = items.filter((item) => item.revisionId === revision.id);
@@ -158,16 +171,15 @@ export function EditorItemsPropuesta({
   );
 
   async function guardar(item: PropuestaItem): Promise<void> {
-    const valor = valorDe(item);
-    const cambios = cambiosDe(item);
-    if (!cambios) {
-      setMensaje('Sin cambios en el ítem.');
-      return;
-    }
-
-    setGuardando(item.id);
-    setMensaje('Guardando…');
-    try {
+    if (guardandoIds.has(item.id)) return;
+    marcarGuardando(item.id, true);
+    const tarea = colaGuardado.current.then(async () => {
+      // Se relee al ejecutar: la fila queda bloqueada mientras se guarda.
+      const cambios = cambiosDe(item);
+      if (!cambios) {
+        setMensaje('Sin cambios en el ítem.');
+        return;
+      }
       const respuesta = await editarItemPropuestaAccion(cambios);
       if (!respuesta.exito) {
         setMensaje(respuesta.error);
@@ -180,23 +192,33 @@ export function EditorItemsPropuesta({
         | { exito?: boolean; datos?: { items?: PropuestaItem[] } }
         | undefined;
       const guardado = frescos?.datos?.items?.find((candidato) => candidato.id === item.id);
-      if (guardado
-        && guardado.descripcion === valor.descripcion
-        && Number(guardado.cantidad) === Number(valor.cantidad)
-        && guardado.precioUnitario === Number(valor.precioUnitario)
-        && guardado.esDescuento === valor.esDescuento
-        && guardado.activo === valor.activo) {
+      if (guardado) {
         setBorradores((actual) => {
           const copia = { ...actual };
-          delete copia[item.id];
-          return copia;
+          if (!copia[item.id]) return actual;
+          const actualDelBorrador = copia[item.id]!;
+          if (
+            actualDelBorrador.descripcion.trim() === (guardado.descripcion ?? '').trim()
+            && Number(actualDelBorrador.cantidad) === Number(guardado.cantidad)
+            && Number(actualDelBorrador.precioUnitario) === Number(guardado.precioUnitario)
+            && actualDelBorrador.esDescuento === guardado.esDescuento
+            && actualDelBorrador.activo === guardado.activo
+          ) {
+            delete copia[item.id];
+            return copia;
+          }
+          return actual;
         });
       }
       setMensaje(`Ítem ${item.codigo} guardado.`);
+    });
+    colaGuardado.current = tarea.catch(() => undefined);
+    try {
+      await tarea;
     } finally {
       // El botón sigue en «Guardando…» durante el refetch para que el usuario
       // vea que la acción está en curso y no crea que no pasó nada.
-      setGuardando(null);
+      marcarGuardando(item.id, false);
     }
   }
 
@@ -254,7 +276,7 @@ export function EditorItemsPropuesta({
                     <Input
                       value={valor.descripcion}
                       onChange={(evento) => actualizar(item, { descripcion: evento.target.value })}
-                      disabled={!esBorrador || !permisos.editarArticulo}
+                      disabled={!esBorrador || !permisos.editarArticulo || guardandoIds.has(item.id)}
                       aria-label={`Descripción ${item.codigo}`}
                       maxLength={300}
                     />
@@ -272,7 +294,7 @@ export function EditorItemsPropuesta({
                       step="0.01"
                       value={valor.cantidad}
                       onChange={(evento) => actualizar(item, { cantidad: evento.target.value })}
-                      disabled={!esBorrador || !permisos.editarArticulo}
+                      disabled={!esBorrador || !permisos.editarArticulo || guardandoIds.has(item.id)}
                       aria-label={`Cantidad ${item.codigo}`}
                     />
                   </td>
@@ -283,7 +305,7 @@ export function EditorItemsPropuesta({
                       step="0.0001"
                       value={valor.precioUnitario}
                       onChange={(evento) => actualizar(item, { precioUnitario: evento.target.value })}
-                      disabled={!esBorrador || !permisos.editarPrecio}
+                      disabled={!esBorrador || !permisos.editarPrecio || guardandoIds.has(item.id)}
                       aria-label={`Precio ${item.codigo}`}
                       aria-invalid={sinPrecio}
                       className={sinPrecio ? CLASE_CAMPO_FALTANTE : undefined}
@@ -314,7 +336,7 @@ export function EditorItemsPropuesta({
                           type="checkbox"
                           checked={valor.esDescuento}
                           onChange={(evento) => actualizar(item, { esDescuento: evento.target.checked })}
-                          disabled={!esBorrador || !permisos.editarArticulo}
+                          disabled={!esBorrador || !permisos.editarArticulo || guardandoIds.has(item.id)}
                           aria-label={`Descuento ${item.codigo}`}
                         />
                         Descuento
@@ -324,7 +346,7 @@ export function EditorItemsPropuesta({
                           type="checkbox"
                           checked={valor.activo}
                           onChange={(evento) => actualizar(item, { activo: evento.target.checked })}
-                          disabled={!esBorrador || !permisos.editarArticulo}
+                          disabled={!esBorrador || !permisos.editarArticulo || guardandoIds.has(item.id)}
                           aria-label={`Activo ${item.codigo}`}
                         />
                         Activo
@@ -342,9 +364,10 @@ export function EditorItemsPropuesta({
                         tamano="sm"
                         variante="contorno"
                         onClick={() => void guardar(item)}
-                        disabled={guardando === item.id || cambiosDe(item) === null}
+                        disabled={guardandoIds.has(item.id) || cambiosDe(item) === null}
+                        data-testid={`guardar-item-${item.id}`}
                       >
-                        {guardando === item.id ? 'Guardando…' : 'Guardar'}
+                        {guardandoIds.has(item.id) ? 'Guardando…' : 'Guardar'}
                       </Button>
                     )}
                   </td>
