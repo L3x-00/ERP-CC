@@ -21,7 +21,7 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 - [ ] Solo una próxima acción tiene habilitado el texto libre.
 - [ ] Hay **canales RFQ** para todos los medios de contacto reales.
 - [ ] Solo un canal exige detalle libre.
-- [ ] Los catálogos que ya no se usan están **desactivados**, no borrados.
+- [ ] Los catálogos que ya no se usan están **desactivados**, no borrados. Los canales inactivos se conservan solo para solicitudes históricas.
 
 ### Áreas de trabajo
 
@@ -43,7 +43,13 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 - [ ] Cada estación tiene tarifa de máquina y de preparación.
 - [ ] Las tarifas de los grupos de equipo son las correctas.
 - [ ] Las máquinas con costo distinto tienen tarifa propia.
+- [ ] Cada máquina pertenece a un grupo de equipo y está en el **área que pide el proceso**; si no, aparece **Área distinta a la del grupo**.
 - [ ] Los parámetros (eficiencia, merma, margen y utilidad objetivo) son los de tu operación.
+
+### Capacidad
+
+- [ ] Cada equipo tiene su cantidad de equipos y su jornada en **Planeación → Capacidad instalada**.
+- [ ] Al consultar disponibilidad ya se ven horas de capacidad, carga y disponible.
 
 ### Datos de empresa y cuentas bancarias
 
@@ -100,15 +106,18 @@ Si todo coincide, la configuración está lista para operar.
 
 ## Resumen del orden
 
-1. [Grupos planeados](/es/docs/grupos-planeados)
-2. [Grupos de equipo](/es/docs/grupos-equipo)
-3. [Áreas de trabajo](/es/docs/areas-trabajo)
-4. [Procesos](/es/docs/procesos)
-5. [Próximas acciones](/es/docs/proximas-acciones)
-6. [Canales RFQ](/es/docs/canales-rfq)
-7. [Catálogos](/es/docs/catalogos)
-8. [Tarifas y costos](/es/docs/tarifas-tc)
-9. [Folios](/es/docs/folios)
-10. [Documentos (Plantilla T1)](/es/docs/plantillas-t1)
+La ruta completa está en el [índice del manual](/es/docs#ruta-recomendada-de-configuracion):
+
+1. Personas y accesos.
+2. [Grupos de equipo](/es/docs/grupos-equipo) con su tarifa.
+3. [Áreas de trabajo](/es/docs/areas-trabajo).
+4. [Procesos](/es/docs/procesos).
+5. [Máquinas y tarifas](/es/docs/tarifas-tc).
+6. [Capacidad y disponibilidad](/es/docs/capacidad).
+7. [Materiales y costos](/es/docs/materiales-costos).
+8. [Canales RFQ](/es/docs/canales-rfq) y [próximas acciones](/es/docs/proximas-acciones).
+9. [Verificación final](/es/docs/verificacion-final).
+
+Los grupos planeados, folios, documentos, catálogos comerciales y cuentas bancarias pueden configurarse en cualquier momento: no bloquean el primer RFQ.
 
 Ya puedes comenzar a operar con ORCA MFG ERP.

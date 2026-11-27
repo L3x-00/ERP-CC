@@ -27,18 +27,20 @@ La guía nombra el grupo. Revisa en Configuración qué **máquinas están activ
 
 ### 3. Los equipos no tienen turnos
 
-En **Planeación → Capacidad instalada** confirma cuántos **equipos** tiene cada recurso y, si aplica, su **jornada por equipo**. Al guardar, si el equipo todavía no tiene turnos registrados, el sistema crea el **turno matutino base de 8 h** para que la consulta diaria y el calendario ya muestren esas horas. La jornada que indiques se respeta por encima de ese turno.
+En **Planeación → Capacidad instalada** confirma cuántos **equipos** tiene cada recurso y su **jornada por equipo**. La capacidad se calcula como **equipos × jornada**: lunes a viernes 8 h, sábado 4 h y domingo cerrado. No hay que registrar turnos adicionales.
 
-### 4. Falta un turno concreto
+### 4. Sobre los turnos
 
-La capacidad diaria se calcula por turno con los turnos **matutino, vespertino o nocturno** registrados. Si el equipo trabaja en otro turno, pide a un administrador que registre ese turno con sus horas. Un turno sin registrar no aparece en el calendario y Planeación lo señala al programar («el equipo no tiene capacidad en el turno Vespertino»).
+Ya no se registran turnos base. **Matutino y vespertino son solo etiquetas visuales**: no reparten las horas ni hay que darlos de alta para que el calendario muestre capacidad. Para ajustar la jornada, cambia la **cantidad de equipos** y la **jornada por equipo** en **Planeación → Capacidad instalada**.
+
+Si aparece un aviso concretamente sobre el turno Vespertino, revisa la jornada del equipo y su área antes de programar.
 
 ## Comprueba que quedó bien
 
 - [ ] El proceso de la propuesta tiene grupo de equipo.
 - [ ] Los equipos del grupo están activos.
 - [ ] Cada equipo tiene su cantidad de equipos y jornada.
-- [ ] El equipo tiene el turno que se va a usar (el base se crea al guardar la capacidad).
+- [ ] La jornada del equipo corresponde a su forma real de trabajo (8 h entre semana, 4 h el sábado).
 - [ ] Al volver a **Consultar disponibilidad** ya se ven horas de capacidad, carga y disponible.
 
 ## Qué sigue
