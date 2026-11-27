@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
-import { CLASE_CAMPO_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { turnosDelDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import {
@@ -38,7 +37,8 @@ export function DialogoDetalleLote({
   onIniciar,
   onCerrar,
 }: PropsDialogoDetalleLote) {
-  const [fecha, setFecha] = useState('');
+  // Iniciar hoy: la fecha se toma del dispositivo (día de negocio del taller).
+  const [fecha, setFecha] = useState(hoyIso());
   const [turno, setTurno] = useState('matutino');
 
   return (
@@ -94,8 +94,6 @@ export function DialogoDetalleLote({
                     setTurno(permitidos[0]!);
                   }
                 }}
-                aria-invalid={fecha === ''}
-                className={fecha === '' ? CLASE_CAMPO_FALTANTE : undefined}
                 data-testid="fecha-inicio-corrida"
               />
             </label>
@@ -113,7 +111,7 @@ export function DialogoDetalleLote({
             {puedeOperar && lote.estado === 'PLANIFICADA' ? (
               <Button
                 type="button"
-                disabled={procesando || fecha === '' || turnosDelDia(fecha).length === 0}
+                disabled={procesando}
                 onClick={() => onIniciar(lote, fecha, turno)}
                 data-testid="iniciar-corrida-lote"
               >

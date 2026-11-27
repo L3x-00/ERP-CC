@@ -2242,24 +2242,22 @@ describe('DetalleProcesoOperador — consumo y reprogramación', () => {
     expect(screen.getByTestId('usado-cierre').className).not.toContain('border-peligro/50');
   });
 
-  it('exige fecha antes de iniciar y no marca el campo con asterisco', () => {
+  it('autocompleta la fecha al iniciar y no pide asterisco ni borde rojo', () => {
     const iniciar = vi.fn();
     montarConMaterial([], {
       sesionActiva: null,
       puedeIniciar: true,
-      reclamadoPorMi: true,
-      programacion: { ...proceso.programacion, estadoPlaneacion: 'en_preparacion' },
+      reclamadoPorMi: false,
     }, iniciar);
     const campo = screen.getByLabelText('Día de la jornada') as HTMLInputElement;
-    expect(campo.value).toBe('');
-    expect(campo.className).toContain('border-peligro/50');
+    expect(campo.value).toBe('2026-10-28');
+    expect(campo.className).not.toContain('border-peligro/50');
     expect(campo.closest('label')?.className).not.toContain('after:content');
-    expect((screen.getByTestId('iniciar-detalle') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('iniciar-detalle') as HTMLButtonElement).disabled).toBe(false);
 
-    fireEvent.change(campo, { target: { value: '2026-12-01' } });
     fireEvent.click(screen.getByTestId('iniciar-detalle'));
     expect(iniciar).toHaveBeenCalledTimes(1);
-    expect(iniciar.mock.calls[0]?.[1]).toBe('2026-12-01');
+    expect(iniciar.mock.calls[0]?.[1]).toBe('2026-10-28');
     expect(iniciar.mock.calls[0]?.[2]).toBe('matutino');
   });
 

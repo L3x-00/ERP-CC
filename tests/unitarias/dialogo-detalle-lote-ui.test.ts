@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DialogoDetalleLote } from '@/modulos/produccion/componentes/dialogo-detalle-lote';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 
 afterEach(cleanup);
@@ -40,12 +41,12 @@ describe('DialogoDetalleLote', () => {
     expect(screen.getByTestId('item-lote-partida-2').textContent).toContain('90');
 
     const fecha = screen.getByTestId('fecha-inicio-corrida') as HTMLInputElement;
-    expect(fecha.value).toBe('');
-    expect(fecha.className).toContain('border-peligro/50');
-    expect((screen.getByTestId('iniciar-corrida-lote') as HTMLButtonElement).disabled).toBe(true);
+    const hoy = hoyIso();
+    expect(fecha.value).toBe(hoy);
+    expect(fecha.className).not.toContain('border-peligro/50');
+    expect((screen.getByTestId('iniciar-corrida-lote') as HTMLButtonElement).disabled).toBe(false);
 
-    fireEvent.change(fecha, { target: { value: '2026-12-01' } });
     fireEvent.click(screen.getByTestId('iniciar-corrida-lote'));
-    expect(onIniciar).toHaveBeenCalledWith(LOTE, '2026-12-01', 'matutino');
+    expect(onIniciar).toHaveBeenCalledWith(LOTE, hoy, 'matutino');
   });
 });
