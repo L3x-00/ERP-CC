@@ -4,6 +4,8 @@ import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import type { AreaEquipo } from '@/modulos/catalogos/validaciones/indice';
+import { clasificarFaltaDeEquipos } from '@/modulos/produccion/utilidades/disponibilidad-equipos';
 import { obtenerActorProduccion } from '@/modulos/produccion/acciones/utilidades-acciones';
 
 function normalizar(texto: string | null | undefined): string {
@@ -19,9 +21,14 @@ const esquema = z.object({
 
 export interface ResultadoDisponibilidadInicio {
   disponible: boolean;
-  motivo?: 'sin_equipos' | 'sin_proceso';
+  motivo?: 'sin_equipos' | 'sin_equipos_en_area' | 'sin_proceso';
   grupoNombre?: string;
   areaNombre?: string;
+  /**
+   * Áreas donde sí hay equipos activos del grupo cuando ninguno está en el
+   * área que pide el proceso. Permite un aviso accionable en lugar del genérico.
+   */
+  areasConEquipos?: AreaEquipo[];
 }
 
 /**
@@ -147,13 +154,36 @@ export async function validarDisponibilidadInicioAccion(
     if (errorRecursos) throw errorRecursos;
 
     const grupo = (grupos.data ?? []).find((item) => item.id === grupoId);
+    if ((recursos ?? []).length > 0) {
+      return {
+        exito: true,
+        datos: { disponible: true, grupoNombre: grupo?.nombre ?? undefined, areaNombre },
+      };
+    }
+
+    // Sin equipos en el área requerida: si el grupo sí tiene equipos en otras
+    // áreas, la causa es el área del equipo, no la falta de máquinas.
+    let areasConEquipos: (string | null)[] = [];
+    if (grupoId && areaMacro) {
+      const { data: otros, error: errorOtros } = await admin
+        .from('recursos_planeacion')
+        .select('area')
+        .eq('activo', true)
+        .eq('grupo_equipo_id', grupoId);
+      if (errorOtros) throw errorOtros;
+      areasConEquipos = (otros ?? []).map((recurso) => recurso.area);
+    }
+    const clasificacion = clasificarFaltaDeEquipos(areaMacro, areasConEquipos);
     return {
       exito: true,
       datos: {
-        disponible: (recursos ?? []).length > 0,
-        motivo: (recursos ?? []).length > 0 ? undefined : 'sin_equipos',
+        disponible: false,
+        motivo: clasificacion.motivo ?? 'sin_equipos',
         grupoNombre: grupo?.nombre ?? undefined,
         areaNombre,
+        ...(clasificacion.areasConEquipos
+          ? { areasConEquipos: clasificacion.areasConEquipos }
+          : {}),
       },
     };
   } catch (error) {

@@ -31,6 +31,7 @@ vi.mock('@/nucleo/supabase/admin', () => ({
 }));
 
 import { validarDisponibilidadInicioAccion } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
+import { clasificarFaltaDeEquipos } from '@/modulos/produccion/utilidades/disponibilidad-equipos';
 import type { ResultadoDisponibilidadInicio } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
 import { mensajeSinDisponibilidad } from '@/modulos/produccion/utilidades/mensaje-disponibilidad';
 
@@ -90,5 +91,42 @@ describe('validarDisponibilidadInicioAccion — aviso antes del checklist', () =
     expect(mensaje).toContain('CORTE LASER');
     expect(mensaje).toContain('Corte láser');
     expect(mensaje).not.toContain('sheet_metal');
+  });
+});
+
+describe('clasificarFaltaDeEquipos — equipo en otra área', () => {
+  it('detecta que el grupo tiene equipos, pero fuera del área requerida', () => {
+    expect(clasificarFaltaDeEquipos('sheet_metal', ['taller'])).toEqual({
+      motivo: 'sin_equipos_en_area',
+      areasConEquipos: ['taller'],
+    });
+  });
+
+  it('no cuenta el área requerida ni valores no reconocidos', () => {
+    expect(
+      clasificarFaltaDeEquipos('sheet_metal', ['sheet_metal', null, 'planta_baja']),
+    ).toEqual({ motivo: 'sin_equipos' });
+  });
+
+  it('sin área requerida no puede atribuir la causa al área', () => {
+    expect(clasificarFaltaDeEquipos(null, ['taller'])).toEqual({ motivo: 'sin_equipos' });
+  });
+});
+
+describe('mensajeSinDisponibilidad — equipo en otra área', () => {
+  it('explica dónde están los equipos y cómo corregirlo, sin códigos internos', () => {
+    const mensaje = mensajeSinDisponibilidad({
+      disponible: false,
+      motivo: 'sin_equipos_en_area',
+      grupoNombre: 'CORTE LASER',
+      areaNombre: 'Corte láser',
+      areasConEquipos: ['taller'],
+    });
+
+    expect(mensaje).toContain('CORTE LASER');
+    expect(mensaje).toContain('ninguno en el área Corte láser');
+    expect(mensaje).toContain('en Taller');
+    expect(mensaje).toContain('Tarifas y costos');
+    expect(mensaje).not.toMatch(/sheet_metal|taller/);
   });
 });
