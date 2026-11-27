@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(81);
+SELECT plan(83);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: actores, cliente, recursos, orden/partidas y programaciones
@@ -129,6 +129,25 @@ SELECT 'corrida2', public.crear_corrida(
   '00000000-0000-4000-8000-00000000b602');
 SELECT is((SELECT valor->>'codigo' FROM b6 WHERE clave = 'corrida2'), 'DOB01',
   'Cada proceso numera su propio prefijo');
+
+-- El consecutivo es global por prefijo: otra orden con el mismo proceso no
+-- puede volver a emitir LAS01.
+INSERT INTO b6 (clave, valor)
+SELECT 'corrida_otra_orden', public.crear_corrida(
+  '00000000-0000-4000-8000-00000000b60c',
+  (SELECT id FROM public.catalogo_procesos WHERE codigo = 'LASER_FIBRA'),
+  jsonb_build_array(jsonb_build_object('partida_id', '00000000-0000-4000-8000-00000000b60d')),
+  '00000000-0000-4000-8000-00000000b602');
+SELECT is((SELECT valor->>'codigo' FROM b6 WHERE clave = 'corrida_otra_orden'), 'LAS02',
+  'Dos órdenes con el mismo prefijo no repiten código');
+SELECT throws_ok($$
+  INSERT INTO public.corridas (orden_id, codigo, proceso_id, cantidad_planificada, creado_por)
+  VALUES (
+    '00000000-0000-4000-8000-00000000b60c',
+    'LAS01',
+    (SELECT id FROM public.catalogo_procesos WHERE codigo = 'LASER_FIBRA'),
+    1, '00000000-0000-4000-8000-00000000b602')
+$$, '23505', null, 'El código no se puede repetir entre órdenes');
 
 SELECT throws_ok($$
   SELECT public.crear_corrida(
