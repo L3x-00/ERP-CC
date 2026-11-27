@@ -47,7 +47,8 @@ export function esEstadoCorridaTerminal(estado: EstadoCorrida): boolean {
 
 /**
  * Formatea el código de corrida `<PREFIJO><NN>` con dos dígitos mínimos y sin
- * truncar a partir de 100 (misma regla que `privado.corrida_siguiente_codigo`).
+ * truncar a partir de 100 (mismo formato que `privado.corrida_siguiente_codigo`;
+ * el consecutivo se calcula en la base, global por prefijo).
  */
 export function formatearCodigoCorrida(prefijo: string, consecutivo: number): string {
   const numero = Math.max(1, Math.trunc(consecutivo));
