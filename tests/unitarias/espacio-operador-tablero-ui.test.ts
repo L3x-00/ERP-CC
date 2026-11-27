@@ -114,8 +114,8 @@ describe('A19 — tablero alineado y ordenado', () => {
   });
 });
 
-describe('C1 — sugerencia de corrida conjunta en el tablero', () => {
-  it('muestra el aviso cuando dos ítems comparten material, calibre y proceso inicial', () => {
+describe('C1 — sugerencia de corrida conjunta solo dentro de la ficha', () => {
+  it('no muestra el banner superior aunque dos ítems sean agrupables', () => {
     const material = {
       id: 'material-1',
       codigo: 'LAM-CR-14',
@@ -155,10 +155,13 @@ describe('C1 — sugerencia de corrida conjunta en el tablero', () => {
       consumos: [],
     }));
 
-    const aviso = screen.getByTestId('sugerencias-corridas');
-    expect(aviso.textContent).toContain('IT01 (Pieza A)');
-    expect(aviso.textContent).toContain('IT02 (Pieza B)');
-    expect(aviso.textContent).toContain('Corte Láser');
-    expect(aviso.textContent).toContain('Puede iniciarlos en una misma corrida');
+    expect(screen.queryByTestId('sugerencias-corridas')).toBeNull();
+    expect(screen.queryByTestId('sin-sugerencias-corridas')).toBeNull();
+    expect(screen.queryByText('Posibles corridas conjuntas')).toBeNull();
+    expect(screen.queryByText('Crear Lote')).toBeNull();
+
+    // La sugerencia sigue disponible donde el operador la necesita: en la ficha del ítem.
+    fireEvent.click(screen.getByTestId('abrir-detalle-proceso-1'));
+    expect(screen.getByText('Crear Lote')).toBeTruthy();
   });
 });

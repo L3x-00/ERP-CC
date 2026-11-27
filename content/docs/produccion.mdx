@@ -121,7 +121,7 @@ Cuando dos o más piezas distintas de una misma orden son compatibles, el sistem
 
 ### Cuándo aparece la sugerencia
 
-En la terminal del operador, arriba del tablero, aparece **Posibles corridas conjuntas** cuando las piezas:
+En la terminal del operador, la sugerencia aparece **dentro de la ficha de cada ítem** (no en un aviso sobre el tablero) cuando las piezas:
 
 - son de la **misma orden**,
 - usan el **mismo material y el mismo calibre**,
@@ -130,15 +130,13 @@ En la terminal del operador, arriba del tablero, aparece **Posibles corridas con
 
 La sugerencia no revisa la máquina: la comprobación del **mismo grupo de equipo** se hace al crear el lote. Si las piezas tienen máquina asignada y son incompatibles, el sistema lo avisa en ese momento con **Los ítems no comparten el mismo equipo**.
 
-![Aviso del piso indicando que no hay sugerencias de lotes y los motivos](/manual/capturas/produccion-lote-sugerencia.png)
-
-Si no aparece la sugerencia, el propio aviso indica el motivo: por ejemplo, que el proceso no es el primero, que la pieza ya está reclamada o que ya está en un lote. Los problemas de material, calibre o equipo se detectan al intentar crear el lote.
+Si no aparece la sugerencia en la ficha, suele deberse a que el proceso no es el primero, que la pieza ya está reclamada o que ya está en un lote. Los problemas de material, calibre o equipo se detectan al intentar crear el lote.
 
 ### Crear el lote
 
 ![Ventana Nueva corrida con las partidas pendientes y la regla para agruparlas](/manual/capturas/produccion-lote-nuevo.png)
 
-1. En el aviso **Posibles corridas conjuntas**, revisa las piezas propuestas y haz clic en **Crear Lote**.
+1. En la ficha del ítem, revisa las piezas propuestas y haz clic en **Crear Lote**.
 2. El sistema crea el lote en estado **Planificada** e incluye esas piezas. Las cantidades salen de lo que falta por producir: se pueden bajar, pero nunca subir.
 3. No se pueden crear dos lotes con las mismas piezas y el mismo proceso. Si ya hay uno en curso, abre ese lote para continuar.
 
