@@ -1,6 +1,7 @@
 'use client';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { Badge } from '@/compartido/componentes/ui/badge';
 import type { EstadoRfq, ValidacionRfqListo } from '@/modulos/rfq/tipos/indice';
 import {
   ETIQUETAS_ESTADO_RFQ,
@@ -18,10 +19,13 @@ import {
 export function IndicadorEstadoRfq({
   estadoRfq,
   validacion,
+  validando = false,
 }: {
   estadoRfq: EstadoRfq;
   /** Validación ya confirmada por el servidor; null si está pendiente o falló. */
   validacion: ValidacionRfqListo | null;
+  /** La validación de la cola está en vuelo: no afirmar ni su resultado viejo. */
+  validando?: boolean;
 }) {
   const lista = capturaRfqListaParaValidar(estadoRfq, validacion);
   const captura = lista ? 'lista' : estadoRfq === 'INCOMPLETE' ? 'incompleta' : 'no-aplica';
@@ -29,7 +33,7 @@ export function IndicadorEstadoRfq({
   return (
     <span
       data-testid="indicador-estado-rfq"
-      data-captura={captura}
+      data-captura={validando ? 'revisando' : captura}
       data-estado-rfq={estadoRfq}
       title={
         lista
@@ -37,7 +41,12 @@ export function IndicadorEstadoRfq({
           : undefined
       }
     >
-      {lista ? (
+      {validando ? (
+        <>
+          <Badge variante="neutro">Revisando…</Badge>
+          <span className="sr-only"> Estado del RFQ: {ETIQUETAS_ESTADO_RFQ[estadoRfq]}.</span>
+        </>
+      ) : lista ? (
         <>
           <BadgeEstado estado="captura_lista" etiqueta={ETIQUETA_CAPTURA_LISTA} />
           <span className="sr-only">

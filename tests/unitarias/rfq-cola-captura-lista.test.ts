@@ -292,7 +292,22 @@ describe('Cola RFQ — indicación «Listo para validar» en la tabla', () => {
 
     await waitFor(() => expect(validarLoteMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByText('Listo para validar')).toBeNull();
-    expect(indicador('a-1').getAttribute('data-captura')).toBe('incompleta');
+    expect(indicador('a-1').getAttribute('data-captura')).toBe('revisando');
+  });
+
+  it('durante una revalidación no cambia la etiqueta de un RFQ que no se valida', async () => {
+    const cliente = nuevoCliente();
+    const filas = [oportunidad('a-1', 'INCOMPLETE'), oportunidad('c-1', 'CONVERTED')];
+    validarLoteMock.mockResolvedValue({ exito: true, datos: { 'a-1': COMPLETA } });
+    const primera = render(tabla(cliente, filas));
+    await waitFor(() => expect(indicador('a-1').getAttribute('data-captura')).toBe('lista'));
+    primera.unmount();
+
+    validarLoteMock.mockReturnValueOnce(new Promise(() => undefined));
+    render(tabla(cliente, filas));
+    expect(within(indicador('a-1')).getByText('Revisando…')).toBeDefined();
+    expect(within(indicador('c-1')).getByText('Convertido')).toBeDefined();
+    expect(indicador('c-1').getAttribute('data-captura')).not.toBe('revisando');
   });
 
   it('conserva «Continuar captura» hacia el mismo RFQ aunque la captura esté lista', async () => {

@@ -17,14 +17,19 @@ export const CLAVE_VALIDACION_COLA_RFQ = 'rfq-validacion-cola';
 /**
  * Validación de «listo» de los RFQ Incompletos de la cola, con la misma regla
  * que la ficha, de TODOS los Incompletos y en lotes acotados (una llamada por
- * lote de 100, nunca una por fila). Devuelve `null`
- * mientras se consulta, si falló o si no hay Incompletos: nunca se declara una
- * captura completa sin validación confirmada. Se vuelve a consultar cada vez que
- * la cola se monta (p. ej. al regresar de la ficha).
+ * lote de 100, nunca una por fila). Devuelve los datos solo cuando la validación
+ * está confirmada; durante una revalidación con datos previos marca `validando`
+ * para no mostrar la etiqueta antigua como vigente ni caer al estado de negocio.
+ * Se vuelve a consultar cada vez que la cola se monta (p. ej. al regresar).
  */
+export interface ResultadoValidacionColaRfq {
+  datos: Record<string, ValidacionRfqListo> | null;
+  validando: boolean;
+}
+
 function useValidacionColaRfq(
   oportunidades: readonly { id: string; estadoRfq: EstadoRfq }[],
-): Record<string, ValidacionRfqListo> | null {
+): ResultadoValidacionColaRfq {
   const ids = useMemo(() => idsRfqParaValidarEnCola(oportunidades), [oportunidades]);
 
   const consulta = useQuery({
@@ -34,8 +39,11 @@ function useValidacionColaRfq(
     refetchOnMount: 'always',
   });
 
-  if (consulta.isFetching || consulta.isError) return null;
-  return consulta.data ?? null;
+  if (consulta.isFetching) {
+    return { datos: null, validando: consulta.data !== undefined };
+  }
+  if (consulta.isError) return { datos: null, validando: false };
+  return { datos: consulta.data ?? null, validando: false };
 }
 
 export { useValidacionColaRfq as usarValidacionColaRfq };
