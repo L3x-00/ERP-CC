@@ -1,7 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
+import { Input, Select } from '@/compartido/componentes/ui/input';
+import { CLASE_CAMPO_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
+import { turnosDelDia } from '@/modulos/planeacion/utilidades/horario-laboral';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +23,7 @@ interface PropsDialogoDetalleLote {
   lote: LoteTablero | null;
   puedeOperar: boolean;
   procesando?: boolean;
-  onIniciar: (lote: LoteTablero) => void;
+  onIniciar: (lote: LoteTablero, fecha: string, turno: string) => void;
   onCerrar: () => void;
 }
 
@@ -33,6 +38,9 @@ export function DialogoDetalleLote({
   onIniciar,
   onCerrar,
 }: PropsDialogoDetalleLote) {
+  const [fecha, setFecha] = useState('');
+  const [turno, setTurno] = useState('matutino');
+
   return (
     <Dialog open={lote !== null} onOpenChange={(abierto) => { if (!abierto) onCerrar(); }}>
       {lote ? (
@@ -72,12 +80,41 @@ export function DialogoDetalleLote({
             cerrar se registra el avance de cada uno.
           </p>
 
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+              Día de la jornada
+              <Input
+                type="date"
+                min={hoyIso()}
+                value={fecha}
+                onChange={(evento) => {
+                  setFecha(evento.target.value);
+                  const permitidos = evento.target.value ? turnosDelDia(evento.target.value) : [];
+                  if (permitidos.length > 0 && !permitidos.includes(turno as never)) {
+                    setTurno(permitidos[0]!);
+                  }
+                }}
+                aria-invalid={fecha === ''}
+                className={fecha === '' ? CLASE_CAMPO_FALTANTE : undefined}
+                data-testid="fecha-inicio-corrida"
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+              Turno
+              <Select value={turno} onChange={(evento) => setTurno(evento.target.value)}>
+                {(fecha ? turnosDelDia(fecha) : ['matutino'] as const).map((valor) => (
+                  <option key={valor} value={valor}>{valor}</option>
+                ))}
+              </Select>
+            </label>
+          </div>
+
           <DialogFooter className="flex flex-wrap gap-2">
             {puedeOperar && lote.estado === 'PLANIFICADA' ? (
               <Button
                 type="button"
-                disabled={procesando}
-                onClick={() => onIniciar(lote)}
+                disabled={procesando || fecha === '' || turnosDelDia(fecha).length === 0}
+                onClick={() => onIniciar(lote, fecha, turno)}
                 data-testid="iniciar-corrida-lote"
               >
                 {procesando ? 'Iniciando…' : 'Iniciar corrida'}

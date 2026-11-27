@@ -856,6 +856,10 @@ export function PanelAsignacionPlaneacion({
 
   async function activarPreparacion(): Promise<void> {
     if (!onActivarPreparacion || preparando || enviando) return;
+    if (fechaProgramada === '') {
+      setErrorFormulario('Indica la fecha programada antes de iniciar la preparación.');
+      return;
+    }
     setErrorFormulario(null);
     setMensajeEstado(null);
     setPreparando(true);
@@ -1102,9 +1106,7 @@ export function PanelAsignacionPlaneacion({
         ) : null}
 
         <div className="flex min-w-0 flex-col gap-1">
-          <Label htmlFor="planeacion-fecha" className={CLASE_OBLIGATORIO}>
-            Fecha programada
-          </Label>
+          <Label htmlFor="planeacion-fecha">Fecha programada</Label>
           <Input
             id="planeacion-fecha"
             type="date"

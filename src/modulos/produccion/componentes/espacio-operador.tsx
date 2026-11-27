@@ -141,6 +141,15 @@ export function EspacioOperador({
   const [ordenAbiertaId, setOrdenAbiertaId] = useState<string | null>(null);
   const [inicioPendiente, setInicioPendiente] = useState<ProcesoEspacioOperador | null>(null);
   const [corridaInicioId, setCorridaInicioId] = useState<string | null>(null);
+  const [inicioFecha, setInicioFecha] = useState('');
+  const [inicioTurno, setInicioTurno] = useState('matutino');
+
+  function limpiarInicio(): void {
+    setCorridaInicioId(null);
+    setInicioPendiente(null);
+    setInicioFecha('');
+    setInicioTurno('matutino');
+  }
   const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   const [equipoOcupadoMensaje, setEquipoOcupadoMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
@@ -446,40 +455,56 @@ export function EspacioOperador({
       return { exito: false, error: 'Selecciona un proceso para iniciar' };
     }
     const proceso = inicioPendiente;
+    if (inicioFecha === '') {
+      return { exito: false, error: 'Indica la fecha de la jornada antes de iniciar.' };
+    }
     return ejecutar(proceso, async () => {
       // Obs. cliente: la reserva se crea dentro de la acción de inicio.
       const respuesta = await iniciarProcesoDirectoAccion({
         ordenId: proceso.ordenId,
         partidaId: proceso.partidaId,
         metaProcesoId: proceso.metaProcesoId,
-        fecha: proceso.reclamo?.fecha ?? hoy,
-        turno: (proceso.reclamo?.turno ?? 'matutino') as 'matutino' | 'vespertino' | 'nocturno',
+        fecha: inicioFecha,
+        turno: inicioTurno as 'matutino' | 'vespertino' | 'nocturno',
         verificacion,
         ...(corridaInicioId ? { corridaId: corridaInicioId } : {}),
       });
-      setCorridaInicioId(null);
+      limpiarInicio();
       if (respuesta.exito) setDetalle(null);
       return respuesta.exito ? { exito: true } : { exito: false, error: respuesta.error };
     }, 'Sesión iniciada');
   }
 
-  async function abrirInicio(proceso: ProcesoEspacioOperador): Promise<void> {
+  async function abrirInicio(
+    proceso: ProcesoEspacioOperador,
+    fecha: string,
+    turno: string,
+  ): Promise<void> {
+    if (fecha === '') {
+      limpiarInicio();
+      setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
+      return;
+    }
     if (proceso.equipoOcupadoPor) {
+      limpiarInicio();
       setEquipoOcupadoMensaje(proceso.equipoOcupadoPor);
       return;
     }
     if (proceso.reclamo) {
       const respuesta = await validarOcupacionInicioAccion({ reclamoId: proceso.reclamo.id });
       if (respuesta.exito && respuesta.datos?.ocupadoPor) {
+        limpiarInicio();
         setEquipoOcupadoMensaje(respuesta.datos.ocupadoPor);
         return;
       }
     }
+    setInicioFecha(fecha);
+    setInicioTurno(turno);
     setInicioPendiente(proceso);
   }
 
   /** El lote se abre como una sola operación: un checklist y una sola corrida. */
-  function abrirLote(lote: LoteTablero): void {
+  function abrirLote(lote: LoteTablero, fecha: string, turno: string): void {
     const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
     const proceso = lote.items
       .map((item) => procesos.find((actual) => (
@@ -497,13 +522,13 @@ export function EspacioOperador({
     }
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
-    void abrirInicio(proceso);
+    void abrirInicio(proceso, fecha, turno);
   }
 
   function accionRapida(proceso: ProcesoEspacioOperador, tipo: TipoAccionTarjeta): void {
     if (tipo === 'reclamar' || tipo === 'iniciar') {
-      // Ya no hay paso de reclamo: ambas acciones abren directamente el inicio.
-      void abrirInicio(proceso);
+      // La fecha se completa en la ficha: no se hereda de la programación.
+      setDetalle(proceso);
       return;
     }
     if (tipo === 'reanudar') {
@@ -537,9 +562,9 @@ export function EspacioOperador({
     reclamar,
     mover,
     liberar,
-    iniciar: (proceso) => {
+    iniciar: (proceso, fecha, turno) => {
       setDetalle(null);
-      abrirInicio(proceso);
+      void abrirInicio(proceso, fecha, turno);
     },
     reanudar,
     cerrarPausa,
@@ -721,7 +746,7 @@ export function EspacioOperador({
         <VistaKanbanOperador
           procesos={filtrados}
           lotes={lotesFiltrados}
-          onAbrirLote={operativo ? abrirLote : undefined}
+          onAbrirLote={operativo ? (lote) => setLoteAbierto(lote) : undefined}
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
@@ -805,8 +830,10 @@ export function EspacioOperador({
       />
 
       <DialogoDetalleLote
+        key={loteAbierto?.id ?? 'sin-lote'}
         lote={loteAbierto}
         puedeOperar={operativo}
+        procesando={procesando !== null}
         onIniciar={abrirLote}
         onCerrar={() => setLoteAbierto(null)}
       />
@@ -820,7 +847,7 @@ export function EspacioOperador({
         procesoNombre={inicioPendiente?.procesoNombre}
         areaMacro={inicioPendiente?.areaMacro}
         onAbiertoCambiar={(abierto) => {
-          if (!abierto) setInicioPendiente(null);
+          if (!abierto) limpiarInicio();
         }}
         onConfirmar={confirmarInicio}
       />

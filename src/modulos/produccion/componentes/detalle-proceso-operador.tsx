@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
-import {
-  CLASE_CAMPO_FALTANTE,
-  CLASE_OBLIGATORIO,
-} from '@/modulos/rfq/utilidades/faltantes';
+import { CLASE_CAMPO_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import {
   Dialog,
   DialogContent,
@@ -112,7 +109,7 @@ export interface AccionesDetalleProceso {
   reclamar: (proceso: ProcesoEspacioOperador, fecha: string, turno: string) => Promise<ResultadoOperacion>;
   mover: (proceso: ProcesoEspacioOperador, fecha: string, turno: string) => Promise<ResultadoOperacion>;
   liberar: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
-  iniciar: (proceso: ProcesoEspacioOperador) => void;
+  iniciar: (proceso: ProcesoEspacioOperador, fecha: string, turno: string) => void;
   reanudar: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
   /** C15: cierra una pausa que no se retomará, sin producir piezas. */
   cerrarPausa: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
@@ -228,8 +225,8 @@ export function DetalleProcesoOperador({
   // aviso nombra al reclamante para que el operador sepa a quién pedirlo.
   const procesoAjeno = proceso !== null && proceso.reclamo !== null && !proceso.reclamadoPorMi;
   const soloDetalle = soloLectura || procesoAjeno;
-  // C21: el día de la jornada es siempre el día operativo actual, no el de la
-  // programación original con la que se reclamó el proceso.
+  // C21: el día de la jornada lo elige quien inicia; nunca se hereda el día
+  // operativo actual ni el de la programación original.
   // Reprogramar obliga a elegir fecha: nunca se hereda el día de la sesión.
   const [fecha, setFecha] = useState('');
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
@@ -2961,7 +2958,7 @@ export function DetalleProcesoOperador({
 
             {proceso.columna !== 'lista' && !proceso.sesionActiva ? (
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                <label className={`${CLASE_ETIQUETA} ${CLASE_OBLIGATORIO}`}>
+                <label className={CLASE_ETIQUETA}>
                   Día de la jornada
                   <Input
                     type="date"
@@ -3234,7 +3231,7 @@ export function DetalleProcesoOperador({
                   {`Ver lote ${proceso.loteCodigo ?? ''} e iniciar corrida`}
                 </Button>
               ) : proceso.puedeIniciar ? (
-                <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso)} data-testid="iniciar-detalle">
+                <Button type="button" tamano="lg" disabled={procesando || fecha === ''} onClick={() => acciones.iniciar(proceso, fecha, turno)} data-testid="iniciar-detalle">
                   {proceso.equipoOcupadoPor ? 'Ocupado · Ver detalles' : 'Iniciar proceso'}
                 </Button>
               ) : null}
