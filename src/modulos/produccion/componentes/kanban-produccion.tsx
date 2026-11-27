@@ -11,6 +11,7 @@ import type {
 } from '@/modulos/produccion/servicios/indice';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import { columnaAdminLote } from '@/modulos/produccion/utilidades/columna-lote';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import {
   ESTADOS_KANBAN_PRODUCCION,
@@ -154,7 +155,10 @@ export function KanbanProduccion({
       <div className="grid gap-3 xl:grid-cols-5" data-testid="kanban-produccion">
         {ESTADOS_KANBAN_PRODUCCION.map((estado) => {
           const ordenesColumna = ordenes.filter((orden) => orden.estadoKanban === estado);
-          const lotesColumna = estado === 'en_proceso' ? lotes : [];
+          const columnaActiva = estadosActivos.length === 0 || estadosActivos.includes(estado);
+          const lotesColumna = columnaActiva
+            ? lotes.filter((lote) => columnaAdminLote(lote.estado) === estado)
+            : [];
           return (
             <section
               key={estado}

@@ -54,9 +54,13 @@ import {
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
-import { sugerenciasDeAgrupacion } from '@/modulos/produccion/utilidades/agrupacion-corridas';
+import {
+  sugerenciasDeAgrupacion,
+  type SugerenciaCorrida,
+} from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoConfirmarLote } from './dialogo-confirmar-lote';
 import { DialogoDetalleLote } from './dialogo-detalle-lote';
 import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { validarDisponibilidadInicioAccion } from '@/modulos/produccion/acciones/validar-disponibilidad-inicio';
@@ -113,6 +117,7 @@ export function PaginaMiPanelOperador({
   const [errorDisponibilidad, setErrorDisponibilidad] = useState<DatosErrorCierre | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
+  const [sugerenciaPorConfirmar, setSugerenciaPorConfirmar] = useState<SugerenciaCorrida | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
   const misProcesos = useMemo(
@@ -127,12 +132,18 @@ export function PaginaMiPanelOperador({
   const sugerenciaSeleccionada = sugerenciasLote.find((sugerencia) =>
     sugerencia.procesos.some((proceso) => proceso.id === procesoSeleccionadoId)) ?? null;
 
-  async function crearLote(sugerencia: (typeof sugerenciasLote)[number]): Promise<void> {
-    if (creandoLote !== null) return;
+  async function crearLote(sugerencia: SugerenciaCorrida): Promise<void> {
+    if (creandoLote !== null) {
+      setAviso({ tipo: 'error', texto: 'Ya se está creando un lote. Espera a que termine.' });
+      setSugerenciaPorConfirmar(null);
+      return;
+    }
     setCreandoLote(sugerencia.clave);
     setAviso(null);
+    // La Server Action revalida el pendiente de cada ítem antes de insertar.
     const resultado = await crearLoteDesdeSugerencia(sugerencia);
     setCreandoLote(null);
+    setSugerenciaPorConfirmar(null);
     setAviso({ tipo: resultado.exito ? 'ok' : 'error', texto: resultado.mensaje });
     if (resultado.exito) enrutador.refresh();
   }
@@ -513,14 +524,14 @@ export function PaginaMiPanelOperador({
 
       {lotes.length > 0 ? (
         <section
-          aria-label="Lotes nuevos en proceso"
+          aria-label="Lotes activos"
           data-testid="lotes-nuevos-mi-panel"
           className="space-y-3 rounded-xl border border-acento/40 bg-acento-suave/20 p-4"
         >
           <div>
-            <h3 className="text-base font-semibold text-texto-primario">Lotes nuevos en proceso</h3>
+            <h3 className="text-base font-semibold text-texto-primario">Lotes activos</h3>
             <p className="text-xs text-texto-secundario">
-              Lotes creados que aún no han iniciado su primera sesión.
+              Lotes creados que esperan en Bandeja o que ya están en curso.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -624,7 +635,7 @@ export function PaginaMiPanelOperador({
           materiales={materiales}
           consumos={consumos}
           sugerenciaLote={sugerenciaSeleccionada}
-          onCrearLote={(sugerencia) => void crearLote(sugerencia)}
+          onCrearLote={setSugerenciaPorConfirmar}
           creandoLote={creandoLote !== null}
           onIniciarCorridaLote={procesoSeleccionado.loteId
             ? () => {
@@ -675,6 +686,13 @@ export function PaginaMiPanelOperador({
           if (!abierto && procesando === null) limpiarInicio();
         }}
         onConfirmar={confirmarInicio}
+      />
+
+      <DialogoConfirmarLote
+        sugerencia={sugerenciaPorConfirmar}
+        procesando={creandoLote !== null}
+        onCancelar={() => setSugerenciaPorConfirmar(null)}
+        onConfirmar={(sugerencia) => void crearLote(sugerencia)}
       />
 
       <DialogoErrorCierre

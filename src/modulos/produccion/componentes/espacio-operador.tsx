@@ -52,6 +52,7 @@ import {
 } from '@/modulos/produccion/utilidades/agrupacion-corridas';
 import { crearLoteDesdeSugerencia } from '@/modulos/produccion/utilidades/crear-lote-cliente';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoConfirmarLote } from './dialogo-confirmar-lote';
 import { DialogoDetalleLote } from './dialogo-detalle-lote';
 import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -156,6 +157,7 @@ export function EspacioOperador({
   const [errorDisponibilidad, setErrorDisponibilidad] = useState<DatosErrorCierre | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [creandoLote, setCreandoLote] = useState<string | null>(null);
+  const [sugerenciaPorConfirmar, setSugerenciaPorConfirmar] = useState<SugerenciaCorrida | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
   // Tras reclamar o mover, el servidor refresca los procesos y el detalle se
@@ -174,11 +176,22 @@ export function EspacioOperador({
   const operativo = !soloLectura && operadorId !== null;
 
   async function crearLote(sugerencia: SugerenciaCorrida): Promise<void> {
-    if (!operativo || creandoLote !== null) return;
+    if (!operativo || creandoLote !== null) {
+      setAviso({
+        tipo: 'error',
+        texto: 'No se pudo crear el lote. Revisa tu sesión de operador e inténtalo de nuevo.',
+      });
+      setSugerenciaPorConfirmar(null);
+      return;
+    }
     setCreandoLote(sugerencia.clave);
     setAviso(null);
+    // La Server Action revalida el pendiente de cada ítem: si cambió mientras
+    // el diálogo estaba abierto, devuelve error en vez de crear con cantidades
+    // obsoletas.
     const resultado = await crearLoteDesdeSugerencia(sugerencia);
     setCreandoLote(null);
+    setSugerenciaPorConfirmar(null);
     setAviso({ tipo: resultado.exito ? 'ok' : 'error', texto: resultado.mensaje });
     if (resultado.exito) enrutador.refresh();
   }
@@ -781,7 +794,7 @@ export function EspacioOperador({
         materiales={materiales}
         consumos={consumos}
         sugerenciaLote={sugerenciaDetalle}
-        onCrearLote={(sugerencia) => void crearLote(sugerencia)}
+        onCrearLote={setSugerenciaPorConfirmar}
         creandoLote={creandoLote !== null}
         onIniciarCorridaLote={detalleActual?.loteId
           ? () => {
@@ -824,6 +837,13 @@ export function EspacioOperador({
           if (!abierto) limpiarInicio();
         }}
         onConfirmar={confirmarInicio}
+      />
+
+      <DialogoConfirmarLote
+        sugerencia={sugerenciaPorConfirmar}
+        procesando={creandoLote !== null}
+        onCancelar={() => setSugerenciaPorConfirmar(null)}
+        onConfirmar={(sugerencia) => void crearLote(sugerencia)}
       />
 
       <DialogoErrorCierre

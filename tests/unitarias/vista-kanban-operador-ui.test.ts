@@ -304,7 +304,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(columna.textContent).not.toContain('Cerrar pausa');
   });
 
-  it('muestra el lote creado como tarjeta en la columna En proceso', () => {
+  it('muestra el lote recién creado en Bandeja hasta que se inicia', () => {
     const lote: LoteTablero = {
       id: 'corrida-1',
       codigo: 'LAS02',
@@ -332,7 +332,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
       onAbrirOrden: vi.fn(),
     }));
 
-    const columna = screen.getByTestId('columna-en_proceso');
+    const columna = screen.getByTestId('columna-bandeja');
     const tarjeta = columna.querySelector('[data-testid="tarjeta-lote-piso-corrida-1"]');
     expect(tarjeta).not.toBeNull();
     expect(tarjeta!.textContent).toContain('LAS02');
@@ -340,6 +340,34 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(tarjeta!.textContent).toContain('IT01');
     expect(tarjeta!.textContent).toContain('IT02');
     expect(tarjeta!.textContent).toContain('180');
+    expect(screen.getByTestId('columna-en_proceso').querySelector('[data-testid="tarjeta-lote-piso-corrida-1"]')).toBeNull();
+  });
+
+  it('mueve el lote a En proceso cuando la corrida ya se inició', () => {
+    render(createElement(VistaKanbanOperador, {
+      procesos: [],
+      lotes: [{
+        id: 'corrida-2',
+        codigo: 'LAS03',
+        estado: 'EN_PROCESO',
+        ordenId: 'orden-1',
+        folioOrden: 'OF-001171',
+        clienteNombre: 'Manufacturing Group',
+        procesoNombre: 'CORTE LASER',
+        areaCodigo: 'LASER',
+        areaCodigos: ['LASER'],
+        cantidadPlanificada: 60,
+        items: [{ id: null, partidaId: 'partida-1', codigoItem: 'IT01', cantidad: 60 }],
+        creadoEn: '2026-11-26T00:09:51.000Z',
+      }],
+      hoy: '2026-11-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    expect(screen.getByTestId('columna-en_proceso').querySelector('[data-testid="tarjeta-lote-piso-corrida-2"]')).not.toBeNull();
+    expect(screen.getByTestId('columna-bandeja').querySelector('[data-testid="tarjeta-lote-piso-corrida-2"]')).toBeNull();
   });
 
   it('deja la tarjeta completa en la columna principal y compacta la réplica en la secundaria', () => {
