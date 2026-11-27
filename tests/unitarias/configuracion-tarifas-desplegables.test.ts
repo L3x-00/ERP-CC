@@ -213,6 +213,9 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     expect(screen.getByTestId('alta-guiada-equipo-area-deducida').textContent).toContain(
       'Corte y lámina',
     );
+    expect(screen.getByTestId('alta-guiada-equipo-area-ayuda').textContent).toContain(
+      'no se edita',
+    );
     expect(screen.queryByTestId('alta-guiada-equipo-area')).toBeNull();
   });
 

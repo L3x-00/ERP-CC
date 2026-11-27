@@ -507,12 +507,14 @@ export function SeccionTarifasRecursos({
                   ))}
                 </Select>
               )}
-              <span className="text-[11px] font-normal">
+              <span className="text-[11px] font-normal" data-testid="alta-guiada-equipo-area-ayuda">
                 {nuevo.grupoEquipoId === ''
                   ? 'Elige el grupo para calcular el área.'
                   : areasEsperadasNuevo.length === 0
                     ? 'El grupo aún no tiene procesos: elige el área donde trabajará la máquina.'
-                    : 'El grupo usa más de un área: elige la de esta máquina.'}
+                    : areaDeducida
+                      ? 'El área la define el proceso del grupo; no se edita aquí.'
+                      : 'El grupo usa más de un área: elige la de esta máquina.'}
               </span>
               {erroresEquipo.area ? (
                 <span id="equipo-area-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
