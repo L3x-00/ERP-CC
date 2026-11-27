@@ -144,11 +144,17 @@ export async function listarAreasTrabajoOpciones(
 ): Promise<AreaTrabajoOpcion[]> {
   const { data, error } = await cliente
     .from('areas_trabajo_config')
-    .select('codigo, nombre, activo')
+    .select('codigo, nombre, activo, padre_codigo, area_planeacion')
     .order('orden', { ascending: true })
     .order('nombre', { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((fila) => ({ codigo: fila.codigo, nombre: fila.nombre, activo: fila.activo }));
+  return (data ?? []).map((fila) => ({
+    codigo: fila.codigo,
+    nombre: fila.nombre,
+    activo: fila.activo,
+    padreCodigo: fila.padre_codigo,
+    areaPlaneacion: fila.area_planeacion,
+  }));
 }
 
 export async function obtenerCatalogosBaseServicio(

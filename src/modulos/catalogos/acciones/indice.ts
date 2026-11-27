@@ -11,6 +11,7 @@ export { listarVersionesAccion } from './listar-versiones';
 export { obtenerCatalogosBaseAccion } from './obtener-catalogos-base';
 export { obtenerPermisosCatalogosAccion } from './obtener-permisos-catalogos';
 export {
+  actualizarEquipoAccion,
   alternarEquipoActivoAccion,
   crearEquipoAccion,
   guardarTarifaRecursoAccion,

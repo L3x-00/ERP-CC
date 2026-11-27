@@ -389,6 +389,9 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await page.getByTestId('alta-guiada-equipo-codigo').fill(codigoEquipo);
       await page.getByTestId('alta-guiada-equipo-nombre').fill(`Máquina guiada ${sufijo}`);
       await page.getByTestId('alta-guiada-equipo-grupo').selectOption(grupo.data.id);
+      // El grupo de prueba no tiene procesos: el área se elige a mano. La
+      // deducción automática se cubre en la unitaria del tarifario.
+      await page.getByTestId('alta-guiada-equipo-area').selectOption('sheet_metal');
       await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
         'Tarifa heredada:',
       );
@@ -407,11 +410,12 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
 
       const creado = await admin
         .from('recursos_planeacion')
-        .select('grupo_equipo_id, tarifa_override_activa, activo')
+        .select('grupo_equipo_id, area, tarifa_override_activa, activo')
         .eq('codigo', codigoEquipo)
         .single();
       expect(creado.data).toEqual({
         grupo_equipo_id: grupo.data.id,
+        area: 'sheet_metal',
         tarifa_override_activa: false,
         activo: true,
       });

@@ -6,9 +6,18 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import type { MonedaTarifa } from '@/modulos/catalogos/tipos/indice';
 import {
+  ETIQUETA_AREA_EQUIPO,
+  areaCompatibleConGrupo,
+  areasEsperadasGrupo,
+  esAreaEquipo,
+  etiquetaGrupoEquipo,
+} from '@/modulos/catalogos/utilidades/indice';
+import {
+  esquemaActualizarEquipo,
   esquemaCrearEquipo,
   monedaTarifaCatalogo,
   tarifaHoraCatalogo,
+  type AreaEquipo,
 } from '@/modulos/catalogos/validaciones/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
@@ -20,6 +29,8 @@ export type TarifaRecurso = {
   codigo: string;
   nombre: string;
   activo: boolean;
+  /** Área de planeación de la máquina; null si el dato no es reconocible. */
+  area: AreaEquipo | null;
   grupoEquipoId: string | null;
   overrideActivo: boolean;
   tarifaHora: number | null;
@@ -53,7 +64,7 @@ export async function listarTarifasRecursosAccion(): Promise<RespuestaAccion<Tar
 
   const { data, error } = await crearClienteSupabaseAdmin()
     .from('recursos_planeacion')
-    .select('id, codigo, nombre, activo, grupo_equipo_id, tarifa_override_activa, tarifa_override_hora, tarifa_override_moneda')
+    .select('id, codigo, nombre, activo, area, grupo_equipo_id, tarifa_override_activa, tarifa_override_hora, tarifa_override_moneda')
     .order('codigo');
   if (error) {
     console.error('[CATALOGOS] Error al listar tarifas de recursos:', error.message);
@@ -66,12 +77,58 @@ export async function listarTarifasRecursosAccion(): Promise<RespuestaAccion<Tar
       codigo: fila.codigo,
       nombre: fila.nombre,
       activo: fila.activo,
+      area: esAreaEquipo(fila.area) ? fila.area : null,
       grupoEquipoId: fila.grupo_equipo_id,
       overrideActivo: fila.tarifa_override_activa,
       tarifaHora: fila.tarifa_override_hora === null ? null : Number(fila.tarifa_override_hora),
       moneda: fila.tarifa_override_moneda === 'USD' ? 'USD' : fila.tarifa_override_moneda === 'MXN' ? 'MXN' : null,
     })),
   };
+}
+
+/**
+ * Comprueba en servidor que el área de la máquina sea una de las que exige el
+ * proceso de su grupo. Devuelve null si es válida o el mensaje exacto para el
+ * usuario. La UI ya lo deduce, pero la acción no confía en el cliente.
+ */
+async function motivoAreaInvalida(
+  grupoEquipoId: string,
+  area: AreaEquipo,
+): Promise<string | null> {
+  const admin = crearClienteSupabaseAdmin();
+  const [grupo, procesos, areas] = await Promise.all([
+    admin.from('grupos_equipo').select('codigo, nombre').eq('id', grupoEquipoId).maybeSingle(),
+    admin
+      .from('catalogo_procesos')
+      .select('grupo_equipo_id, area_trabajo_codigo, activo')
+      .eq('grupo_equipo_id', grupoEquipoId)
+      .eq('activo', true),
+    admin
+      .from('areas_trabajo_config')
+      .select('codigo, padre_codigo, area_planeacion'),
+  ]);
+  if (grupo.error) throw grupo.error;
+  if (procesos.error) throw procesos.error;
+  if (areas.error) throw areas.error;
+  if (!grupo.data) return 'El grupo de equipo ya no existe';
+
+  const esperadas = areasEsperadasGrupo(
+    grupoEquipoId,
+    (procesos.data ?? []).map((fila) => ({
+      grupoEquipoId: fila.grupo_equipo_id,
+      areaTrabajoCodigo: fila.area_trabajo_codigo,
+      activo: fila.activo,
+    })),
+    (areas.data ?? []).map((fila) => ({
+      codigo: fila.codigo,
+      padreCodigo: fila.padre_codigo,
+      areaPlaneacion: fila.area_planeacion,
+    })),
+  );
+  if (areaCompatibleConGrupo(area, esperadas)) return null;
+
+  const etiquetas = esperadas.map((esperada) => ETIQUETA_AREA_EQUIPO[esperada]).join(' o ');
+  return `El grupo ${etiquetaGrupoEquipo(grupo.data)} trabaja en ${etiquetas}; la máquina no puede quedar en ${ETIQUETA_AREA_EQUIPO[area]}.`;
 }
 
 /**
@@ -129,6 +186,16 @@ export async function crearEquipoAccion(entrada: unknown): Promise<RespuestaAcci
   }
 
   const datos = analisis.data;
+
+  let motivoArea: string | null;
+  try {
+    motivoArea = await motivoAreaInvalida(datos.grupoEquipoId, datos.area);
+  } catch (error) {
+    console.error('[CATALOGOS] Error al validar el área del equipo:', error);
+    return { exito: false, error: 'No se pudo validar el área del equipo' };
+  }
+  if (motivoArea) return { exito: false, error: motivoArea };
+
   const { data, error } = await crearClienteSupabaseAdmin()
     .from('recursos_planeacion')
     .insert({
@@ -164,11 +231,67 @@ export async function crearEquipoAccion(entrada: unknown): Promise<RespuestaAcci
     {
       codigo: datos.codigo,
       grupoEquipoId: datos.grupoEquipoId,
+      area: datos.area,
       tarifaPropiaActiva: datos.tarifaPropiaActiva,
     },
     nuevoCorrelationId(),
   );
   return { exito: true, datos: data };
+}
+
+/**
+ * Corrige un equipo existente (bug 2026-11-27): permite mover una máquina al
+ * área que exige su grupo sin darla de baja. El código no cambia para no romper
+ * referencias históricas.
+ */
+export async function actualizarEquipoAccion(entrada: unknown): Promise<RespuestaAccion<null>> {
+  const analisis = esquemaActualizarEquipo.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario) return { exito: false, error: 'No autorizado' };
+  if (!(await can(usuario, 'catalogo_editar'))) {
+    return { exito: false, error: 'Sin permiso para editar catálogos' };
+  }
+
+  const datos = analisis.data;
+  let motivoArea: string | null;
+  try {
+    motivoArea = await motivoAreaInvalida(datos.grupoEquipoId, datos.area);
+  } catch (error) {
+    console.error('[CATALOGOS] Error al validar el área del equipo:', error);
+    return { exito: false, error: 'No se pudo validar el área del equipo' };
+  }
+  if (motivoArea) return { exito: false, error: motivoArea };
+
+  const cambios = {
+    nombre: datos.nombre,
+    grupo_equipo_id: datos.grupoEquipoId,
+    area: datos.area,
+  };
+  const { data, error } = await crearClienteSupabaseAdmin()
+    .from('recursos_planeacion')
+    .update(cambios)
+    .eq('id', datos.recursoId)
+    .select('id')
+    .maybeSingle();
+  if (error) {
+    console.error('[CATALOGOS] Error al actualizar equipo:', error.message);
+    if (error.code === '23503') return { exito: false, error: 'El grupo de equipo ya no existe' };
+    return { exito: false, error: 'No se pudo actualizar el equipo' };
+  }
+  if (!data) return { exito: false, error: 'El equipo no existe' };
+
+  await registrarLog(
+    usuario,
+    'actualizar_equipo',
+    'catalogos',
+    datos.recursoId,
+    cambios,
+    nuevoCorrelationId(),
+  );
+  return { exito: true, datos: null };
 }
 
 /**
