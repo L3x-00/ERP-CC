@@ -130,7 +130,10 @@ export async function obtenerDiagnosticoOrdenServicio(
       partidaId: fila.partida_id,
       sesionId: fila.sesion_id,
       programacionId: fila.programacion_id,
-      detalle: fila.detalle,
+      // El RPC cuenta partidas, no piezas: se corrige el texto sin tocar la firma.
+      detalle: fila.codigo === 'orden_completada_sin_entrega'
+        ? String(fila.detalle ?? '').replace('piezas pendientes de entrega', 'partidas pendientes de entrega')
+        : fila.detalle,
       valorActual: fila.valor_actual === null ? null : Number(fila.valor_actual),
       valorEsperado: fila.valor_esperado === null ? null : Number(fila.valor_esperado),
       ...guiaCodigo,

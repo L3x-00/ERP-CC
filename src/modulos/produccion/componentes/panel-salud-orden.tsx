@@ -53,6 +53,10 @@ export interface PropsPanelSaludOrden {
   puedeGestionarProduccion?: boolean;
   /** C31/A6: permiso real para reabrir operaciones bloqueadas. */
   puedeGestionarPlaneacion?: boolean;
+  /** En una orden concluida no se pueden crear programaciones ni consumos. */
+  filtrarNoAccionables?: boolean;
+  /** Abre el formulario de entrega que ya existe en la ficha de la orden. */
+  onGenerarEntrega?: () => void;
 }
 
 /**
@@ -66,6 +70,8 @@ export function PanelSaludOrden({
   esAdmin = false,
   puedeGestionarProduccion = false,
   puedeGestionarPlaneacion = false,
+  filtrarNoAccionables = false,
+  onGenerarEntrega,
 }: PropsPanelSaludOrden) {
   const enrutador = useRouter();
   const clienteConsultas = useQueryClient();
@@ -88,7 +94,10 @@ export function PanelSaludOrden({
     staleTime: 30_000,
   });
 
-  const incidencias = consulta.data ?? [];
+  const incidencias = (consulta.data ?? []).filter((incidencia) => (
+    !filtrarNoAccionables
+    || !['produccion_sin_programacion', 'consumo_material_pendiente'].includes(incidencia.codigo)
+  ));
   const abrirCierre = (incidencia: DiagnosticoOrdenItem) => {
     setPausaSeleccionada(incidencia);
     setConservarTiempo(true);
@@ -212,6 +221,20 @@ export function PanelSaludOrden({
                       className="mt-2"
                       data-testid={`accion-cerrar-pausa-${incidencia.sesionId}`}
                       onClick={() => abrirCierre(incidencia)}
+                    >
+                      {incidencia.textoAccion}
+                    </Button>
+                  );
+                }
+                if (incidencia.accionSugerida === 'generar_nota_entrega' && onGenerarEntrega) {
+                  return (
+                    <Button
+                      type="button"
+                      variante="fantasma"
+                      tamano="sm"
+                      className="mt-2"
+                      data-testid={`accion-${incidencia.accionSugerida}-${incidencia.codigo}`}
+                      onClick={onGenerarEntrega}
                     >
                       {incidencia.textoAccion}
                     </Button>

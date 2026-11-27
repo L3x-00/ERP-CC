@@ -224,6 +224,8 @@ export function DetalleOrdenConcluida({
         esAdmin={esAdmin}
         puedeGestionarProduccion={puedeGestionarProduccion}
         puedeGestionarPlaneacion={puedeGestionarPlaneacion}
+        filtrarNoAccionables
+        onGenerarEntrega={puedeEntregar ? () => setMostrarFormulario(true) : undefined}
       />
 
       <AccesosRapidosOrden ordenId={orden.id} />

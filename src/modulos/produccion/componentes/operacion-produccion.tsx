@@ -18,6 +18,7 @@ import {
 import {
   CLAVE_CATALOGOS_PISO,
   CLAVE_CORRIDAS_ORDEN,
+  CLAVE_DIAGNOSTICO_ORDEN,
   CLAVE_ENTREGABLES_ORDEN,
   CLAVE_TABLERO_PRODUCCION,
 } from '@/modulos/produccion/componentes/claves-consulta';
@@ -317,6 +318,9 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       if (!resultado.datos) return { exito: false, error: 'La entrega no devolvió una confirmación' };
       await refrescar();
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_ENTREGABLES_ORDEN });
+      await clienteConsultas.invalidateQueries({
+        queryKey: [...CLAVE_DIAGNOSTICO_ORDEN, datosNota.ordenId],
+      });
       return { exito: true, folio: resultado.datos.folio };
     } finally {
       setProcesando(false);

@@ -201,6 +201,22 @@ describe('DialogoHistorialRfq — versiones en modal (solo lectura)', () => {
     expect(screen.queryByTestId('historial-version-detalle')).toBeNull();
   });
 
+  it('resume la última acción y muestra una sola vez las acciones repetidas', async () => {
+    obtenerVersionesMock.mockResolvedValue({
+      exito: true,
+      datos: [{ ...VERSION_2, id: 'v-3', numero: 3, creadoEn: '2026-10-09T10:00:00.000Z' }, VERSION_2, VERSION_1],
+    });
+    renderizarHistorial();
+
+    const desplegable = await screen.findByTestId('historial-documento-desplegable');
+    expect(desplegable.getAttribute('data-estado')).toBe('cerrado');
+    expect(desplegable.textContent).toContain('Última acción: Cambio de ítems');
+    const lista = screen.getByTestId('historial-versiones');
+    expect(lista.querySelectorAll('li')).toHaveLength(2);
+    expect(lista.textContent).toContain('v3');
+    expect(lista.textContent).toContain('v1');
+  });
+
   it('sin versiones registradas lo explica sin romper el modal', async () => {
     obtenerVersionesMock.mockResolvedValue({ exito: true, datos: [] });
     renderizarHistorial();
