@@ -135,6 +135,33 @@ describe('lotes visibles en los tableros', () => {
     expect(lotes).toEqual([]);
   });
 
+  it('no muestra como lote la corrida de un solo ítem creada por el inicio independiente', async () => {
+    const datos = {
+      ...DATOS,
+      corridas: [{
+        id: CORRIDA, codigo: 'LAS06', estado: 'EN_PROCESO', orden_id: ORDEN,
+        proceso_id: PROCESO, cantidad_planificada: '100.0000', creado_en: '2026-11-28T01:24:00.000Z',
+      }],
+      corrida_items: [
+        { id: 'item-1', corrida_id: CORRIDA, partida_id: ITEM1, codigo_item: 'IT01', cantidad: '100.0000' },
+      ],
+    };
+    const lotes = await obtenerLotesTableroServicio(admin(datos), [ORDEN]);
+    expect(lotes).toEqual([]);
+    // Sin lote, el mapa no marca la operación: la ficha ofrece «Iniciar proceso».
+    expect(mapaLotesPorOperacion(lotes).size).toBe(0);
+
+    const referencias = await obtenerReferenciasCorridaPorPartida(admin({
+      corrida_items: [{ corrida_id: CORRIDA, partida_id: ITEM1 }],
+      corridas: [{
+        id: CORRIDA, codigo: 'LAS06', estado: 'EN_PROCESO',
+        proceso_id: PROCESO, creado_en: '2026-11-28T01:24:00.000Z',
+      }],
+      catalogo_procesos: [{ id: PROCESO, nombre: 'CORTE LASER' }],
+    }), [ITEM1]);
+    expect(referencias.size).toBe(0);
+  });
+
   it('proyecta descripción, material, sesión y primera pieza pendiente de la ficha del lote', async () => {
     const datos = {
       corridas: [{

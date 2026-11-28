@@ -38,6 +38,18 @@ Lectura obligatoria antes de volver a tocar el Kanban del operador, el diálogo 
 | --- | --- | --- |
 | Al iniciar un lote, la tarjeta no cambiaba de columna hasta recargar en versiones anteriores | El piso usa `SincronizadorPisoRealtime` (`sincronizador-piso-realtime.tsx:27-37`): EventSource → `router.refresh()`. El relay (`app/api/produccion-piso/sincronizacion/route.ts:12-26`) ya escucha `corridas` y `sesiones_trabajo`. Producción usa `SincronizadorProduccionRealtime` → `invalidateQueries(['produccion'])` | El realtime solo **señala** refresco; nunca se usa el payload como dato de UI. Los campos nuevos del lote deben venir de la relectura al servidor (RLS + mappers), y el contador en vivo se calcula en el cliente con `ContadorSesionVivo` |
 
+## 7. El inicio independiente parecía crear un lote (LAS06)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Al iniciar solo CORTE LASER de un ítem apareció «Lote LAS06, 100 piezas en 1 ítems» sin haber creado lote | La RPC `iniciar_sesion_trabajo_operador` (`20261123000000_operador_inicia_sin_liberacion.sql:202-269`) crea una corrida legacy de **un solo ítem** cuando `p_corrida_id` es NULL; es trazabilidad, no un lote. Lo nuevo fue que `obtenerLotesTableroServicio` proyectaba toda corrida activa y `mapaLotesPorOperacion` marcaba el proceso como «en lote», ocultando «Iniciar proceso» | Excluir de la proyección de lotes y del mapa las corridas con **menos de 2 ítems**. Las corridas terminadas siguen etiquetando «Trabajado en lote X». El consecutivo global (#325) solo cambió el número visible |
+
+## 8. Los procesos secundarios se redujeron a «IT01 · DOB»
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| En Bandeja, el doblado aparecía como una línea mínima sin cliente, ruta ni «Ver detalle» | PR #331 fijó «Aprobada» como columna principal siempre que existiera trabajo allí, de modo que Bandeja quedaba como réplica compacta (`tarjeta-orden-operador.tsx:312-354` muestra solo `grupo.items[0]`) | Conservar la columna principal original (`derivarColumnaOrden`). Solo si el lote ocultó esa columna se promueve la primera columna **visible** (con preferencia de Aprobada y orden del tablero), para que siempre exista una tarjeta completa |
+
 ## Regla de diseño acordada para este ajuste
 
 - En **Aprobada** la orden sigue visible con sus ítems; el ítem agrupado muestra «En lote X» y un enlace **«Ver lote»** que abre el modal del lote.

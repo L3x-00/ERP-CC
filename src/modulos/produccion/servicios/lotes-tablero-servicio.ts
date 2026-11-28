@@ -261,7 +261,12 @@ export async function obtenerLotesTableroServicio(
     clientes.map((cliente) => [cliente.id, cliente.nombre_comercial || cliente.razon_social] as const),
   );
 
-  return corridas.map((corrida): LoteTablero => {
+  // El inicio independiente crea en la BD una corrida legacy de un solo ítem
+  // (20261123000000:202-269) solo para trazabilidad. No es un lote: mostrarla
+  // como tal quitaba la tarjeta individual y ofrecía «Ver lote» en su lugar.
+  const lotes = corridas.filter((corrida) => (itemsPorCorrida.get(corrida.id)?.length ?? 0) >= 2);
+
+  return lotes.map((corrida): LoteTablero => {
     const orden = clientesPorId.get(corrida.orden_id);
     const corridaItems = itemsPorCorrida.get(corrida.id) ?? [];
     const faltan = new Set(primeraPiezaPendiente.get(corrida.id) ?? []);
@@ -329,6 +334,7 @@ export function mapaLotesPorOperacion(
   // Los lotes llegan del más reciente al más antiguo: si quedaron lotes
   // duplicados de antes de esta regla, la operación se asocia al último creado.
   for (const lote of lotes) {
+    if (lote.items.length < 2) continue;
     for (const item of lote.items) {
       const clave = claveLotePartida(item.partidaId, lote.procesoNombre);
       if (!mapa.has(clave)) mapa.set(clave, lote);
@@ -393,6 +399,10 @@ export async function obtenerReferenciasCorridaPorPartida(
   for (const corrida of corridas) {
     const nombre = nombresProceso.get(corrida.proceso_id);
     if (!nombre) continue;
+    // Solo se ocultan las corridas activas de un ítem; las terminadas siguen
+    // etiquetando el trabajo histórico como «Trabajado en lote X».
+    if (corrida.estado !== 'COMPLETADA'
+      && (partidasPorCorrida.get(corrida.id)?.length ?? 0) < 2) continue;
     for (const partidaId of partidasPorCorrida.get(corrida.id) ?? []) {
       const clave = claveLotePartida(partidaId, nombre);
       if (!referencias.has(clave)) {
