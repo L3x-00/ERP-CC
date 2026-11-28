@@ -12,10 +12,10 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 
 ### Catálogos operativos
 
-- [ ] Hay al menos un **grupo planeado** activo por cada etapa del taller.
+- [ ] Si usas etapas de planeación, los **grupos planeados** que necesitas están activos y bien nombrados. No son obligatorios para cotizar.
 - [ ] Hay al menos un **grupo de equipo** activo por cada familia de máquinas.
 - [ ] Cada **proceso** tiene código, nombre y prefijo de corrida.
-- [ ] Cada proceso tiene asignados su grupo planeado, su grupo de equipo y su área de trabajo.
+- [ ] Cada proceso tiene asignados su grupo de equipo y su área de trabajo; el grupo planeado es opcional.
 - [ ] Los controles de calidad (archivo técnico, primera pieza e inspección de lote) corresponden a la operación.
 - [ ] Hay **próximas acciones** suficientes para el seguimiento comercial.
 - [ ] Solo una próxima acción tiene habilitado el texto libre.
@@ -40,7 +40,7 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 ### Tarifas y costos
 
 - [ ] El **Tipo de cambio vigente** está actualizado.
-- [ ] Cada estación tiene tarifa de máquina y de preparación.
+- [ ] Si usas tarifas por estación como referencia, están actualizadas. El costo del ruteo sale del grupo de equipo o de la máquina.
 - [ ] Las tarifas de los grupos de equipo son las correctas.
 - [ ] Las máquinas con costo distinto tienen tarifa propia.
 - [ ] Cada máquina pertenece a un grupo de equipo y está en el **área que pide el proceso**; si no, aparece **Área distinta a la del grupo**.
@@ -85,7 +85,7 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 | Los campos están grises y no puedo guardar. | Tu usuario no tiene permiso de escritura. | Pide apoyo a la persona administradora. |
 | El selector **Grupo de equipo** está vacío. | No hay grupos de equipo activos. | [Grupos de equipo](/es/docs/grupos-equipo). |
 | El selector **Área de trabajo** está vacío o incompleto. | Faltan áreas o están inactivas. | [Áreas de trabajo](/es/docs/areas-trabajo). |
-| Una propuesta no toma la tarifa esperada. | El grupo o la estación no tienen tarifa, o la máquina tiene otra. | [Tarifas y costos](/es/docs/tarifas-tc). |
+| Una propuesta no toma la tarifa esperada. | El grupo o la máquina no tienen tarifa, o la máquina tiene una propia distinta. | [Tarifas y costos](/es/docs/tarifas-tc). |
 | Al iniciar el lote dice que no hay máquina disponible. | El grupo sí tiene equipos, pero ninguno en el área que pide el proceso. | [Tarifas y costos](/es/docs/tarifas-tc) → **Equipos y sus tarifas** → **Editar equipo**. |
 | El sistema avisa que el tipo de cambio está desactualizado. | No se registró hoy o tiene más de 24 horas. | [Tarifas y costos](/es/docs/tarifas-tc). |
 | El siguiente folio no es el que esperaba. | La continuidad quedó en otro número. | [Folios](/es/docs/folios). |
@@ -118,6 +118,6 @@ La ruta completa está en el [índice del manual](/es/docs#ruta-recomendada-de-c
 8. [Canales RFQ](/es/docs/canales-rfq) y [próximas acciones](/es/docs/proximas-acciones).
 9. [Verificación final](/es/docs/verificacion-final).
 
-Los grupos planeados, folios, documentos, catálogos comerciales y cuentas bancarias pueden configurarse en cualquier momento: no bloquean el primer RFQ.
+Los grupos planeados, folios, documentos, catálogos comerciales y cuentas bancarias pueden configurarse en cualquier momento: no bloquean el primer RFQ. Para recorrer estos pasos guiado desde la aplicación, abre el [Tutorial de configuración](/es/docs/tutorial-configuracion).
 
 Ya puedes comenzar a operar con ORCA MFG ERP.
