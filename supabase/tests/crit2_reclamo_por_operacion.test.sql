@@ -4,7 +4,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(5);
+SELECT plan(6);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000c2a01', 'crit2-a@prueba.local'),
@@ -35,6 +35,14 @@ INSERT INTO public.partidas_orden_produccion (
 ) VALUES (
   '00000000-0000-4000-8000-0000000c2a07', '00000000-0000-4000-8000-0000000c2a06',
   'C2-IT01', 'Pieza CRIT2', 10, 'pza', ARRAY['Corte laser', 'DOBLADO_CNC'], 15
+);
+
+INSERT INTO public.catalogo_materiales (
+  id, codigo, nombre, unidad_base, moneda_costo, costo_vigente,
+  fecha_vigencia_costo, costo_confirmado_en, costo_confirmado_por
+) VALUES (
+  '00000000-0000-4000-8000-0000000c2a08', 'C2-MAT', 'Material CRIT2', 'pza', 'MXN',
+  10, current_date, now(), '00000000-0000-4000-8000-0000000c2a01'
 );
 
 CREATE TEMP TABLE c2 (clave text PRIMARY KEY, valor text);
@@ -114,6 +122,16 @@ SELECT is(
     WHERE id = (SELECT valor::uuid FROM c2 WHERE clave = 'sesion_b')),
   '00000000-0000-4000-8000-0000000c2a02'::uuid,
   'B inicia su operación aunque A sea el responsable de la partida'
+);
+
+SELECT ok(
+  (SELECT count(*)::integer FROM public.registrar_consumo_material_operador_op(
+    '00000000-0000-4000-8000-0000000c2a07',
+    '00000000-0000-4000-8000-0000000c2a08',
+    1, 0, 'Consumo CRIT2',
+    '00000000-0000-4000-8000-0000000c2a02'
+  )) = 1,
+  'B registra consumo aunque la partida siga asignada a A, porque tiene reclamo activo'
 );
 
 SELECT is(
