@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState, type ReactNode } from 'react';
+import { ProveedorTutorialConfiguracion } from '@/modulos/configuracion/componentes/proveedor-tutorial-configuracion';
 
 /**
  * Proveedores de la aplicación: TanStack Query + devtools.
@@ -27,8 +28,10 @@ export default function ProveedoresApp({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={clienteQuery}>
-      {children}
-      {process.env.NODE_ENV !== 'production' ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+      <ProveedorTutorialConfiguracion>
+        {children}
+        {process.env.NODE_ENV !== 'production' ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+      </ProveedorTutorialConfiguracion>
     </QueryClientProvider>
   );
 }

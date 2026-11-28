@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { enfocarElemento } from '@/compartido/utilidades/enfocar-seccion';
 import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
+import { Button } from '@/compartido/componentes/ui/button';
+import { useTutorialConfiguracion } from './contexto-tutorial-configuracion';
 import {
   obtenerConfiguracionAccion,
   type DatosConfiguracion,
@@ -55,6 +57,7 @@ export function OperacionConfiguracion({
   vistaInicial?: VistaConfiguracion;
 }) {
   const clienteQuery = useQueryClient();
+  const tutorial = useTutorialConfiguracion();
   const [vista, setVista] = useState<VistaConfiguracion>(vistaInicial);
   // Confirmación a nivel de página: las pestañas se remontan (key por
   // `actualizadoEn`) cuando su sección cambia, así que un mensaje local se
@@ -121,7 +124,11 @@ export function OperacionConfiguracion({
     setConfirmacion('Áreas del operador guardadas');
   };
 
-  const seccion = vista.seccion;
+  // Con el tutorial activo, el paso manda la sección; sin él manda la pestaña elegida.
+  const seccion =
+    tutorial.activo && tutorial.seccionSolicitada
+      ? tutorial.seccionSolicitada
+      : vista.seccion;
 
   function abrirSeccion(id: string): void {
     const destino = id as SeccionConfiguracion;
@@ -169,12 +176,17 @@ export function OperacionConfiguracion({
     (item) => item.id !== 'personas' || vigente.esAdmin,
   );
 
+  const forzarOperativos =
+    tutorial.activo && tutorial.subseccionSolicitada === 'operativos';
+  const forzarUsuarios = tutorial.activo && tutorial.subseccionSolicitada === 'usuarios';
   const subseccionCatalogos: SubseccionCatalogos =
-    seccion === 'catalogos' && vista.subseccion === 'operativos' && puedeVerCatalogosBase
+    seccion === 'catalogos' &&
+    (forzarOperativos || vista.subseccion === 'operativos') &&
+    puedeVerCatalogosBase
       ? 'operativos'
       : 'comerciales';
   const subseccionPersonas: SubseccionPersonas =
-    seccion === 'personas' && (vista.subseccion === 'permisos' || vista.subseccion === 'operadores')
+    seccion === 'personas' && !forzarUsuarios && (vista.subseccion === 'permisos' || vista.subseccion === 'operadores')
       ? vista.subseccion
       : 'usuarios';
 
@@ -185,11 +197,23 @@ export function OperacionConfiguracion({
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5" data-testid="pagina-configuracion">
       <SincronizadorConfiguracionRealtime />
-      <header>
-        <h1 className="text-2xl font-bold text-texto-primario">Configuración del sistema</h1>
-        <p className="text-sm text-texto-secundario">
-          Variables maestras protegidas por permiso y sincronizadas en tiempo real.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-texto-primario">Configuración del sistema</h1>
+          <p className="text-sm text-texto-secundario">
+            Variables maestras protegidas por permiso y sincronizadas en tiempo real.
+          </p>
+        </div>
+        {vigente.esAdmin ? (
+          <Button
+            variante={tutorial.activo ? 'secundario' : 'contorno'}
+            tamano="sm"
+            aria-pressed={tutorial.activo}
+            onClick={tutorial.activo ? tutorial.salir : tutorial.activar}
+          >
+            {tutorial.activo ? 'Tutorial activo' : 'Tutorial de configuración'}
+          </Button>
+        ) : null}
       </header>
 
       <PestanasModulo
