@@ -261,7 +261,7 @@ export function PestanaAreasTrabajo({
   }
 
   return (
-    <div className="flex flex-col gap-6" data-testid="configuracion-areas">
+    <div id="areas-trabajo" className="flex flex-col gap-6 scroll-mt-24" data-testid="configuracion-areas">
       {/* Obs. cliente 2026-11: el costo por hora no se captura aquí. Mantener una
           sola fuente (Tarifas y costos) evita listas de precios contradictorias. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-acento/30 bg-acento-suave p-3 text-sm">

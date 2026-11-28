@@ -133,10 +133,14 @@ export function PestanaCatalogosBase({ onIrATarifas }: { onIrATarifas?: () => vo
         ) : null}
       </header>
 
-      <SeccionProcesos {...propsBase} />
-      <SeccionCatalogoDesplegable id="grupos-equipo" titulo="Grupos de equipo" descripcion={descripcionSeccion('gruposEquipo')}>
-        <SeccionGruposEquipo {...propsBase} cabeceraCompacta onIrATarifas={onIrATarifas} />
-      </SeccionCatalogoDesplegable>
+      <div id="procesos" className="scroll-mt-24">
+        <SeccionProcesos {...propsBase} />
+      </div>
+      <div id="catalogo-grupos-equipo" className="scroll-mt-24">
+        <SeccionCatalogoDesplegable id="grupos-equipo" titulo="Grupos de equipo" descripcion={descripcionSeccion('gruposEquipo')}>
+          <SeccionGruposEquipo {...propsBase} cabeceraCompacta onIrATarifas={onIrATarifas} />
+        </SeccionCatalogoDesplegable>
+      </div>
       <p
         className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario"
         data-testid="catalogos-tarifas-en-tarifas-tc"
@@ -145,15 +149,21 @@ export function PestanaCatalogosBase({ onIrATarifas }: { onIrATarifas?: () => vo
         <span className="font-medium text-texto-primario">Tarifas y costos → Tarifario del ruteo</span>.
         Aquí solo se consultan y se activan o desactivan.
       </p>
-      <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
-        <SeccionGruposPlaneados {...propsBase} cabeceraCompacta />
-      </SeccionCatalogoDesplegable>
-      <SeccionCatalogoDesplegable id="proximas-acciones" titulo="Próximas acciones" descripcion={descripcionSeccion('proximasAcciones')}>
-        <SeccionProximasAcciones {...propsBase} cabeceraCompacta />
-      </SeccionCatalogoDesplegable>
-      <SeccionCatalogoDesplegable id="canales-rfq" titulo="Canales RFQ" descripcion={descripcionSeccion('canales')}>
-        <SeccionCanales {...propsBase} cabeceraCompacta />
-      </SeccionCatalogoDesplegable>
+      <div id="catalogo-grupos-planeados" className="scroll-mt-24">
+        <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
+          <SeccionGruposPlaneados {...propsBase} cabeceraCompacta />
+        </SeccionCatalogoDesplegable>
+      </div>
+      <div id="proximas-acciones" className="scroll-mt-24">
+        <SeccionCatalogoDesplegable id="proximas-acciones" titulo="Próximas acciones" descripcion={descripcionSeccion('proximasAcciones')}>
+          <SeccionProximasAcciones {...propsBase} cabeceraCompacta />
+        </SeccionCatalogoDesplegable>
+      </div>
+      <div id="canales-rfq" className="scroll-mt-24">
+        <SeccionCatalogoDesplegable id="canales-rfq" titulo="Canales RFQ" descripcion={descripcionSeccion('canales')}>
+          <SeccionCanales {...propsBase} cabeceraCompacta />
+        </SeccionCatalogoDesplegable>
+      </div>
 
       <p className="text-xs text-texto-terciario" data-testid="catalogos-conteos">
         {SECCIONES_CATALOGOS_BASE.map(

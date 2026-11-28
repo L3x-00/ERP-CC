@@ -48,6 +48,7 @@ export function PanelDesplegable({
   abiertoInicial?: boolean;
   className?: string;
   children: ReactNode;
+  id?: string;
   'data-testid'?: string;
 }) {
   const [abierto, setAbierto] = useState(abiertoInicial);

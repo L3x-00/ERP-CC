@@ -23,7 +23,7 @@ export default async function PaginaInventario() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div id="materiales-costo" className="flex flex-col gap-4 scroll-mt-24">
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-texto-primario">Materiales y costos</h1>
         <p className="text-sm text-texto-secundario">

@@ -56,6 +56,7 @@ export function SeccionDesplegable({
     <section
       className={`rounded-base border border-borde bg-superficie ${className}`}
       aria-labelledby={idBoton}
+      data-estado={estaAbierto ? 'abierto' : 'cerrado'}
       data-testid={dataTestId}
     >
       <button

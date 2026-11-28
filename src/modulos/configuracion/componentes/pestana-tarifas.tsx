@@ -19,9 +19,13 @@ export interface PestanaTarifasProps {
   onGuardado: (configuracion: ConfiguracionSistema) => void;
   /** Atajo a «Catálogos operativos»; solo con permiso para verlo. */
   onIrACatalogosBase?: () => void;
+  /** Subsección solicitada por la guía de configuración. */
+  foco?: string | null;
 }
 
-export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }: PestanaTarifasProps) {
+export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase, foco }: PestanaTarifasProps) {
+  const abrirTarifario =
+    foco === 'tarifario-ruteo' || foco === 'tarifas-grupos' || foco === 'equipos-tarifas';
   const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -67,6 +71,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
       {/* El tarifario del ruteo es el punto principal: agrupa grupos, máquinas,
           herencia de tarifas y procesos compatibles. */}
       <SeccionTarifarioRuteo
+        abrirPorFoco={abrirTarifario}
         {...(onIrACatalogosBase ? { onIrACatalogosBase } : {})}
       />
 
