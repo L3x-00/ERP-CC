@@ -33,6 +33,7 @@ import {
 } from '@/modulos/catalogos/utilidades/indice';
 
 import { CLAVE_CATALOGOS_BASE, consultarCatalogosBase } from './consulta-catalogos-base';
+import { ENLACE_TARIFARIO_RUTEO } from './pestanas-configuracion';
 
 const claveVersiones = (entidad: EntidadCatalogo, entidadId: string) =>
   ['configuracion', 'catalogos-base', 'versiones', entidad, entidadId] as const;
@@ -146,8 +147,13 @@ export function PestanaCatalogosBase({ onIrATarifas }: { onIrATarifas?: () => vo
         data-testid="catalogos-tarifas-en-tarifas-tc"
       >
         La tarifa estándar, los procesos compatibles y el alta de cada grupo se administran en{' '}
-        <span className="font-medium text-texto-primario">Tarifas y costos → Tarifario del ruteo</span>.
-        Aquí solo se consultan y se activan o desactivan.
+        <a
+          href={ENLACE_TARIFARIO_RUTEO}
+          className="font-medium text-acento-texto underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        >
+          Tarifas y costos → Tarifario del ruteo
+        </a>
+        . Aquí solo se consultan y se activan o desactivan.
       </p>
       <div id="catalogo-grupos-planeados" className="scroll-mt-24">
         <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
@@ -882,7 +888,14 @@ function SeccionGruposEquipo(props: PropsSeccion & { onIrATarifas?: () => void }
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
         <span>
           La tarifa estándar, los procesos compatibles y el alta se administran en{' '}
-          <span className="font-medium text-texto-primario">Tarifas y costos → Tarifario del ruteo</span>.
+          <a
+            href={ENLACE_TARIFARIO_RUTEO}
+            className="font-medium text-acento-texto underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+            data-testid="enlace-tarifario-desde-catalogos"
+          >
+            Tarifas y costos → Tarifario del ruteo
+          </a>
+          .
         </span>
         {onIrATarifas ? (
           <Button

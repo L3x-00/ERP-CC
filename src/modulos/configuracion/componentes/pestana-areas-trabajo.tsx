@@ -34,6 +34,7 @@ import {
   type TipoAreaTrabajo,
 } from '@/modulos/configuracion/tipos/indice';
 import type { OperadorAreaConfig } from '@/modulos/configuracion/servicios/indice';
+import { ENLACE_TARIFARIO_RUTEO } from './pestanas-configuracion';
 
 const ETIQUETA_TIPO: Record<TipoAreaTrabajo, string> = {
   area: 'Área',
@@ -267,8 +268,14 @@ export function PestanaAreasTrabajo({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-acento/30 bg-acento-suave p-3 text-sm">
         <p className="max-w-2xl text-texto-secundario">
           <span className="font-semibold text-texto-primario">Aquí solo se organizan las áreas.</span>{' '}
-          El costo por hora se configura una sola vez en <span className="font-medium">Tarifas y costos</span>,
-          por estación, grupo de equipo o máquina. Los importes que había en esta tabla eran de
+          El costo por hora se configura una sola vez en{' '}
+          <a
+            href={ENLACE_TARIFARIO_RUTEO}
+            className="font-medium text-acento-texto underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+          >
+            Tarifas y costos → Tarifario del ruteo
+          </a>
+          , por estación, grupo de equipo o máquina. Los importes que había en esta tabla eran de
           consulta y no alimentaban el costeo.
         </p>
         {onIrATarifas ? (
@@ -346,7 +353,14 @@ export function PestanaAreasTrabajo({
           <DialogHeader>
             <DialogTitle>{seleccionada ? `Editar ${seleccionada.codigo}` : 'Nueva área'}</DialogTitle>
             <DialogDescription>
-              Organiza áreas, subáreas y procesos. El costo por hora se administra en Tarifas y costos.
+              Organiza áreas, subáreas y procesos. El costo por hora se administra en{' '}
+              <a
+                href={ENLACE_TARIFARIO_RUTEO}
+                className="font-medium text-acento-texto underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+              >
+                Tarifas y costos → Tarifario del ruteo
+              </a>
+              .
             </DialogDescription>
           </DialogHeader>
 

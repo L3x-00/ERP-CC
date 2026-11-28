@@ -6,12 +6,21 @@
  * sigan abriendo el contenido correcto y, cuando aplica, la subsección exacta.
  */
 
+/**
+ * Enlace único al lugar donde se capturan grupos y tarifas. Los textos de ayuda
+ * de otras secciones lo usan para llevar al usuario al bloque exacto, abierto y
+ * resaltado (ver `?foco=` en `operacion-configuracion`). Es una fuente sola: si
+ * cambia el destino, aquí se ajusta y no en cada texto.
+ */
+export const ENLACE_TARIFARIO_RUTEO =
+  '/configuracion?pestana=tarifas&foco=tarifario-ruteo';
+
 export const SECCIONES_CONFIGURACION = [
-  { id: 'folios', etiqueta: 'Folios', descripcion: 'Continuidad de folios CNC y folios por periodo' },
-  { id: 'tarifas', etiqueta: 'Tarifas y costos', descripcion: 'Tipo de cambio, costeo, estaciones y tarifario del ruteo' },
-  { id: 'catalogos', etiqueta: 'Catálogos', descripcion: 'Catálogos comerciales y operativos' },
-  { id: 'areas', etiqueta: 'Áreas de trabajo', descripcion: 'Áreas, subáreas, procesos y operadores por área' },
   { id: 'personas', etiqueta: 'Personas y accesos', descripcion: 'Usuarios, permisos y operadores de piso' },
+  { id: 'tarifas', etiqueta: 'Tarifas y costos', descripcion: 'Tipo de cambio, costeo, estaciones y tarifario del ruteo' },
+  { id: 'areas', etiqueta: 'Áreas de trabajo', descripcion: 'Áreas, subáreas, procesos y operadores por área' },
+  { id: 'catalogos', etiqueta: 'Catálogos', descripcion: 'Catálogos comerciales y operativos' },
+  { id: 'folios', etiqueta: 'Folios', descripcion: 'Continuidad de folios CNC y folios por periodo' },
   { id: 'documentos', etiqueta: 'Documentos', descripcion: 'Plantilla T1 de documentos' },
 ] as const;
 

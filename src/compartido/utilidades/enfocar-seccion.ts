@@ -18,16 +18,35 @@ function preferirMovimientoReducido(): boolean {
   );
 }
 
-function abrirContenedorSiEstaCerrado(elemento: HTMLElement): void {
+function contenedorCerrado(elemento: HTMLElement): HTMLElement | null {
   let actual: HTMLElement | null = elemento;
   while (actual) {
-    if (actual.dataset.estado === 'cerrado') {
-      const boton = actual.querySelector('button');
-      if (boton) boton.click();
-      return;
-    }
+    if (actual.dataset.estado === 'cerrado') return actual;
     actual = actual.parentElement;
   }
+  return null;
+}
+
+function abrirContenedorSiEstaCerrado(elemento: HTMLElement): void {
+  const contenedor = contenedorCerrado(elemento);
+  const boton = contenedor?.querySelector('button');
+  if (boton) boton.click();
+}
+
+/**
+ * El clic que abre un panel puede ocurrir antes de que React hidrate el botón
+ * (por ejemplo al llegar con `?foco=`). Si el panel sigue cerrado, se reintenta
+ * un par de veces; nunca se vuelve a pulsar uno que ya quedó abierto.
+ */
+function abrirYResaltar(elemento: HTMLElement, intentos: number): void {
+  abrirContenedorSiEstaCerrado(elemento);
+  window.setTimeout(() => {
+    if (contenedorCerrado(elemento) && intentos > 0) {
+      abrirYResaltar(elemento, intentos - 1);
+      return;
+    }
+    resaltar(elemento);
+  }, ESPERA_ANIMACION_MS);
 }
 
 function resaltar(elemento: HTMLElement): void {
@@ -72,8 +91,7 @@ export function enfocarElemento(
   }
 
   if (abrirContenedor) {
-    abrirContenedorSiEstaCerrado(elemento);
-    window.setTimeout(() => resaltar(elemento), ESPERA_ANIMACION_MS);
+    abrirYResaltar(elemento, 2);
     return;
   }
 
