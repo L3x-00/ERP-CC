@@ -139,11 +139,11 @@ describe('OperacionConfiguracion — UI-01', () => {
 
     const pestanas = await screen.findAllByRole('tab');
     expect(pestanas.map((pestana) => pestana.textContent)).toEqual([
-      'Folios',
-      'Tarifas y costos',
-      'Catálogos',
-      'Áreas de trabajo',
       'Personas y accesos',
+      'Tarifas y costos',
+      'Áreas de trabajo',
+      'Catálogos',
+      'Folios',
       'Documentos',
     ]);
     expect(screen.getByTestId('mock-folios')).toBeTruthy();
