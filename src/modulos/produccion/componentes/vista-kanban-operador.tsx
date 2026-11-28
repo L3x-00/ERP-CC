@@ -3,7 +3,6 @@
 import {
   COLUMNAS_ESPACIO_OPERADOR,
   ETIQUETAS_COLUMNA,
-  agruparProcesosPorOrden,
   agruparProcesosPorOrdenYColumna,
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
@@ -71,31 +70,6 @@ export function VistaKanbanOperador({
   const clavesLote = new Set(
     (lotes ?? []).flatMap((lote) => lote.items.map((item) => claveLotePartida(item.partidaId, lote.procesoNombre))),
   );
-  const gruposDelTablero = agruparProcesosPorOrdenYColumna(procesos);
-  const grupoEsVisible = (grupo: (typeof gruposDelTablero)[number]): boolean => !(
-    columnasConLote.has(grupo.columna)
-    && clavesLote.size > 0
-    && grupo.procesos.every((proceso) => clavesLote.has(claveLotePartida(proceso.partidaId, proceso.procesoNombre)))
-  );
-  // C15: la tarjeta completa vive en la columna principal. Si el lote ocultó
-  // esa columna, se promueve la primera columna visible de la misma orden para
-  // que siempre quede una tarjeta completa (con cliente, ruta y «Ver detalle»).
-  const columnaPrincipalPorOrden = new Map<string, ColumnaEspacioOperador>();
-  for (const grupo of agruparProcesosPorOrden(procesos)) {
-    const visibles = gruposDelTablero
-      .filter((actual) => actual.ordenId === grupo.ordenId && grupoEsVisible(actual))
-      .sort((primero, segundo) => (
-        COLUMNAS_ESPACIO_OPERADOR.indexOf(primero.columna) - COLUMNAS_ESPACIO_OPERADOR.indexOf(segundo.columna)
-      ));
-    const principalVisible = visibles.some((actual) => actual.columna === grupo.columna);
-    const aprobadaVisible = visibles.some((actual) => actual.columna === 'aprobada');
-    columnaPrincipalPorOrden.set(
-      grupo.ordenId,
-      principalVisible ? grupo.columna
-        : aprobadaVisible ? 'aprobada'
-          : visibles[0]?.columna ?? grupo.columna,
-    );
-  }
   return (
     <div
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
@@ -161,7 +135,7 @@ export function VistaKanbanOperador({
                     <TarjetaOrdenOperador
                       grupo={grupo}
                       hoy={hoy}
-                      compacta={columnaPrincipalPorOrden.get(grupo.ordenId) !== columna}
+                      compacta={false}
                       arrastrable={!soloLectura && columna !== 'lista' && columna !== 'actualizar_avance'}
                       onAbrir={onAbrir}
                       onAbrirOrden={onAbrirOrden}

@@ -468,7 +468,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(tarjeta!.textContent).toContain('O-1126_13');
   });
 
-  it('deja la tarjeta completa en la columna principal y compacta la réplica en la secundaria', () => {
+  it('muestra la tarjeta completa también en la columna secundaria', () => {
     render(createElement(VistaKanbanOperador, {
       procesos: [
         proceso({
@@ -493,8 +493,41 @@ describe('VistaKanbanOperador agrupada por orden', () => {
 
     const secundaria = screen.getByTestId('columna-pausada')
       .querySelector('[data-testid="orden-operador-orden-1"]');
-    expect(secundaria!.getAttribute('data-vista')).toBe('compacta');
+    expect(secundaria!.getAttribute('data-vista')).toBeNull();
+    expect(secundaria!.textContent).toContain('Ver detalle');
     expect(secundaria!.querySelector('[data-testid="abrir-detalle-p2"]')).not.toBeNull();
+  });
+
+  it('muestra tarjetas completas en Bandeja y Lista aunque otra operación de la orden esté en proceso', () => {
+    render(createElement(VistaKanbanOperador, {
+      procesos: [
+        proceso({
+          id: 'p1', partidaId: 'partida-1', codigoPieza: 'IT01',
+          secuencia: 1, procesoNombre: 'CORTE LASER', columna: 'en_proceso',
+          programacion: { estadoPlaneacion: 'en_proceso' } as never,
+        }),
+        proceso({
+          id: 'p2', partidaId: 'partida-2', codigoPieza: 'IT02',
+          secuencia: 1, procesoNombre: 'DOB', columna: 'bandeja',
+        }),
+        proceso({
+          id: 'p3', partidaId: 'partida-3', codigoPieza: 'IT03',
+          secuencia: 1, procesoNombre: 'DOB', columna: 'lista',
+        }),
+      ],
+      hoy: '2026-11-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    for (const columna of ['bandeja', 'lista']) {
+      const tarjeta = screen.getByTestId(`columna-${columna}`)
+        .querySelector('[data-testid="orden-operador-orden-1"]');
+      expect(tarjeta).not.toBeNull();
+      expect(tarjeta!.getAttribute('data-vista')).toBeNull();
+      expect(tarjeta!.textContent).toContain('Ver detalle');
+    }
   });
 
   it('etiqueta el ítem con el lote en que se trabajó aunque ya esté terminado', () => {
