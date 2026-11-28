@@ -8,7 +8,10 @@ import {
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
-import { agruparLotesPorOrden } from '@/modulos/produccion/servicios/lotes-tablero-servicio';
+import {
+  agruparLotesPorOrden,
+  claveLotePartida,
+} from '@/modulos/produccion/servicios/lotes-tablero-servicio';
 import { columnaOperadorLote } from '@/modulos/produccion/utilidades/columna-lote';
 import { GrupoLotesOrden } from './grupo-lotes-orden';
 import { cn } from '@/compartido/utilidades/cn';
@@ -60,13 +63,23 @@ export function VistaKanbanOperador({
   onCerrarPausa,
   onActualizarAvance,
 }: PropsVistaKanbanOperador) {
-  // C15: agrupar por orden y columna evita que una operación pausada quede
-  // oculta dentro de la tarjeta de la orden que sigue en proceso.
-  const ordenes = agruparProcesosPorOrdenYColumna(procesos);
   // La tarjeta completa vive en la columna principal; las demás apariciones de
-  // la misma orden son réplicas compactas con sus acciones intactas (C15).
+  // la misma orden son réplicas compactas con sus acciones intactas (C15). Si
+  // la orden tiene trabajo en Aprobada, esa es su columna principal: los
+  // procesos secundarios no se pierden como réplica compacta.
   const columnaPrincipalPorOrden = new Map(
-    agruparProcesosPorOrden(procesos).map((grupo) => [grupo.ordenId, grupo.columna] as const),
+    agruparProcesosPorOrden(procesos).map((grupo) => [
+      grupo.ordenId,
+      grupo.procesos.some((proceso) => proceso.columna === 'aprobada') ? 'aprobada' : grupo.columna,
+    ] as const),
+  );
+  // El lote sustituye a la tarjeta de sus ítems en las columnas activas. Se
+  // filtra solo el render: los procesos siguen completos para resúmenes,
+  // sugerencias, calendario y acciones rápidas. «Actualizar avance» NO se
+  // filtra: el avance pendiente de una pausa debe seguir siendo visible.
+  const columnasConLote = new Set(['bandeja', 'en_proceso', 'pausada']);
+  const clavesLote = new Set(
+    (lotes ?? []).flatMap((lote) => lote.items.map((item) => claveLotePartida(item.partidaId, lote.procesoNombre))),
   );
   return (
     <div
@@ -74,13 +87,18 @@ export function VistaKanbanOperador({
       data-testid="vista-kanban-operador"
     >
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
-        const ordenesDelEstado = ordenes.filter((grupo) => grupo.columna === columna);
         const lotesDelEstado = lotes?.filter((lote) => columnaOperadorLote(lote.estado) === columna) ?? [];
+        const procesosVisibles = columnasConLote.has(columna) && clavesLote.size > 0
+          ? procesos.filter((proceso) => !clavesLote.has(claveLotePartida(proceso.partidaId, proceso.procesoNombre)))
+          : procesos;
+        const ordenesDelEstado = agruparProcesosPorOrdenYColumna(procesosVisibles)
+          .filter((grupo) => grupo.columna === columna);
         const procesosDelEstado = ordenesDelEstado.reduce(
           (total, grupo) => total + grupo.procesos.length,
           0,
         );
-        const horas = ordenesDelEstado.reduce((total, grupo) => total + grupo.horas, 0);
+        const horas = ordenesDelEstado.reduce((total, grupo) => total + grupo.horas, 0)
+          + lotesDelEstado.reduce((total, lote) => total + (lote.limiteHoras ?? 0), 0);
         return (
           <section
             key={columna}

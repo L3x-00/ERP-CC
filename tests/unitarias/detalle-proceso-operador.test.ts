@@ -2136,7 +2136,7 @@ describe('proceso reclamado por otro operador', () => {
     expect(etiqueta.textContent).toContain('Trabajado en lote LAS02');
   });
 
-  it('ofrece iniciar la corrida del lote en vez de iniciar un proceso por ítem', () => {
+  it('ofrece «Ver lote» que abre la ficha del lote en vez de iniciar el proceso por ítem', () => {
     const onIniciarCorridaLote = vi.fn();
     render(createElement(DetalleProcesoOperador, {
       proceso: { ...proceso, loteId: 'corrida-1', loteCodigo: 'LAS02', puedeIniciar: true },
@@ -2162,8 +2162,9 @@ describe('proceso reclamado por otro operador', () => {
     }));
 
     expect(screen.queryByTestId('iniciar-detalle')).toBeNull();
-    const boton = screen.getByTestId('iniciar-corrida-desde-detalle');
+    const boton = screen.getByTestId('ver-lote-desde-detalle');
     expect(boton.textContent).toContain('LAS02');
+    expect(boton.textContent).not.toContain('iniciar corrida');
     fireEvent.click(boton);
     expect(onIniciarCorridaLote).toHaveBeenCalledTimes(1);
   });
