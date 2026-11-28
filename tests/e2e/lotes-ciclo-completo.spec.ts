@@ -19,7 +19,7 @@ type ContextoLote = {
   clienteId: string;
   materialId: string;
   materialLegacyId: string;
-  recursoId: string;
+  recursoIds: string[];
   ordenId: string;
   partidaIds: string[];
   programacionIds: string[];
@@ -122,17 +122,21 @@ async function prepararContexto(): Promise<ContextoLote> {
   });
   if (errorEspesor) throw new Error(`No se pudo crear espesor E2E: ${errorEspesor.message}`);
 
-  const { data: recurso, error: errorRecurso } = await admin.from('recursos_planeacion').insert({
-    codigo: `E2E-LOTE-${sufijo.toUpperCase()}`,
-    nombre: `Recurso E2E Lote ${sufijo}`,
-    area: 'taller',
-    activo: true,
-  }).select('id').single();
-  if (errorRecurso || !recurso) throw new Error(`No se pudo crear recurso E2E: ${errorRecurso?.message ?? 'sin fila'}`);
-  const { error: errorCapacidad } = await admin.from('capacidades_recurso_turno').insert({
-    recurso_id: recurso.id, turno: 'matutino', horas_capacidad: 8,
-  });
-  if (errorCapacidad) throw new Error(`No se pudo crear capacidad E2E: ${errorCapacidad.message}`);
+  const recursoIds: string[] = [];
+  for (const [indice, turno] of ['matutino', 'vespertino'].entries()) {
+    const { data: recurso, error: errorRecurso } = await admin.from('recursos_planeacion').insert({
+      codigo: `E2E-LOTE-${sufijo.toUpperCase()}-${indice + 1}`,
+      nombre: `Recurso E2E Lote ${sufijo} ${indice + 1}`,
+      area: 'taller',
+      activo: true,
+    }).select('id').single();
+    if (errorRecurso || !recurso) throw new Error(`No se pudo crear recurso E2E: ${errorRecurso?.message ?? 'sin fila'}`);
+    const { error: errorCapacidad } = await admin.from('capacidades_recurso_turno').insert({
+      recurso_id: recurso.id, turno, horas_capacidad: 8,
+    });
+    if (errorCapacidad) throw new Error(`No se pudo crear capacidad E2E: ${errorCapacidad.message}`);
+    recursoIds.push(recurso.id);
+  }
 
   const { data: cliente, error: errorCliente } = await admin.from('clientes').insert({
     nombre_comercial: `Cliente Lote ${sufijo}`,
@@ -154,7 +158,8 @@ async function prepararContexto(): Promise<ContextoLote> {
 
   const partidaIds: string[] = [];
   const programacionIds: string[] = [];
-  for (const codigo of ['IT01', 'IT02']) {
+  const turnos = ['matutino', 'vespertino'];
+  for (const [indice, codigo] of ['IT01', 'IT02'].entries()) {
     const { data: partida, error: errorPartida } = await admin.from('partidas_orden_produccion').insert({
       orden_id: orden.id,
       codigo_pieza: codigo,
@@ -173,10 +178,10 @@ async function prepararContexto(): Promise<ContextoLote> {
     const { data: programacion, error: errorProgramacion } = await admin.rpc('programar_partida_recurso_auditada', {
       p_orden_id: orden.id,
       p_partida_id: partida.id,
-      p_recurso_id: recurso.id,
+      p_recurso_id: recursoIds[indice]!,
       p_secuencia: 1,
       p_fecha_programada: '2099-12-30',
-      p_turno: 'matutino',
+      p_turno: turnos[indice]!,
       p_horas_estimadas: 2,
       p_orden_prioridad: 1,
       p_actor_id: administradorId,
@@ -198,7 +203,7 @@ async function prepararContexto(): Promise<ContextoLote> {
   return {
     admin, correoAdministrador, contrasenaAdministrador, pinOperador, administradorId, operadorId,
     clienteId: cliente.id, materialId: material.id, materialLegacyId: materialLegacy.id,
-    recursoId: recurso.id, ordenId: orden.id, partidaIds, programacionIds,
+    recursoIds, ordenId: orden.id, partidaIds, programacionIds,
   };
 }
 
@@ -219,8 +224,8 @@ async function limpiarContexto(contexto: ContextoLote): Promise<void> {
   await admin.from('partidas_orden_produccion').delete().in('id', contexto.partidaIds);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   await admin.from('catalogo_espesores').delete().eq('material_id', contexto.materialId);
-  await admin.from('capacidades_recurso_turno').delete().eq('recurso_id', contexto.recursoId);
-  await admin.from('recursos_planeacion').delete().eq('id', contexto.recursoId);
+  await admin.from('capacidades_recurso_turno').delete().in('recurso_id', contexto.recursoIds);
+  await admin.from('recursos_planeacion').delete().in('id', contexto.recursoIds);
   await admin.from('logs').delete().in('usuario_id', [contexto.administradorId, contexto.operadorId]);
   await admin.from('catalogo_materiales').delete().eq('id', contexto.materialId);
   await admin.from('materiales').delete().eq('id', contexto.materialLegacyId);
