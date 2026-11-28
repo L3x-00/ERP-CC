@@ -8,7 +8,8 @@
 
 const ESPERA_ANIMACION_MS = 320;
 const DURACION_RESALTADO_MS = 2400;
-const MAX_REINTENTOS = 12;
+// Algunos destinos se montan después de cargar datos (hasta ~7 s en Planeación).
+const MAX_REINTENTOS = 130;
 const INTERVALO_REINTENTO_MS = 120;
 
 function preferirMovimientoReducido(): boolean {
@@ -18,13 +19,18 @@ function preferirMovimientoReducido(): boolean {
   );
 }
 
+/**
+ * Busca un panel plegable cerrado que contenga al destino, hacia arriba o hacia
+ * abajo. Algunos destinos son `div` envolventes y el panel está como hijo; mirar
+ * solo los ancestros deja esos casos sin abrir.
+ */
 function contenedorCerrado(elemento: HTMLElement): HTMLElement | null {
   let actual: HTMLElement | null = elemento;
   while (actual) {
     if (actual.dataset.estado === 'cerrado') return actual;
     actual = actual.parentElement;
   }
-  return null;
+  return elemento.querySelector<HTMLElement>('[data-estado="cerrado"]');
 }
 
 function abrirContenedorSiEstaCerrado(elemento: HTMLElement): void {
@@ -33,20 +39,10 @@ function abrirContenedorSiEstaCerrado(elemento: HTMLElement): void {
   if (boton) boton.click();
 }
 
-/**
- * El clic que abre un panel puede ocurrir antes de que React hidrate el botón
- * (por ejemplo al llegar con `?foco=`). Si el panel sigue cerrado, se reintenta
- * un par de veces; nunca se vuelve a pulsar uno que ya quedó abierto.
- */
-function abrirYResaltar(elemento: HTMLElement, intentos: number): void {
+/** Abre el panel una sola vez: repetir el clic puede cerrarlo de nuevo. */
+function abrirYResaltar(elemento: HTMLElement): void {
   abrirContenedorSiEstaCerrado(elemento);
-  window.setTimeout(() => {
-    if (contenedorCerrado(elemento) && intentos > 0) {
-      abrirYResaltar(elemento, intentos - 1);
-      return;
-    }
-    resaltar(elemento);
-  }, ESPERA_ANIMACION_MS);
+  window.setTimeout(() => resaltar(elemento), ESPERA_ANIMACION_MS);
 }
 
 function resaltar(elemento: HTMLElement): void {
@@ -56,6 +52,8 @@ function resaltar(elemento: HTMLElement): void {
   });
 
   if (preferirMovimientoReducido()) return;
+
+  if (typeof elemento.animate !== 'function') return;
 
   const estilo = window.getComputedStyle(elemento);
   const color = estilo.getPropertyValue('--color-acento').trim() || estilo.color;
@@ -91,7 +89,7 @@ export function enfocarElemento(
   }
 
   if (abrirContenedor) {
-    abrirYResaltar(elemento, 2);
+    abrirYResaltar(elemento);
     return;
   }
 

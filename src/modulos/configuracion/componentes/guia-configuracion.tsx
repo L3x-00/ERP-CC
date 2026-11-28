@@ -19,18 +19,27 @@ export function GuiaConfiguracion() {
   const esUltimo = paso === PASOS_TUTORIAL_CONFIGURACION.length - 1;
   const pasoActual = PASOS_TUTORIAL_CONFIGURACION[paso];
 
+  // Solo navega cuando cambia el paso. Si dependiera de `ruta`, un cambio de
+  // página hecho por el usuario devolvería a la guía a su paso y secuestraría
+  // la navegación. Se lee `window.location` para no necesitar `ruta` aquí.
   useEffect(() => {
-    if (!activo || ruta.startsWith('/es/docs')) return;
+    if (!activo || window.location.pathname.startsWith('/es/docs')) return;
     const destino = new URL(pasoActual.ruta, window.location.origin);
     const actual = window.location.pathname + window.location.search;
     if (actual !== destino.pathname + destino.search) {
       router.push(pasoActual.ruta);
     }
+  }, [activo, paso, pasoActual.ruta, router]);
+
+  // El resaltado sí se repite al cambiar de página, porque el destino acaba de
+  // montarse. `enfocarElemento` reintenta si todavía no está en el DOM.
+  useEffect(() => {
+    if (!activo || ruta.startsWith('/es/docs')) return;
     const temporizador = window.setTimeout(() => {
       enfocarElemento(pasoActual.destino);
     }, 400);
     return () => window.clearTimeout(temporizador);
-  }, [activo, paso, pasoActual.ruta, pasoActual.destino, ruta, router]);
+  }, [activo, paso, pasoActual.destino, ruta]);
 
   if (!activo || !pasoActual || ruta.startsWith('/es/docs')) return null;
 

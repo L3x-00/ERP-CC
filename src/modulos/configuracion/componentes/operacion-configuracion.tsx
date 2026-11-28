@@ -132,6 +132,9 @@ export function OperacionConfiguracion({
       : vista.seccion;
 
   function abrirSeccion(id: string): void {
+    // La navegación manual termina la guía: si no, la sección forzada por el paso
+    // taparía el clic en la pestaña y la URL quedaría diverge de la pantalla.
+    if (tutorial.activo) tutorial.salir();
     const destino = id as SeccionConfiguracion;
     const subseccion = subseccionInicial(destino);
     setVista(subseccion ? { seccion: destino, subseccion } : { seccion: destino });
@@ -139,34 +142,34 @@ export function OperacionConfiguracion({
   }
 
   function abrirSubseccion(id: string): void {
+    if (tutorial.activo) tutorial.salir();
     setVista((actual) => ({ ...actual, subseccion: id as SubseccionConfiguracion }));
     setConfirmacion(null);
   }
 
-  // Mantiene `?pestana=` sincronizado con la vista activa sin recargar. Usa los
-  // identificadores históricos para que recargar o compartir la URL abra
-  // exactamente la misma sección y subsección.
+  // Mantiene `?pestana=` sincronizado con la sección realmente visible. Con la
+  // guía activa manda el paso, no `vista`, para que URL y pestaña no diverjan.
   useEffect(() => {
     const url = new URL(window.location.href);
-    const valor = pestanaDesdeVista(vista);
+    const valor = pestanaDesdeVista({
+      seccion,
+      ...(vista.subseccion ? { subseccion: vista.subseccion } : {}),
+    });
     if (url.searchParams.get('pestana') !== valor) {
       url.searchParams.set('pestana', valor);
       window.history.replaceState(null, '', url.toString());
     }
-  }, [vista]);
+  }, [seccion, vista.subseccion]);
 
-  // Si se llegó con ?foco=, abre el contenedor plegable y resalta la subsección.
-  // Se fija en el estado inicial: así sobrevive a los remontes cuando llegan los
-  // datos y a la limpieza del parámetro en la URL. El encadenamiento opcional
-  // evita fallar cuando no hay router (pruebas unitarias).
-  const [foco] = useState<string | null>(useSearchParams()?.get('foco') ?? null);
+  // `?foco=` se deriva en cada render para que la navegación SPA de la guía lo
+  // actualice. No se limpia: conservarlo permite que un remonte (datos que llegan)
+  // no cierre el panel y que la recarga de un enlace profundo vuelva a señalarlo.
+  // El encadenamiento opcional evita fallar cuando no hay router (unitarias).
+  const foco = useSearchParams()?.get('foco') ?? null;
   useEffect(() => {
     if (!foco) return;
     const temporizador = window.setTimeout(() => {
-      enfocarElemento(decodeURIComponent(foco));
-      const url = new URL(window.location.href);
-      url.searchParams.delete('foco');
-      window.history.replaceState(null, '', url.toString());
+      enfocarElemento(foco);
     }, 200);
     return () => window.clearTimeout(temporizador);
   }, [foco]);

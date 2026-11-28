@@ -55,19 +55,51 @@ test.describe('Tutorial de configuración', () => {
     await expect(guia).toContainText('Personas y accesos');
     await expect(page.locator('#personas-accesos')).toHaveCount(1);
 
-    await page.getByRole('button', { name: 'Siguiente' }).click();
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
     await expect(guia).toContainText('Paso 2 de 9');
     await expect(guia).toContainText('Familia de máquinas');
     await expect(page.locator('#tarifario-ruteo')).toHaveAttribute('data-estado', 'abierto');
 
-    await page.getByRole('button', { name: 'Siguiente' }).click();
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
     await expect(guia).toContainText('Paso 3 de 9');
     await expect(page.locator('#areas-trabajo')).toHaveCount(1);
 
-    await page.getByRole('button', { name: 'Reiniciar' }).click();
-    await expect(guia).toContainText('Paso 1 de 9');
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 4 de 9');
+    await expect(page.locator('#procesos')).toHaveCount(1);
+    await expect(page).toHaveURL(/pestana=catalogos-base/);
 
-    await page.getByRole('button', { name: 'Salir' }).click();
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 5 de 9');
+    await expect(page.locator('#equipos-tarifas')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 6 de 9');
+    await expect(page.locator('#capacidad-instalada')).toHaveCount(1);
+    await expect(page.locator('#capacidad-instalada [data-estado="abierto"]')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 7 de 9');
+    await expect(page.locator('#materiales-costo')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 8 de 9');
+    await expect(page.locator('#canales-rfq')).toHaveCount(1);
+    await expect(page.locator('#canales-rfq [data-estado="abierto"]')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Ver próximas acciones' }).click();
+    await expect(page.locator('#proximas-acciones')).toHaveCount(1);
+    await expect(page.locator('#proximas-acciones [data-estado="abierto"]')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Siguiente' }).click();
+    await expect(guia).toContainText('Paso 9 de 9');
+    await expect(page.locator('#rfq-cola')).toHaveCount(1);
+
+    await guia.getByRole('button', { name: 'Reiniciar' }).click();
+    await expect(guia).toContainText('Paso 1 de 9');
+    await expect(page).toHaveURL(/\/configuracion/);
+
+    await guia.getByRole('button', { name: 'Salir' }).click();
     await expect(guia).toHaveCount(0);
 
     await page.reload();
@@ -90,7 +122,7 @@ test.describe('Tutorial de configuración', () => {
     await enlace.click();
 
     await expect(page).toHaveURL(/\/configuracion\?pestana=tarifas/);
+    await expect(page).toHaveURL(/foco=tarifario-ruteo/);
     await expect(page.locator('#tarifario-ruteo')).toHaveAttribute('data-estado', 'abierto');
-    await expect(page).not.toHaveURL(/foco=/);
   });
 });
