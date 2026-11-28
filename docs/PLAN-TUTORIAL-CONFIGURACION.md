@@ -1,7 +1,7 @@
 # Plan de integración del Tutorial de configuración
 
 >Estado: **COMPLETADO** (7 de 7 fases fusionadas en `main`).
->Fecha: 2026-11-27 · cierre: 2026-11-28.
+>Fecha y cierre: 2026-11-27.
 >Relacionado: `docs/PLAN-CORRECCION-CONFIGURACION.md` (investigación del flujo real).
 
 ## Decisiones cerradas

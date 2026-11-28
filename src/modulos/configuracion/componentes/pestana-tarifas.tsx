@@ -24,8 +24,7 @@ export interface PestanaTarifasProps {
 }
 
 export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase, foco }: PestanaTarifasProps) {
-  const abrirTarifario =
-    foco === 'tarifario-ruteo' || foco === 'tarifas-grupos' || foco === 'equipos-tarifas';
+  const abrirTarifario = foco === 'tarifario-ruteo' || foco === 'equipos-tarifas';
   const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
