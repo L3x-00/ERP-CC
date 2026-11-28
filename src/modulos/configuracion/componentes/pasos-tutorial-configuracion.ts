@@ -19,7 +19,7 @@ export const PASOS_TUTORIAL_CONFIGURACION: PasoTutorialConfiguracion[] = [
     id: 'personas',
     titulo: 'Personas y accesos',
     mensaje:
-      'Primero crea a las personas y dale a cada una el rol correcto. Los operadores de piso necesitan un PIN de seis dígitos.',
+      'Primero crea a las personas y dale a cada una el rol correcto. Solo un administrador puede hacerlo. Los operadores de piso necesitan un PIN de seis dígitos.',
     ruta: '/configuracion?pestana=personas&foco=personas-accesos',
     destino: 'personas-accesos',
     seccion: 'personas',
