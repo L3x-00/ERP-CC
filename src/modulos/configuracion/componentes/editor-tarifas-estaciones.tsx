@@ -7,6 +7,7 @@ import {
   MATERIALES_COTIZADOR,
   type CatalogoTarifasCotizador,
 } from '@/modulos/cotizador/tipos/indice';
+import { ENLACE_TARIFARIO_RUTEO } from './pestanas-configuracion';
 
 /** Input numérico etiquetado; el estado del catálogo guarda números. */
 function CampoNum({
@@ -89,7 +90,14 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
         Estas tarifas precargan el cotizador. Cambiarlas afecta solo a las cotizaciones nuevas; las cotizaciones ya
         calculadas conservan las tarifas con que se guardaron. La «Tarifa máquina por hora» (y las de soldadura,
         mano de obra y acabado) también costea el ruteo de las propuestas para los grupos de equipo vinculados a
-        cada estación, en «Tarifario del ruteo».
+        cada estación, en{' '}
+        <a
+          href={ENLACE_TARIFARIO_RUTEO}
+          className="font-medium text-acento-texto underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        >
+          Tarifario del ruteo
+        </a>
+        .
       </p>
 
       <Seccion

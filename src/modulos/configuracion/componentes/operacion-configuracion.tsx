@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { enfocarElemento } from '@/compartido/utilidades/enfocar-seccion';
 import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
@@ -155,12 +156,10 @@ export function OperacionConfiguracion({
   }, [vista]);
 
   // Si se llegó con ?foco=, abre el contenedor plegable y resalta la subsección.
-  // Se lee desde window.location para no exigir un router en las pruebas.
-  const [foco] = useState<string | null>(() =>
-    typeof window === 'undefined'
-      ? null
-      : new URLSearchParams(window.location.search).get('foco'),
-  );
+  // Se fija en el estado inicial: así sobrevive a los remontes cuando llegan los
+  // datos y a la limpieza del parámetro en la URL. El encadenamiento opcional
+  // evita fallar cuando no hay router (pruebas unitarias).
+  const [foco] = useState<string | null>(useSearchParams()?.get('foco') ?? null);
   useEffect(() => {
     if (!foco) return;
     const temporizador = window.setTimeout(() => {

@@ -12,11 +12,11 @@ import {
 describe('navegación de Configuración (UI-01)', () => {
   it('expone exactamente seis secciones principales', () => {
     expect(SECCIONES_CONFIGURACION.map((seccion) => seccion.id)).toEqual([
-      'folios',
-      'tarifas',
-      'catalogos',
-      'areas',
       'personas',
+      'tarifas',
+      'areas',
+      'catalogos',
+      'folios',
       'documentos',
     ]);
   });
