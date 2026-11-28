@@ -28,6 +28,7 @@ import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formular
 import { FichaOrdenProduccion } from '@/modulos/produccion/componentes/ficha-orden-produccion';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion, ETIQUETAS_ESTADO } from '@/modulos/produccion/componentes/kanban-produccion';
+import { DialogoDetalleLote } from '@/modulos/produccion/componentes/dialogo-detalle-lote';
 import {
   ordenConcluida,
   ordenSoloConsultaEnProduccion,
@@ -48,7 +49,7 @@ import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { CatalogosPiso } from '@/modulos/produccion/acciones/consultas-b6';
-import type { VerificacionInicio } from '@/modulos/produccion/tipos/indice';
+import type { LoteTablero, VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 import {
   obtenerCatalogosPisoAccion,
   obtenerCorridasOrdenAccion,
@@ -82,6 +83,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   const establecerSesionActiva = usarTiendaProduccion((estado) => estado.establecerSesionActiva);
   const [procesando, setProcesando] = useState(false);
   const [corridaSeleccionadaCruda, setCorridaSeleccionadaId] = useState<string | null>(null);
+  const [loteAbierto, setLoteAbierto] = useState<LoteTablero | null>(null);
   // El modo se fija al abrir: una orden que termina mientras el panel está
   // abierto conserva el flujo de operación (entrega parcial/total de los E2E).
   const [modoPanel, setModoPanel] = useState<'operar' | 'detalle' | null>(() => {
@@ -364,6 +366,14 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
         responsables={datos.responsables ?? {}}
         onSeleccionarOrden={seleccionarYOperar}
         onAlternarEstado={alternarEstado}
+        onAbrirLote={setLoteAbierto}
+      />
+      <DialogoDetalleLote
+        lote={loteAbierto
+          ? datos.lotes?.find((lote) => lote.id === loteAbierto.id) ?? loteAbierto
+          : null}
+        puedeOperar={false}
+        onCerrar={() => setLoteAbierto(null)}
       />
       {/* Supervisión global: no depende de la orden elegida. */}
       <PanelRecursosLiberados />

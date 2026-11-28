@@ -29,7 +29,7 @@ interface PropsDialogoDetalleLote {
   lote: LoteTablero | null;
   puedeOperar: boolean;
   procesando?: boolean;
-  onIniciar: (lote: LoteTablero, fecha: string, turno: string) => void;
+  onIniciar?: (lote: LoteTablero, fecha: string, turno: string) => void;
   motivosPausa?: readonly MotivoPausaCatalogo[];
   onPausar?: (lote: LoteTablero, datos: { motivoPausa: string; notas?: string }) => void;
   onFinalizar?: (lote: LoteTablero) => void;
@@ -287,7 +287,7 @@ export function DialogoDetalleLote({
           )}
 
           <DialogFooter className="flex flex-wrap gap-2">
-            {puedeOperar && lote.estado === 'PLANIFICADA' ? (
+            {puedeOperar && onIniciar && lote.estado === 'PLANIFICADA' ? (
               <Button
                 type="button"
                 disabled={procesando}

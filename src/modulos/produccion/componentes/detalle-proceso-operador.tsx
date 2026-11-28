@@ -3231,9 +3231,9 @@ export function DetalleProcesoOperador({
                   tamano="lg"
                   disabled={procesando}
                   onClick={onIniciarCorridaLote}
-                  data-testid="iniciar-corrida-desde-detalle"
+                  data-testid="ver-lote-desde-detalle"
                 >
-                  {`Ver lote ${proceso.loteCodigo ?? ''} e iniciar corrida`}
+                  {`Ver lote ${proceso.loteCodigo ?? ''}`}
                 </Button>
               ) : proceso.puedeIniciar ? (
                 <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso, fecha, turno)} data-testid="iniciar-detalle">
