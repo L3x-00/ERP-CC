@@ -157,6 +157,10 @@ export interface PropsDetalleProceso {
   creandoLote?: boolean;
   /** El ítem pertenece a un lote: se opera desde la ficha del lote, una sola vez. */
   onIniciarCorridaLote?: () => void;
+  /** Equipo/área ocupada: reemplaza la acción de inicio en la ficha. */
+  mensajeEquipoOcupado?: string | null;
+  /** Revalida la ocupación cuando el operador cambia día o turno. */
+  onValidarOcupacion?: (fecha: string, turno: string) => Promise<string | null>;
   onCerrar: () => void;
   /** C15: refresca el tablero cuando la pausa automática cierra la jornada. */
   onPausaAutomatica?: () => void;
@@ -216,6 +220,8 @@ export function DetalleProcesoOperador({
   onCrearLote,
   creandoLote = false,
   onIniciarCorridaLote,
+  mensajeEquipoOcupado = null,
+  onValidarOcupacion,
   onCerrar,
   onPausaAutomatica,
   presentacion = 'dialogo',
@@ -230,6 +236,12 @@ export function DetalleProcesoOperador({
   const [fecha, setFecha] = useState(hoy);
   const [fechaMovimiento, setFechaMovimiento] = useState('');
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
+  const [mensajeOcupadoLocal, setMensajeOcupadoLocal] = useState<string | null>(null);
+  const mensajeOcupadoEfectivo = mensajeOcupadoLocal ?? mensajeEquipoOcupado;
+  function revalidarOcupacion(fechaValor: string, turnoValor: string): void {
+    if (!onValidarOcupacion || proceso === null || fechaValor === '') return;
+    void onValidarOcupacion(fechaValor, turnoValor).then(setMensajeOcupadoLocal);
+  }
   const [piezas, setPiezas] = useState('0');
   // El material de la orden viene preseleccionado: el operador no debe elegirlo
   // entre todo el catálogo. Solo cambia si la partida no declara material.
@@ -2974,6 +2986,9 @@ export function DetalleProcesoOperador({
                       if (permitidos.length > 0 && !permitidos.includes(turno as never)) {
                         setTurno(permitidos[0]!);
                       }
+                      if (!puedeMover) {
+                        revalidarOcupacion(nueva, permitidos[0] ?? turno);
+                      }
                     }}
                   />
                 </label>
@@ -2981,7 +2996,10 @@ export function DetalleProcesoOperador({
                   Turno
                   <Select
                     value={turno}
-                    onChange={(evento) => setTurno(evento.target.value)}
+                    onChange={(evento) => {
+                      setTurno(evento.target.value);
+                      revalidarOcupacion(puedeMover ? fechaMovimiento : fecha, evento.target.value);
+                    }}
                   >
                     {(turnosDelDia(puedeMover ? fechaMovimiento : fecha).length > 0
                       ? turnosDelDia(puedeMover ? fechaMovimiento : fecha)
@@ -3225,7 +3243,15 @@ export function DetalleProcesoOperador({
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              {proceso.loteId && onIniciarCorridaLote ? (
+              {mensajeOcupadoEfectivo ? (
+                <p
+                  role="alert"
+                  className="w-full rounded-md border border-advertencia/40 bg-advertencia-suave p-3 text-sm text-advertencia-texto"
+                  data-testid="equipo-ocupado-detalle"
+                >
+                  {mensajeOcupadoEfectivo}
+                </p>
+              ) : proceso.loteId && onIniciarCorridaLote ? (
                 <Button
                   type="button"
                   tamano="lg"

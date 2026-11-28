@@ -39,6 +39,8 @@ interface PropsDialogoDetalleLote {
   onFinalizar?: (lote: LoteTablero) => void;
   onReanudar?: (lote: LoteTablero) => void;
   onAbrirItem?: (partidaId: string) => void;
+  /** Equipo/área ocupada: reemplaza «Iniciar corrida» en el modal del lote. */
+  mensajeEquipoOcupado?: string | null;
   onCerrar: () => void;
 }
 
@@ -57,6 +59,7 @@ export function DialogoDetalleLote({
   onFinalizar,
   onReanudar,
   onAbrirItem,
+  mensajeEquipoOcupado = null,
   onCerrar,
 }: PropsDialogoDetalleLote) {
   const [fecha, setFecha] = useState(hoyIso());
@@ -317,7 +320,15 @@ export function DialogoDetalleLote({
           )}
 
           <DialogFooter className="flex flex-wrap gap-2">
-            {puedeOperar && onIniciar && lote.estado === 'PLANIFICADA' ? (
+            {mensajeEquipoOcupado ? (
+              <p
+                role="alert"
+                className="w-full rounded-md border border-advertencia/40 bg-advertencia-suave p-3 text-sm text-advertencia-texto"
+                data-testid="equipo-ocupado-lote"
+              >
+                {mensajeEquipoOcupado}
+              </p>
+            ) : puedeOperar && onIniciar && lote.estado === 'PLANIFICADA' ? (
               <Button
                 type="button"
                 disabled={procesando}

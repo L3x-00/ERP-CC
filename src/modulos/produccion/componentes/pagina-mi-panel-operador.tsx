@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -21,6 +22,7 @@ import {
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
+  consultarOcupacionInicioAccion,
   iniciarProcesoDirectoAccion,
   liberarReclamoAccion,
   moverReclamoAccion,
@@ -180,6 +182,50 @@ export function PaginaMiPanelOperador({
   const procesoSeleccionado = misProcesos.find(
     ({ proceso }) => proceso.id === procesoSeleccionadoId,
   )?.proceso ?? null;
+  const ocupacionDetalle = useQuery({
+    queryKey: ['produccion', 'ocupacion-inicio', procesoSeleccionado?.id ?? null, hoy],
+    queryFn: async () => {
+      if (!procesoSeleccionado) return null;
+      const respuesta = await consultarOcupacionInicioAccion({
+        ordenId: procesoSeleccionado.ordenId,
+        partidaId: procesoSeleccionado.partidaId,
+        ...(procesoSeleccionado.metaProcesoId
+          ? { metaProcesoId: procesoSeleccionado.metaProcesoId }
+          : {}),
+        fecha: hoy,
+        turno: 'matutino',
+      });
+      return respuesta.exito ? respuesta.datos ?? null : null;
+    },
+    enabled: procesoSeleccionado !== null,
+  });
+  const mensajeOcupado = procesoSeleccionado?.equipoOcupadoPor ?? ocupacionDetalle.data ?? null;
+  const ocupacionLote = useQuery({
+    queryKey: ['produccion', 'ocupacion-lote', loteActual?.id ?? null, hoy],
+    queryFn: async () => {
+      if (!loteActual) return null;
+      const nombres = new Set([loteActual.procesoNombre.trim().toLowerCase()]);
+      const procesos = loteActual.items
+        .map((item) => misProcesos
+          .map(({ proceso: actual }) => actual)
+          .find((actual) => actual.partidaId === item.partidaId
+            && actual.secuencia === 1
+            && nombres.has(actual.procesoNombre.trim().toLowerCase())))
+        .filter((actual) => actual !== undefined);
+      for (const proceso of procesos) {
+        const respuesta = await consultarOcupacionInicioAccion({
+          ordenId: proceso.ordenId,
+          partidaId: proceso.partidaId,
+          ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+          fecha: hoy,
+          turno: 'matutino',
+        });
+        if (respuesta.exito && respuesta.datos) return respuesta.datos;
+      }
+      return null;
+    },
+    enabled: loteActual !== null,
+  });
   const inicioPendiente = misProcesos.find(
     ({ proceso }) => proceso.id === inicioPendienteId,
   )?.proceso ?? null;
@@ -209,9 +255,13 @@ export function PaginaMiPanelOperador({
     setAviso(null);
     try {
       const resultado = await accion();
-      setAviso(resultado.exito
-        ? { tipo: 'ok', texto: mensajeExito }
-        : { tipo: 'error', texto: resultado.error });
+      if (!resultado.exito && resultado.codigo === 'recurso_ocupado') {
+        setEquipoOcupadoMensaje(resultado.error);
+      } else {
+        setAviso(resultado.exito
+          ? { tipo: 'ok', texto: mensajeExito }
+          : { tipo: 'error', texto: resultado.error });
+      }
       if (resultado.exito) enrutador.refresh();
       return resultado;
     } catch {
@@ -230,6 +280,17 @@ export function PaginaMiPanelOperador({
   ): Promise<boolean> {
     if (fecha === '') {
       setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
+      return false;
+    }
+    const ocupacionInicio = await consultarOcupacionInicioAccion({
+      ordenId: proceso.ordenId,
+      partidaId: proceso.partidaId,
+      ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+      fecha,
+      turno: turno as 'matutino' | 'vespertino' | 'nocturno',
+    });
+    if (ocupacionInicio.exito && ocupacionInicio.datos) {
+      setEquipoOcupadoMensaje(ocupacionInicio.datos);
       return false;
     }
     const disponibilidad = await validarDisponibilidadInicioAccion({
@@ -496,7 +557,11 @@ export function PaginaMiPanelOperador({
       limpiarInicio();
       return resultado.exito
         ? { exito: true }
-        : { exito: false, error: resultado.error };
+        : {
+          exito: false,
+          error: resultado.error,
+          ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
+        };
     }, 'Sesión iniciada');
   }
 
@@ -705,6 +770,20 @@ export function PaginaMiPanelOperador({
         <DetalleProcesoOperador
           key={procesoSeleccionado.id}
           proceso={procesoSeleccionado}
+          mensajeEquipoOcupado={mensajeOcupado}
+          onValidarOcupacion={async (fecha, turno) => {
+            if (!procesoSeleccionado) return null;
+            const respuesta = await consultarOcupacionInicioAccion({
+              ordenId: procesoSeleccionado.ordenId,
+              partidaId: procesoSeleccionado.partidaId,
+              ...(procesoSeleccionado.metaProcesoId
+                ? { metaProcesoId: procesoSeleccionado.metaProcesoId }
+                : {}),
+              fecha,
+              turno: turno as 'matutino' | 'vespertino' | 'nocturno',
+            });
+            return respuesta.exito ? respuesta.datos ?? null : null;
+          }}
           hoy={hoy}
           soloLectura={false}
           procesando={procesando !== null}
@@ -754,6 +833,7 @@ export function PaginaMiPanelOperador({
         puedeOperar
         procesando={procesando !== null}
         motivosPausa={motivosPausa}
+        mensajeEquipoOcupado={ocupacionLote.data ?? null}
         onIniciar={abrirLote}
         onPausar={pausarLote}
         onReanudar={reanudarLote}

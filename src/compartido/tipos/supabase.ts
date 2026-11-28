@@ -6255,6 +6255,17 @@ export type Database = {
         Args: { p_operador_id: string; p_reclamo_id: string }
         Returns: string
       }
+      validar_ocupacion_inicio_operacion: {
+        Args: {
+          p_fecha: string
+          p_meta_proceso_id: string | null
+          p_operador_id: string
+          p_orden_id: string
+          p_partida_id: string
+          p_turno?: string
+        }
+        Returns: string | null
+      }
       validar_ocupacion_inicio_reclamo: {
         Args: { p_operador_id: string; p_reclamo_id: string }
         Returns: string | null

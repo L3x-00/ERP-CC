@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -12,6 +13,7 @@ import type {
   RecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import {
+  consultarOcupacionInicioAccion,
   iniciarProcesoDirectoAccion,
   liberarReclamoAccion,
   moverReclamoAccion,
@@ -170,6 +172,42 @@ export function EspacioOperador({
   const loteActual = loteAbierto
     ? lotes.find((lote) => lote.id === loteAbierto.id) ?? loteAbierto
     : null;
+  // Aviso de ocupación antes de abrir el checklist: se consulta al abrir la
+  // ficha para poder reemplazar el botón «Iniciar proceso» por el mensaje.
+  const ocupacionDetalle = useQuery({
+    queryKey: ['produccion', 'ocupacion-inicio', detalleActual?.id ?? null, hoy],
+    queryFn: async () => {
+      if (!detalleActual) return null;
+      const respuesta = await consultarOcupacionInicioAccion({
+        ordenId: detalleActual.ordenId,
+        partidaId: detalleActual.partidaId,
+        ...(detalleActual.metaProcesoId ? { metaProcesoId: detalleActual.metaProcesoId } : {}),
+        fecha: hoy,
+        turno: 'matutino',
+      });
+      return respuesta.exito ? respuesta.datos ?? null : null;
+    },
+    enabled: detalleActual !== null,
+  });
+  const mensajeOcupado = detalleActual?.equipoOcupadoPor ?? ocupacionDetalle.data ?? null;
+  const ocupacionLote = useQuery({
+    queryKey: ['produccion', 'ocupacion-lote', loteActual?.id ?? null, hoy],
+    queryFn: async () => {
+      if (!loteActual) return null;
+      for (const proceso of procesosDelLote(loteActual)) {
+        const respuesta = await consultarOcupacionInicioAccion({
+          ordenId: proceso.ordenId,
+          partidaId: proceso.partidaId,
+          ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+          fecha: hoy,
+          turno: 'matutino',
+        });
+        if (respuesta.exito && respuesta.datos) return respuesta.datos;
+      }
+      return null;
+    },
+    enabled: loteActual !== null,
+  });
   const gruposOrden = useMemo(() => agruparProcesosPorOrden(procesos), [procesos]);
   const sugerenciasCorrida = useMemo(() => sugerenciasDeAgrupacion(procesos), [procesos]);
   const sugerenciaDetalle = sugerenciasCorrida.find((sugerencia) =>
@@ -312,6 +350,9 @@ export function EspacioOperador({
       if (resultado.exito) {
         setAviso({ tipo: 'ok', texto: mensajeExito });
         enrutador.refresh();
+      } else if (resultado.codigo === 'recurso_ocupado') {
+        // El aviso vive en la ficha del ítem; no se pinta sobre el Kanban.
+        setEquipoOcupadoMensaje(resultado.error);
       } else {
         setAviso({ tipo: 'error', texto: resultado.error });
       }
@@ -482,7 +523,13 @@ export function EspacioOperador({
       });
       limpiarInicio();
       if (respuesta.exito) setDetalle(null);
-      return respuesta.exito ? { exito: true } : { exito: false, error: respuesta.error };
+      return respuesta.exito
+        ? { exito: true }
+        : {
+          exito: false,
+          error: respuesta.error,
+          ...(respuesta.codigo ? { codigo: respuesta.codigo } : {}),
+        };
     }, 'Sesión iniciada');
   }
 
@@ -496,6 +543,19 @@ export function EspacioOperador({
       setAviso({ tipo: 'error', texto: 'Indica la fecha de la jornada antes de iniciar.' });
       return;
     }
+    const ocupacion = await consultarOcupacionInicioAccion({
+      ordenId: proceso.ordenId,
+      partidaId: proceso.partidaId,
+      ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
+      fecha,
+      turno: turno as 'matutino' | 'vespertino' | 'nocturno',
+    });
+    if (ocupacion.exito && ocupacion.datos) {
+      limpiarInicio();
+      setEquipoOcupadoMensaje(ocupacion.datos);
+      return;
+    }
+
     const disponibilidad = await validarDisponibilidadInicioAccion({
       ordenId: proceso.ordenId,
       partidaId: proceso.partidaId,
@@ -883,6 +943,18 @@ export function EspacioOperador({
       <DetalleProcesoOperador
         key={detalleActual?.id ?? 'sin-detalle'}
         proceso={detalleActual}
+        mensajeEquipoOcupado={mensajeOcupado}
+        onValidarOcupacion={async (fecha, turno) => {
+          if (!detalleActual) return null;
+          const respuesta = await consultarOcupacionInicioAccion({
+            ordenId: detalleActual.ordenId,
+            partidaId: detalleActual.partidaId,
+            ...(detalleActual.metaProcesoId ? { metaProcesoId: detalleActual.metaProcesoId } : {}),
+            fecha,
+            turno: turno as 'matutino' | 'vespertino' | 'nocturno',
+          });
+          return respuesta.exito ? respuesta.datos ?? null : null;
+        }}
         hoy={hoy}
         soloLectura={soloLectura}
         procesando={procesando !== null}
@@ -919,6 +991,7 @@ export function EspacioOperador({
         puedeOperar={operativo}
         procesando={procesando !== null}
         motivosPausa={motivosPausa}
+        mensajeEquipoOcupado={ocupacionLote.data ?? null}
         onIniciar={abrirLote}
         onPausar={pausarLote}
         onReanudar={reanudarLote}
