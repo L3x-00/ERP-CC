@@ -60,6 +60,7 @@ export const MODULOS_E2E = Object.freeze({
   compras: ['compras-flujo'],
   configuracion: [
     'configuracion-flujo',
+    'tutorial-configuracion',
     'continuidad-folios-configuracion',
     'tipo-cambio-diario',
     'catalogos-base',
