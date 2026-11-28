@@ -67,7 +67,7 @@ export const esquemaCerrarSesion = z
         .int('Las piezas deben ser un número entero')
         .min(0),
       minutos: z.number().finite().positive('Indica los minutos por ítem').max(1440).nullish(),
-    }).strict()).min(2, 'La corrida integrada requiere al menos dos ítems').max(10).optional(),
+    }).strict()).min(2, 'La corrida integrada requiere al menos dos ítems').max(200).optional(),
   })
   .strict()
   .superRefine((valor, contexto) => {

@@ -529,27 +529,41 @@ export function EspacioOperador({
     setInicioPendiente(proceso);
   }
 
-  /** Proceso inicial del lote: el mismo que valida el checklist. */
-  function procesoInicialLote(lote: LoteTablero): ProcesoEspacioOperador | null {
+  /** Operaciones iniciales de todos los ítems del lote. */
+  function procesosDelLote(lote: LoteTablero): ProcesoEspacioOperador[] {
     const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
     return lote.items
       .map((item) => procesos.find((actual) => (
         actual.partidaId === item.partidaId && actual.secuencia === 1 && nombres.has(actual.procesoNombre.trim().toLowerCase())
       )))
-      .find((actual): actual is ProcesoEspacioOperador => actual !== undefined) ?? null;
+      .filter((actual): actual is ProcesoEspacioOperador => actual !== undefined);
+  }
+
+  function procesoInicialLote(lote: LoteTablero): ProcesoEspacioOperador | null {
+    return procesosDelLote(lote)[0] ?? null;
   }
 
   /** El lote se abre como una sola operación: un checklist y una sola corrida. */
   function abrirLote(lote: LoteTablero, fecha: string, turno: string): void {
-    const proceso = procesoInicialLote(lote);
-    if (!proceso) {
-      setAviso({ tipo: 'error', texto: 'No se pudo ubicar el proceso del lote. Actualiza la ficha y vuelve a abrirlo.' });
+    const procesosLote = procesosDelLote(lote);
+    if (procesosLote.length !== lote.items.length) {
+      setAviso({
+        tipo: 'error',
+        texto: 'No se pudieron ubicar todos los ítems del lote. Actualiza el tablero antes de iniciarlo.',
+      });
       return;
     }
-    if (!proceso.puedeIniciar) {
-      setAviso({ tipo: 'error', texto: proceso.motivoNoInicia ?? 'Este lote todavía no se puede iniciar.' });
+    // El checklist valida la operación representativa; comprobamos también el
+    // resto de ítems para no iniciar una corrida que luego no pueda producirse.
+    const bloqueado = procesosLote.find((actual) => !actual.puedeIniciar);
+    if (bloqueado) {
+      setAviso({
+        tipo: 'error',
+        texto: `${bloqueado.codigoPieza}: ${bloqueado.motivoNoInicia ?? 'no se puede iniciar'}. Revisa los ítems del lote antes de iniciarlo.`,
+      });
       return;
     }
+    const proceso = procesosLote[0]!;
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
     void abrirInicio(proceso, fecha, turno);
@@ -557,20 +571,19 @@ export function EspacioOperador({
 
   async function pausarLote(
     lote: LoteTablero,
-    datos: { motivoPausa: string; notas?: string },
+    datos: { motivoPausa: string; piezasProducidas: number; notas?: string },
   ): Promise<void> {
     if (!operativo || !lote.sesion) {
       setAviso({ tipo: 'error', texto: 'No hay una sesión de este lote que se pueda pausar.' });
       return;
     }
-    const itemSesion = lote.items.find((item) => item.partidaId === lote.sesion?.partidaId);
     setProcesando(lote.sesion.sesionId);
     const respuesta = await (async () => {
       try {
         return await cerrarSesionOperadorAccion({
           sesionId: lote.sesion!.sesionId,
-          // La pausa conserva el avance ya declarado de la operación.
-          piezasProducidas: itemSesion?.hechoPiezas ?? 0,
+          // Lo declarado en esta pausa; el acumulado de la partida NO se reenvía.
+          piezasProducidas: datos.piezasProducidas,
           estadoDestino: 'pausada',
           motivoPausa: datos.motivoPausa as 'DUDA',
           ...(datos.notas ? { notas: datos.notas } : {}),

@@ -116,7 +116,7 @@ describe('DialogoDetalleLote', () => {
     expect(screen.getByTestId('item-lote-partida-2').textContent).toContain('Primera pieza pendiente');
 
     fireEvent.click(screen.getByTestId('pausar-lote'));
-    expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, { motivoPausa: 'DUDA' });
+    expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, { motivoPausa: 'DUDA', piezasProducidas: 0 });
 
     fireEvent.click(screen.getByTestId('finalizar-lote'));
     expect(onFinalizar).toHaveBeenCalledWith(LOTE_EN_CURSO);
@@ -149,7 +149,41 @@ describe('DialogoDetalleLote', () => {
     expect(boton.disabled).toBe(false);
     fireEvent.click(boton);
     expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, {
-      motivoPausa: 'OTRA', notas: 'Esperando material',
+      motivoPausa: 'OTRA', piezasProducidas: 0, notas: 'Esperando material',
+    });
+  });
+
+  it('no permite declarar más piezas al pausar de las que están pendientes en el ítem', () => {
+    render(createElement(DialogoDetalleLote, {
+      lote: LOTE_EN_CURSO,
+      puedeOperar: true,
+      onIniciar: vi.fn(),
+      onPausar: vi.fn(),
+      onCerrar: vi.fn(),
+    }));
+
+    const campo = screen.getByTestId('piezas-pausa-lote') as HTMLInputElement;
+    const boton = screen.getByTestId('pausar-lote') as HTMLButtonElement;
+    fireEvent.change(campo, { target: { value: '61' } });
+    expect(campo.getAttribute('aria-invalid')).toBe('true');
+    expect(boton.disabled).toBe(true);
+    expect(screen.getByText('Indica un número entero de piezas que no supere el pendiente del ítem.')).toBeTruthy();
+  });
+
+  it('declara las piezas de esa pausa, no el acumulado de la partida', () => {
+    const onPausar = vi.fn();
+    render(createElement(DialogoDetalleLote, {
+      lote: LOTE_EN_CURSO,
+      puedeOperar: true,
+      onIniciar: vi.fn(),
+      onPausar,
+      onCerrar: vi.fn(),
+    }));
+
+    fireEvent.change(screen.getByTestId('piezas-pausa-lote'), { target: { value: '5' } });
+    fireEvent.click(screen.getByTestId('pausar-lote'));
+    expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, {
+      motivoPausa: 'DUDA', piezasProducidas: 5,
     });
   });
 
