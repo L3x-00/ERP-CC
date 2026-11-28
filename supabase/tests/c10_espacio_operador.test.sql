@@ -91,15 +91,15 @@ SELECT is(
   '00000000-0000-4000-8000-0000000c1001'::uuid,
   'Reclamar asigna la partida al operador');
 
-SELECT throws_ok(
-  $$ SELECT public.reclamar_proceso_operador(
-       '00000000-0000-4000-8000-0000000c1005',
-       '00000000-0000-4000-8000-0000000c1006',
-       (SELECT valor::uuid FROM c10 WHERE clave = 'meta_p1'),
-       '00000000-0000-4000-8000-0000000c1001',
-       date_trunc('week', current_date)::date + 4, 'matutino') $$,
-  '23505', 'proceso_ya_reclamado',
-  'El mismo operador no puede reclamar dos veces la misma operacion');
+SELECT is(
+  (SELECT id::text FROM public.reclamar_proceso_operador(
+     '00000000-0000-4000-8000-0000000c1005',
+     '00000000-0000-4000-8000-0000000c1006',
+     (SELECT valor::uuid FROM c10 WHERE clave = 'meta_p1'),
+     '00000000-0000-4000-8000-0000000c1001',
+     date_trunc('week', current_date)::date + 1, 'matutino')),
+  (SELECT valor FROM c10 WHERE clave = 'reclamo_p1'),
+  'El mismo operador reutiliza su reclamo activo de la misma operacion');
 
 SELECT throws_ok(
   $$ SELECT public.reclamar_proceso_operador(
