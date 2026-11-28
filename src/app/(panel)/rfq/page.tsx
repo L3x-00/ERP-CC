@@ -41,7 +41,7 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div id="rfq-cola" className="flex flex-col gap-5 scroll-mt-24">
       {desdePipeline ? <AvisoPipelineRfq /> : null}
       <SincronizadorPipelineRealtime />
       {/* La cabecera de página y «Nuevo RFQ» viven en `ColaRfq` para compartir fila. */}
