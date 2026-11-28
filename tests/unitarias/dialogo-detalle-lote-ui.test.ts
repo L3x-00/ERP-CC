@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DialogoDetalleLote } from '@/modulos/produccion/componentes/dialogo-detalle-lote';
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
-import type { LoteTablero } from '@/modulos/produccion/tipos/indice';
+import type { LoteTablero, SesionLote } from '@/modulos/produccion/tipos/indice';
 
 afterEach(cleanup);
 
@@ -48,5 +48,122 @@ describe('DialogoDetalleLote', () => {
 
     fireEvent.click(screen.getByTestId('iniciar-corrida-lote'));
     expect(onIniciar).toHaveBeenCalledWith(LOTE, hoy, 'matutino');
+  });
+
+  const sesion: SesionLote = {
+    sesionId: 'sesion-1',
+    partidaId: 'partida-1',
+    programacionId: 'programacion-1',
+    actualizadoEnEsperado: '2026-11-27T10:00:00.000Z',
+    fechaInicio: '2026-11-27T15:00:00.000Z',
+    estadoSesion: 'activa',
+    horasNetas: 0.5,
+    operadorNombre: 'Jorge Ramírez',
+    motivoPausa: null,
+    pendienteActualizacionAvance: false,
+  };
+
+  const LOTE_EN_CURSO: LoteTablero = {
+    ...LOTE,
+    codigo: 'LAS05',
+    estado: 'EN_PROCESO',
+    sesion,
+    limiteHoras: 0.58,
+    items: [
+      {
+        id: null,
+        partidaId: 'partida-1',
+        codigoItem: 'IT01',
+        cantidad: 100,
+        descripcion: 'Placa base',
+        materialCodigo: 'LAM-CR-14',
+        materialNombre: 'Acero calibre 14',
+        pendientePiezas: 60,
+        hechoPiezas: 40,
+        primeraPiezaPendiente: false,
+      },
+      {
+        id: null,
+        partidaId: 'partida-2',
+        codigoItem: 'IT02',
+        cantidad: 80,
+        descripcion: 'Conector',
+        primeraPiezaPendiente: true,
+      },
+    ],
+  };
+
+  it('muestra la sesión y acciones en un lote en curso, sin campos de inicio', () => {
+    const onPausar = vi.fn();
+    const onFinalizar = vi.fn();
+    const onAbrirItem = vi.fn();
+    render(createElement(DialogoDetalleLote, {
+      lote: LOTE_EN_CURSO,
+      puedeOperar: true,
+      onIniciar: vi.fn(),
+      onPausar,
+      onFinalizar,
+      onAbrirItem,
+      onCerrar: vi.fn(),
+    }));
+
+    expect(screen.queryByTestId('fecha-inicio-corrida')).toBeNull();
+    expect(screen.queryByTestId('iniciar-corrida-lote')).toBeNull();
+    expect(screen.getByTestId('tiempo-acumulado-lote').textContent).toContain('30 min');
+    expect(screen.getByTestId('contador-sesion-lote')).toBeTruthy();
+    expect(screen.getByTestId('item-lote-partida-1').textContent).toContain('Placa base');
+    expect(screen.getByTestId('material-lote-partida-1').textContent).toContain('LAM-CR-14');
+    expect(screen.getByTestId('item-lote-partida-2').textContent).toContain('Primera pieza pendiente');
+
+    fireEvent.click(screen.getByTestId('pausar-lote'));
+    expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, { motivoPausa: 'DUDA' });
+
+    fireEvent.click(screen.getByTestId('finalizar-lote'));
+    expect(onFinalizar).toHaveBeenCalledWith(LOTE_EN_CURSO);
+
+    fireEvent.click(screen.getByTestId('ver-item-lote-partida-1'));
+    expect(onAbrirItem).toHaveBeenCalledWith('partida-1');
+  });
+
+  it('exige nota cuando el motivo de pausa la requiere', () => {
+    const onPausar = vi.fn();
+    render(createElement(DialogoDetalleLote, {
+      lote: LOTE_EN_CURSO,
+      puedeOperar: true,
+      motivosPausa: [
+        { codigo: 'DUDA', nombre: 'Duda', requiereNota: false, liberaMaquina: true },
+        { codigo: 'OTRA', nombre: 'Otra causa', requiereNota: true, liberaMaquina: false },
+      ],
+      onIniciar: vi.fn(),
+      onPausar,
+      onCerrar: vi.fn(),
+    }));
+
+    const motivo = screen.getByLabelText('Motivo de pausa') as HTMLSelectElement;
+    fireEvent.change(motivo, { target: { value: 'OTRA' } });
+    const boton = screen.getByTestId('pausar-lote') as HTMLButtonElement;
+    expect(boton.disabled).toBe(true);
+    expect(screen.getByText('Este motivo exige una nota para pausar.')).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('notas-pausa-lote'), { target: { value: 'Esperando material' } });
+    expect(boton.disabled).toBe(false);
+    fireEvent.click(boton);
+    expect(onPausar).toHaveBeenCalledWith(LOTE_EN_CURSO, {
+      motivoPausa: 'OTRA', notas: 'Esperando material',
+    });
+  });
+
+  it('ofrece reanudar cuando el lote está pausado', () => {
+    const onReanudar = vi.fn();
+    render(createElement(DialogoDetalleLote, {
+      lote: { ...LOTE_EN_CURSO, estado: 'PAUSADA', sesion: { ...sesion, estadoSesion: 'pausada' } },
+      puedeOperar: true,
+      onIniciar: vi.fn(),
+      onReanudar,
+      onCerrar: vi.fn(),
+    }));
+
+    fireEvent.click(screen.getByTestId('reanudar-lote'));
+    expect(onReanudar).toHaveBeenCalledTimes(1);
   });
 });
