@@ -2274,4 +2274,77 @@ describe('DetalleProcesoOperador — consumo y reprogramación', () => {
     fireEvent.click(screen.getByTestId('mover-detalle'));
     expect(screen.getByText('Indica la fecha de reprogramación.')).toBeTruthy();
   });
+
+  it('revalida la ocupación al cambiar la fecha o el turno', () => {
+    const onValidarOcupacion = vi.fn(async () => null);
+    render(createElement(DetalleProcesoOperador, {
+      proceso: {
+        ...proceso,
+        puedeIniciar: true,
+        motivoNoInicia: null,
+        reclamadoPorMi: false,
+        sesionActiva: null,
+      },
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      onValidarOcupacion,
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByLabelText('Día de la jornada'), { target: { value: '2026-10-29' } });
+    expect(onValidarOcupacion).toHaveBeenCalledWith('2026-10-29', 'matutino');
+    fireEvent.change(screen.getByLabelText('Turno'), { target: { value: 'vespertino' } });
+    expect(onValidarOcupacion).toHaveBeenCalledWith('2026-10-29', 'vespertino');
+  });
+
+  it('reemplaza «Iniciar proceso» por el aviso de equipo ocupado', () => {
+    const iniciar = vi.fn();
+    render(createElement(DetalleProcesoOperador, {
+      proceso: {
+        ...proceso,
+        puedeIniciar: true,
+        motivoNoInicia: null,
+        sesionActiva: null,
+      },
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      mensajeEquipoOcupado: 'LASER-01 (LASER FIBRA) está ocupado por la orden O-1126_16 · IT01, operador alex.',
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar,
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('iniciar-detalle')).toBeNull();
+    const aviso = screen.getByTestId('equipo-ocupado-detalle');
+    expect(aviso.textContent).toContain('LASER-01');
+    expect(aviso.textContent).toContain('O-1126_16');
+  });
 });

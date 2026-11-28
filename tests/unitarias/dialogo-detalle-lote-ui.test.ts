@@ -187,6 +187,19 @@ describe('DialogoDetalleLote', () => {
     });
   });
 
+  it('reemplaza «Iniciar corrida» por el aviso de equipo ocupado', () => {
+    const onIniciar = vi.fn();
+    render(createElement(DialogoDetalleLote, {
+      lote: LOTE,
+      puedeOperar: true,
+      mensajeEquipoOcupado: 'LASER-01 (LASER FIBRA) está ocupado por la orden O-1126_16 · IT01, operador alex.',
+      onIniciar,
+      onCerrar: vi.fn(),
+    }));
+    expect(screen.queryByTestId('iniciar-corrida-lote')).toBeNull();
+    expect(screen.getByTestId('equipo-ocupado-lote').textContent).toContain('O-1126_16');
+  });
+
   it('ofrece reanudar cuando el lote está pausado', () => {
     const onReanudar = vi.fn();
     render(createElement(DialogoDetalleLote, {

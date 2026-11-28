@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -60,8 +61,13 @@ const PROCESO = {
   horasEstimadas: 2,
 } as unknown as ProcesoEspacioOperador;
 
+const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function conConsultas(nodo: Parameters<typeof render>[0]) {
+  return render(createElement(QueryClientProvider, { client: consultas }, nodo));
+}
+
 function montar() {
-  return render(createElement(EspacioOperador, {
+  return conConsultas(createElement(EspacioOperador, {
     procesos: [PROCESO],
     areas: [],
     resumen: RESUMEN,
@@ -139,7 +145,7 @@ describe('C1 — sugerencia de corrida conjunta solo dentro de la ficha', () => 
     } as unknown as ProcesoEspacioOperador;
     const segundo = { ...primero, id: 'proceso-2', codigoPieza: 'IT02', descripcion: 'Pieza B' };
 
-    render(createElement(EspacioOperador, {
+    conConsultas(createElement(EspacioOperador, {
       procesos: [primero, segundo],
       areas: [],
       resumen: RESUMEN,

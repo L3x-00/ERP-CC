@@ -9,7 +9,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(15);
+SELECT plan(17);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures. Se usa el lunes de la semana actual para no depender del día en que
@@ -346,6 +346,29 @@ SELECT is((
   WHERE id = (SELECT valor::uuid FROM c25 WHERE clave = 'reclamo_libre')
 ), (SELECT valor::uuid FROM c25 WHERE clave = 'programacion_libre'),
   'El reclamo queda enlazado a la programación preparada');
+
+-- El aviso sin reclamo (inicio directo y lote) adelanta el mismo mensaje.
+SELECT ok(
+  public.validar_ocupacion_inicio_operacion(
+    '00000000-0000-4000-8000-0000000c2530',
+    '00000000-0000-4000-8000-0000000c2541',
+    (SELECT id FROM public.metas_proceso_partida
+      WHERE partida_id = '00000000-0000-4000-8000-0000000c2541'),
+    '00000000-0000-4000-8000-0000000c2501',
+    (SELECT valor::date FROM c25 WHERE clave = 'lunes'), 'matutino'
+  ) LIKE '%C25R-OCUP%No puedes cancelar el trabajo en curso de otro operador%',
+  'La RPC sin reclamo avisa del equipo ocupado antes del checklist');
+
+SELECT is(
+  public.validar_ocupacion_inicio_operacion(
+    '00000000-0000-4000-8000-0000000c2530',
+    '00000000-0000-4000-8000-0000000c2548',
+    (SELECT id FROM public.metas_proceso_partida
+      WHERE partida_id = '00000000-0000-4000-8000-0000000c2548'),
+    '00000000-0000-4000-8000-0000000c2501',
+    (SELECT valor::date FROM c25 WHERE clave = 'lunes'), 'matutino'
+  ), NULL,
+  'La RPC sin reclamo no avisa cuando el equipo está libre');
 
 SELECT * FROM finish();
 ROLLBACK;

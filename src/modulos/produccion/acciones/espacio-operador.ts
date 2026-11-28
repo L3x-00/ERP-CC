@@ -6,6 +6,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { obtenerActorProduccion } from '@/modulos/produccion/acciones/utilidades-acciones';
 import {
   ErrorProduccion,
   iniciarProcesoReclamadoServicio,
@@ -221,6 +222,36 @@ export async function validarOcupacionInicioAccion(
     });
   if (error) return { exito: false, error: 'No se pudo verificar la disponibilidad del equipo' };
   return { exito: true, datos: { ocupadoPor: typeof data === 'string' && data.trim() !== '' ? data : null } };
+}
+
+const esquemaConsultarOcupacion = z.object({
+  ordenId: z.uuid('Orden inválida'),
+  partidaId: z.uuid('Ítem inválido'),
+  metaProcesoId: z.uuid('Operación inválida').optional(),
+  fecha: z.iso.date('Fecha inválida'),
+  turno: z.enum(['matutino', 'vespertino', 'nocturno']).default('matutino'),
+}).strict();
+
+/** Aviso de solo lectura: ocupación del equipo antes de abrir cualquier checklist. */
+export async function consultarOcupacionInicioAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<string | null>> {
+  const analisis = esquemaConsultarOcupacion.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const actor = await obtenerActorProduccion();
+  if (!actor) return { exito: false, error: 'Sesión de operador no válida' };
+  const { data, error } = await crearClienteSupabaseAdmin().rpc('validar_ocupacion_inicio_operacion', {
+    p_orden_id: analisis.data.ordenId,
+    p_partida_id: analisis.data.partidaId,
+    p_meta_proceso_id: analisis.data.metaProcesoId ?? null,
+    p_operador_id: actor.id,
+    p_fecha: analisis.data.fecha,
+    p_turno: analisis.data.turno,
+  });
+  if (error) return { exito: false, error: error.message };
+  return { exito: true, datos: typeof data === 'string' && data.trim() !== '' ? data : null };
 }
 
 /**

@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -91,8 +92,11 @@ function proceso(id: string, codigoPieza: string): ProcesoEspacioOperador {
   } as unknown as ProcesoEspacioOperador;
 }
 
+const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 function montar() {
-  return render(createElement(EspacioOperador, {
+  return render(
+    createElement(QueryClientProvider, { client: consultas },
+      createElement(EspacioOperador, {
     procesos: [proceso('proceso-1', 'IT01'), proceso('proceso-2', 'IT02')],
     areas: [],
     resumen: RESUMEN,
@@ -106,7 +110,7 @@ function montar() {
     nombreOperador: 'Jorge Ramírez Ortega',
     materiales: [],
     consumos: [],
-  }));
+      })));
 }
 
 describe('creación de lote con confirmación', () => {

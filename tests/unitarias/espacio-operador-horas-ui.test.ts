@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -102,9 +103,14 @@ const PROPESPACIO = {
   consumos: [],
 };
 
+const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function conConsultas(nodo: Parameters<typeof render>[0]) {
+  return render(createElement(QueryClientProvider, { client: consultas }, nodo));
+}
+
 describe('A18 — horas trabajadas y reservadas con etiquetas claras', () => {
   it('el encabezado de Producción separa lo trabajado hoy de lo reservado hoy', () => {
-    render(createElement(EspacioOperador, PROPESPACIO));
+    conConsultas(createElement(EspacioOperador, PROPESPACIO));
 
     expect(screen.getByTestId('horas-trabajadas-hoy').textContent)
       .toContain('Trabajado hoy: 4 h 52 min');
@@ -114,7 +120,7 @@ describe('A18 — horas trabajadas y reservadas con etiquetas claras', () => {
   });
 
   it('la vista de administrador no atribuye horas trabajadas a un operador', () => {
-    render(createElement(EspacioOperador, { ...PROPESPACIO, operadorId: null }));
+    conConsultas(createElement(EspacioOperador, { ...PROPESPACIO, operadorId: null }));
 
     expect(screen.queryByTestId('horas-trabajadas-hoy')).toBeNull();
     expect(screen.getByTestId('horas-reservadas-hoy').textContent)
@@ -122,7 +128,7 @@ describe('A18 — horas trabajadas y reservadas con etiquetas claras', () => {
   });
 
   it('Mi panel no repite las mismas horas con etiquetas distintas', () => {
-    render(createElement(PaginaMiPanelOperador, {
+    conConsultas(createElement(PaginaMiPanelOperador, {
       nombreOperador: 'Jorge Ramírez Ortega',
       operadorId: 'operador-1',
       procesos: [procesoDelDia()],
