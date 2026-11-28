@@ -418,6 +418,56 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(screen.getByTestId('columna-aprobada').querySelector('[data-testid^="orden-operador-"]')).not.toBeNull();
   });
 
+  it('mantiene la tarjeta completa del proceso secundario aunque el lote oculte la columna principal', () => {
+    const lote: LoteTablero = {
+      id: 'corrida-4',
+      codigo: 'LAS06',
+      estado: 'EN_PROCESO',
+      ordenId: 'orden-1',
+      folioOrden: 'O-1126_13',
+      clienteNombre: 'alex prueba',
+      procesoNombre: 'CORTE LASER',
+      areaCodigo: 'LASER',
+      areaCodigos: ['LASER'],
+      cantidadPlanificada: 100,
+      items: [{ id: null, partidaId: 'partida-1', codigoItem: 'IT01', cantidad: 100 }],
+      creadoEn: '2026-11-27T00:00:00.000Z',
+    };
+    const delLote = proceso({
+      partidaId: 'partida-1',
+      procesoNombre: 'CORTE LASER',
+      loteId: 'corrida-4',
+      loteCodigo: 'LAS06',
+      columna: 'en_proceso',
+      programacion: { estadoPlaneacion: 'en_proceso' } as never,
+    });
+    const doblado = proceso({
+      id: 'partida-2:meta-2',
+      ordenId: 'orden-1',
+      folioOrden: 'O-1126_13',
+      partidaId: 'partida-2',
+      codigoPieza: 'IT02',
+      procesoNombre: 'DOB',
+      columna: 'bandeja',
+      secuencia: 2,
+    });
+
+    render(createElement(VistaKanbanOperador, {
+      procesos: [delLote, doblado],
+      lotes: [lote],
+      hoy: '2026-11-27',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+    }));
+
+    const tarjeta = screen.getByTestId('columna-bandeja').querySelector('[data-testid="orden-operador-orden-1"]');
+    expect(tarjeta).not.toBeNull();
+    expect(tarjeta!.getAttribute('data-vista')).toBeNull();
+    expect(tarjeta!.textContent).toContain('Ver detalle');
+    expect(tarjeta!.textContent).toContain('O-1126_13');
+  });
+
   it('deja la tarjeta completa en la columna principal y compacta la réplica en la secundaria', () => {
     render(createElement(VistaKanbanOperador, {
       procesos: [
