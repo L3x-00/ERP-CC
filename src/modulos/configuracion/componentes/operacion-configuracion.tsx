@@ -149,10 +149,11 @@ export function OperacionConfiguracion({
 
   // Si se llegó con ?foco=, abre el contenedor plegable y resalta la subsección.
   // Se lee desde window.location para no exigir un router en las pruebas.
-  const [foco, setFoco] = useState<string | null>(null);
-  useEffect(() => {
-    setFoco(new URLSearchParams(window.location.search).get('foco'));
-  }, []);
+  const [foco] = useState<string | null>(() =>
+    typeof window === 'undefined'
+      ? null
+      : new URLSearchParams(window.location.search).get('foco'),
+  );
   useEffect(() => {
     if (!foco) return;
     const temporizador = window.setTimeout(() => {
