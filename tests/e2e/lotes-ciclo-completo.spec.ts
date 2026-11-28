@@ -259,8 +259,17 @@ test('crear lote, iniciar con checklist y dejar la tarjeta en En proceso', async
     await page.getByTestId('confirmar-crear-lote').click();
     await expect(page.getByTestId('aviso-espacio')).toContainText('creado con 2 ítems');
 
-    const columnaBandeja = page.getByTestId('columna-bandeja');
-    const tarjetaLote = columnaBandeja.getByTestId(/^tarjeta-lote-piso-/);
+    let corridaId = '';
+    for (let intento = 0; intento < 30 && corridaId === ''; intento += 1) {
+      const { data } = await contexto.admin.from('corridas')
+        .select('id').eq('orden_id', contexto.ordenId).maybeSingle();
+      if (data?.id) corridaId = data.id;
+      else await page.waitForTimeout(200);
+    }
+    expect(corridaId).not.toBe('');
+
+    const tarjetaLote = page.getByTestId('columna-bandeja')
+      .getByTestId(`tarjeta-lote-piso-${corridaId}`);
     await expect(tarjetaLote).toBeVisible();
     await expect(tarjetaLote).toContainText('Planificada');
     await tarjetaLote.click();
@@ -280,8 +289,10 @@ test('crear lote, iniciar con checklist y dejar la tarjeta en En proceso', async
       return data?.estado ?? '';
     }).toBe('EN_PROCESO');
 
-    await expect(page.getByTestId('columna-en_proceso').getByTestId(/^tarjeta-lote-piso-/)).toBeVisible();
-    await page.getByTestId('columna-en_proceso').getByTestId(/^tarjeta-lote-piso-/).click();
+    const tarjetaEnProceso = page.getByTestId('columna-en_proceso')
+      .getByTestId(`tarjeta-lote-piso-${corridaId}`);
+    await expect(tarjetaEnProceso).toBeVisible();
+    await tarjetaEnProceso.click();
     await expect(page.getByTestId('tiempo-acumulado-lote')).toBeVisible();
     await expect(page.getByTestId('contador-sesion-lote')).toBeVisible();
     await expect(page.getByTestId('pausar-lote')).toBeVisible();
