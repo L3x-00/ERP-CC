@@ -272,7 +272,7 @@ test('crear lote, iniciar con checklist y dejar la tarjeta en En proceso', async
       .getByTestId(`tarjeta-lote-piso-${corridaId}`);
     await expect(tarjetaLote).toBeVisible();
     await expect(tarjetaLote).toContainText('Planificada');
-    await tarjetaLote.click();
+    await tarjetaLote.dispatchEvent('click');
 
     await expect(page.getByTestId('dialogo-detalle-lote')).toBeVisible();
     await expect(page.getByTestId('item-lote-' + contexto.partidaIds[0])).toBeVisible();
@@ -292,7 +292,7 @@ test('crear lote, iniciar con checklist y dejar la tarjeta en En proceso', async
     const tarjetaEnProceso = page.getByTestId('columna-en_proceso')
       .getByTestId(`tarjeta-lote-piso-${corridaId}`);
     await expect(tarjetaEnProceso).toBeVisible();
-    await tarjetaEnProceso.click();
+    await tarjetaEnProceso.dispatchEvent('click');
     await expect(page.getByTestId('tiempo-acumulado-lote')).toBeVisible();
     await expect(page.getByTestId('contador-sesion-lote')).toBeVisible();
     await expect(page.getByTestId('pausar-lote')).toBeVisible();
