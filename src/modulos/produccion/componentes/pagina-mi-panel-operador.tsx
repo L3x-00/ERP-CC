@@ -375,20 +375,24 @@ export function PaginaMiPanelOperador({
 
   async function abrirLote(lote: LoteTablero, fecha: string, turno: string): Promise<void> {
     const nombres = new Set([lote.procesoNombre.trim().toLowerCase()]);
-    const proceso = lote.items
+    const procesosLote = lote.items
       .map((item) => misProcesos
         .map(({ proceso: actual }) => actual)
         .find((actual) => actual.partidaId === item.partidaId
           && actual.secuencia === 1
           && nombres.has(actual.procesoNombre.trim().toLowerCase())))
-      .find((actual): actual is ProcesoEspacioOperador => actual !== undefined);
-    if (!proceso || !proceso.puedeIniciar) {
+      .filter((actual): actual is ProcesoEspacioOperador => actual !== undefined);
+    const bloqueado = procesosLote.find((actual) => !actual.puedeIniciar);
+    if (procesosLote.length !== lote.items.length || bloqueado) {
       setAviso({
         tipo: 'error',
-        texto: proceso?.motivoNoInicia ?? 'Este lote todavía no se puede iniciar desde tu panel.',
+        texto: bloqueado
+          ? `${bloqueado.codigoPieza}: ${bloqueado.motivoNoInicia ?? 'no se puede iniciar'}. Revisa los ítems del lote.`
+          : 'No se pudieron ubicar todos los ítems del lote desde tu panel.',
       });
       return;
     }
+    const proceso = procesosLote[0]!;
     if (!(await prepararInicio(proceso, fecha, turno))) return;
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
@@ -397,19 +401,18 @@ export function PaginaMiPanelOperador({
 
   async function pausarLote(
     lote: LoteTablero,
-    datos: { motivoPausa: string; notas?: string },
+    datos: { motivoPausa: string; piezasProducidas: number; notas?: string },
   ): Promise<void> {
     if (!lote.sesion) {
       setAviso({ tipo: 'error', texto: 'No hay una sesión de este lote que se pueda pausar.' });
       return;
     }
-    const itemSesion = lote.items.find((item) => item.partidaId === lote.sesion?.partidaId);
     setProcesando(lote.sesion.sesionId);
     const resultado = await (async () => {
       try {
         return await cerrarSesionOperadorAccion({
           sesionId: lote.sesion!.sesionId,
-          piezasProducidas: itemSesion?.hechoPiezas ?? 0,
+          piezasProducidas: datos.piezasProducidas,
           estadoDestino: 'pausada',
           motivoPausa: datos.motivoPausa as 'DUDA',
           ...(datos.notas ? { notas: datos.notas } : {}),

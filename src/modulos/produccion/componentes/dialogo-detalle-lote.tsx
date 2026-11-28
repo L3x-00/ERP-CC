@@ -31,7 +31,11 @@ interface PropsDialogoDetalleLote {
   procesando?: boolean;
   onIniciar?: (lote: LoteTablero, fecha: string, turno: string) => void;
   motivosPausa?: readonly MotivoPausaCatalogo[];
-  onPausar?: (lote: LoteTablero, datos: { motivoPausa: string; notas?: string }) => void;
+  onPausar?: (lote: LoteTablero, datos: {
+    motivoPausa: string;
+    piezasProducidas: number;
+    notas?: string;
+  }) => void;
   onFinalizar?: (lote: LoteTablero) => void;
   onReanudar?: (lote: LoteTablero) => void;
   onAbrirItem?: (partidaId: string) => void;
@@ -59,11 +63,18 @@ export function DialogoDetalleLote({
   const [turno, setTurno] = useState('matutino');
   const [motivoPausa, setMotivoPausa] = useState<string>('DUDA');
   const [notasPausa, setNotasPausa] = useState('');
+  const [piezasPausa, setPiezasPausa] = useState('0');
 
   const enCurso = lote !== null && lote.estado !== 'PLANIFICADA';
   const requiereNota = motivosPausa?.find((motivo) => motivo.codigo === motivoPausa)?.requiereNota
     ?? ['FALLA', 'OTRA', 'problema_tecnico', 'mantenimiento', 'otro'].includes(motivoPausa);
   const sesion = lote?.sesion ?? null;
+  const itemSesion = sesion ? lote?.items.find((item) => item.partidaId === sesion.partidaId) : undefined;
+  const piezasDeclaradas = Number(piezasPausa);
+  const topePiezas = itemSesion?.pendientePiezas ?? lote?.cantidadPlanificada ?? 0;
+  const piezasValidas = piezasPausa.trim() !== ''
+    && Number.isInteger(piezasDeclaradas) && piezasDeclaradas >= 0
+    && piezasDeclaradas <= topePiezas;
   const piezasHechas = lote?.items.reduce((total, item) => total + (item.hechoPiezas ?? 0), 0) ?? 0;
   const avance = lote && lote.cantidadPlanificada > 0
     ? Math.min(100, Math.round(piezasHechas / lote.cantidadPlanificada * 100))
@@ -192,6 +203,24 @@ export function DialogoDetalleLote({
                                 ))}
                             </Select>
                           </label>
+                          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+                            Piezas producidas en esta sesión
+                            <Input
+                              type="number"
+                              min={0}
+                              max={itemSesion?.pendientePiezas ?? undefined}
+                              step={1}
+                              value={piezasPausa}
+                              onChange={(evento) => setPiezasPausa(evento.target.value)}
+                              aria-invalid={!piezasValidas}
+                              data-testid="piezas-pausa-lote"
+                            />
+                          </label>
+                          {!piezasValidas ? (
+                            <p className="text-xs text-advertencia-texto">
+                              Indica un número entero de piezas que no supere el pendiente del ítem.
+                            </p>
+                          ) : null}
                           <Input
                             aria-label="Notas de la pausa"
                             value={notasPausa}
@@ -211,9 +240,10 @@ export function DialogoDetalleLote({
                           <Button
                             type="button"
                             variante="contorno"
-                            disabled={procesando || (requiereNota && !notasPausa.trim())}
+                            disabled={procesando || !piezasValidas || (requiereNota && !notasPausa.trim())}
                             onClick={() => onPausar(lote, {
                               motivoPausa,
+                              piezasProducidas: piezasDeclaradas,
                               ...(notasPausa.trim() ? { notas: notasPausa.trim() } : {}),
                             })}
                             data-testid="pausar-lote"

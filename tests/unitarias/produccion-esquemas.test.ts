@@ -121,6 +121,20 @@ describe('esquemas de Producción', () => {
     }).success).toBe(false);
   });
 
+  it('acepta hasta 200 ítems al cerrar una corrida integrada', () => {
+    const items = Array.from({ length: 200 }, (_, indice) => ({
+      partidaId: `00000000-0000-4000-8000-${String(indice + 1).padStart(12, '0')}`,
+      piezas: 1,
+      minutos: null,
+    }));
+    expect(esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 1,
+      estadoDestino: 'finalizada',
+      itemsIntegrados: items,
+    }).success).toBe(true);
+  });
+
   it('rechaza un PIN de confirmación como campo no declarado', () => {
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,

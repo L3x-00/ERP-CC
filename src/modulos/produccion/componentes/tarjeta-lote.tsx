@@ -74,7 +74,7 @@ export function TarjetaLote({
         <div className="min-w-0">
           {compacta ? null : (
             <p className="text-xs font-semibold uppercase tracking-wide text-acento-texto">
-              {lote.estado === 'PLANIFICADA' ? 'Lote nuevo en proceso' : 'Lote en curso'}
+              {lote.estado === 'PLANIFICADA' ? 'Lote en bandeja' : 'Lote en curso'}
             </p>
           )}
           <strong className={cn(
