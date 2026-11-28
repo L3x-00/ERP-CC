@@ -102,6 +102,7 @@ export const MODULOS_E2E = Object.freeze({
     'produccion-avance-procesos',
     'produccion-c20-flujo',
     'corridas-calidad',
+    'lotes-ciclo-completo',
     'taller-taxonomia',
     'ordenes-flujo-completo',
   ],
