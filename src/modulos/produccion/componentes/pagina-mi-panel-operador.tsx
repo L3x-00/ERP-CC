@@ -131,6 +131,9 @@ export function PaginaMiPanelOperador({
   );
   const sugerenciaSeleccionada = sugerenciasLote.find((sugerencia) =>
     sugerencia.procesos.some((proceso) => proceso.id === procesoSeleccionadoId)) ?? null;
+  const loteActual = loteAbierto
+    ? lotes?.find((lote) => lote.id === loteAbierto.id) ?? loteAbierto
+    : null;
 
   async function crearLote(sugerencia: SugerenciaCorrida): Promise<void> {
     if (creandoLote !== null) {
@@ -390,6 +393,83 @@ export function PaginaMiPanelOperador({
     setLoteAbierto(null);
     setCorridaInicioId(lote.id);
     setInicioPendienteId(proceso.id);
+  }
+
+  async function pausarLote(
+    lote: LoteTablero,
+    datos: { motivoPausa: string; notas?: string },
+  ): Promise<void> {
+    if (!lote.sesion) {
+      setAviso({ tipo: 'error', texto: 'No hay una sesión de este lote que se pueda pausar.' });
+      return;
+    }
+    const itemSesion = lote.items.find((item) => item.partidaId === lote.sesion?.partidaId);
+    setProcesando(lote.sesion.sesionId);
+    const resultado = await (async () => {
+      try {
+        return await cerrarSesionOperadorAccion({
+          sesionId: lote.sesion!.sesionId,
+          piezasProducidas: itemSesion?.hechoPiezas ?? 0,
+          estadoDestino: 'pausada',
+          motivoPausa: datos.motivoPausa as 'DUDA',
+          ...(datos.notas ? { notas: datos.notas } : {}),
+        });
+      } finally {
+        setProcesando(null);
+      }
+    })();
+    setAviso({
+      tipo: resultado.exito ? 'ok' : 'error',
+      texto: resultado.exito
+        ? 'Sesión del lote pausada.'
+        : resultado.error ?? 'No se pudo pausar la sesión.',
+    });
+    if (resultado.exito) {
+      setLoteAbierto(null);
+      enrutador.refresh();
+    }
+  }
+
+  async function reanudarLote(lote: LoteTablero): Promise<void> {
+    const sesion = lote.sesion;
+    if (!sesion?.programacionId) {
+      setAviso({ tipo: 'error', texto: 'El lote no tiene una programación válida para reanudar.' });
+      return;
+    }
+    setProcesando(sesion.sesionId);
+    const resultado = await (async () => {
+      try {
+        return await reanudarSesionOperadorAccion({
+          ordenId: lote.ordenId,
+          partidaId: sesion.partidaId,
+          programacionId: sesion.programacionId,
+          actualizadoEnEsperado: sesion.actualizadoEnEsperado,
+        });
+      } finally {
+        setProcesando(null);
+      }
+    })();
+    setAviso({
+      tipo: resultado.exito ? 'ok' : 'error',
+      texto: resultado.exito ? 'Corrida reanudada.' : resultado.error ?? 'No se pudo reanudar.',
+    });
+    if (resultado.exito) enrutador.refresh();
+  }
+
+  function abrirItemDelLote(lote: LoteTablero, partidaId: string): void {
+    const procesosDelPanel = misProcesos.map(({ proceso: actual }) => actual);
+    const proceso = (partidaId
+      ? procesosDelPanel.find((actual) => actual.partidaId === partidaId
+        && lote.items.some((item) => item.partidaId === partidaId))
+      : null)
+      ?? procesosDelPanel.find((actual) => actual.partidaId === lote.sesion?.partidaId
+        && lote.items.some((item) => item.partidaId === actual.partidaId));
+    if (!proceso) {
+      setAviso({ tipo: 'error', texto: 'No se pudo ubicar el ítem en tu panel.' });
+      return;
+    }
+    setLoteAbierto(null);
+    setProcesoSeleccionadoId(proceso.id);
   }
 
   async function confirmarInicio(verificacion: VerificacionInicio): Promise<ResultadoOperacion> {
@@ -667,10 +747,17 @@ export function PaginaMiPanelOperador({
 
       <DialogoDetalleLote
         key={loteAbierto?.id ?? 'sin-lote'}
-        lote={loteAbierto}
+        lote={loteActual}
         puedeOperar
         procesando={procesando !== null}
+        motivosPausa={motivosPausa}
         onIniciar={abrirLote}
+        onPausar={pausarLote}
+        onReanudar={reanudarLote}
+        onFinalizar={(lote) => abrirItemDelLote(lote, lote.sesion?.partidaId ?? '')}
+        onAbrirItem={(partidaId) => {
+          if (loteActual) abrirItemDelLote(loteActual, partidaId);
+        }}
         onCerrar={() => setLoteAbierto(null)}
       />
 
